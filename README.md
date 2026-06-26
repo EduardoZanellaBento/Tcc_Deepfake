@@ -67,4 +67,6 @@ pip install numpy pandas scipy librosa soundfile scikit-learn matplotlib seaborn
 python scripts/verificar_ambiente.py
 ```
 ## Ambiente
+```bash
 jupyter notebook
+```
