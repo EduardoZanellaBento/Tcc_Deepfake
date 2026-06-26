@@ -1,0 +1,23 @@
+# Ambientes Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Dados pesados — NÃO subir para o git (são muitos GB)
+data/raw/
+data/processed/
+data/features/*.csv
+
+# Modelos treinados (pesados)
+models/*.pkl
+models/*.h5
+models/*.keras
+
+# Resultados gerados (opcional versionar — descomente se quiser ignorar)
+# results/
+
+# Sistema
+.DS_Store
+Thumbs.db

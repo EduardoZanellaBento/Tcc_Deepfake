@@ -1,0 +1,26 @@
+# --- Núcleo numérico e dados ---
+numpy>=1.26
+pandas>=2.0
+scipy>=1.11
+
+# --- Áudio: I/O, MFCC, ZCR, centróide espectral, espectrogramas ---
+librosa>=0.10
+soundfile>=0.12
+
+# --- Machine learning clássico (RF, SVM, métricas, split, tuning) ---
+scikit-learn>=1.4
+
+# --- Deep learning (CNN). Alternativa: trocar por torch se preferir PyTorch ---
+tensorflow>=2.15
+
+# --- Visualização (matriz de confusão, gráficos) ---
+matplotlib>=3.8
+seaborn>=0.13
+
+# --- Utilidades ---
+tqdm>=4.66          # barras de progresso
+pyyaml>=6.0         # leitura do config.yaml
+jupyter>=1.0        # notebooks
+
+# --- VAD (remoção de silêncio) — escolha UMA na Semana 3 ---
+# webrtcvad-wheels>=2.0.12   # VAD simples e leve (recomendado para começar)

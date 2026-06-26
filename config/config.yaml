@@ -1,0 +1,61 @@
+# =============================================================================
+# CONFIGURAÇÃO CENTRAL DO EXPERIMENTO
+# Todo parâmetro metodológico mora aqui. Quando a banca perguntar "qual sample
+# rate? quantos MFCCs? qual a semente?", a resposta está neste arquivo.
+# =============================================================================
+
+semente: 42          # reprodutibilidade: mesma semente => mesmos splits/resultados
+
+dataset:
+  nome: "ASVspoof2021_LA_eval"
+  caminho_audios: "data/raw/ASVspoof2021_LA_eval/flac"
+  caminho_chaves: "data/raw/keys/LA/CM/trial_metadata.txt"  # labels (bonafide/spoof)
+  # Subamostragem estratificada: 181k áudios é demais para um notebook de aluno.
+  # Mantém a proporção real/sintético do conjunto original.
+  usar_subamostra: true
+  tamanho_subamostra: 25000   # nº total de áudios após subamostragem
+
+audio:
+  sample_rate: 16000   # Hz. ASVspoof é 16kHz. Manter alto preserva artefatos de alta freq.
+  duracao_segundos: 4.0  # padroniza duração (corta/preenche). Define janela fixa de entrada.
+  vad: true            # remoção de silêncio (Voice Activity Detection)
+
+features:                # parâmetros das características manuais (RF e SVM)
+  n_mfcc: 20           # nº de coeficientes MFCC
+  n_fft: 512           # tamanho da FFT
+  hop_length: 256      # passo entre janelas
+  win_length: 400      # ~25ms a 16kHz (janelamento)
+  # Por áudio guardamos média + desvio-padrão de cada feature ao longo do tempo,
+  # transformando uma série temporal num vetor de tamanho fixo (entrada tabular).
+  agregacao: ["media", "desvio_padrao"]
+
+espectrograma:           # entrada da CNN
+  tipo: "mel"          # "mel" (mel-spectrogram) ou "linear"
+  n_mels: 128
+  altura: 128          # dimensões da "imagem" que entra na CNN
+  largura: 256
+
+split:
+  treino: 0.70
+  validacao: 0.15
+  teste: 0.15
+  estratificado: true  # mantém proporção real/sintético em cada subconjunto
+
+validacao_cruzada:
+  tipo: "stratified_kfold"
+  n_folds: 5
+
+desbalanceamento:
+  estrategia: "class_weights"   # penaliza mais o erro na classe minoritária (real)
+
+tuning:
+  metodo: "random_search"   # mais eficiente que grid search em espaços grandes
+  n_iter: 30
+
+metricas:
+  - acuracia
+  - precisao
+  - recall
+  - f1
+  - eer                # Equal Error Rate — métrica padrão da literatura ASVspoof
+  - tempo_inferencia   # viabilidade computacional (diferencial do trabalho)
