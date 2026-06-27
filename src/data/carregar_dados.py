@@ -1,12 +1,12 @@
 """
-Leitura dos labels e metadados do ASVspoof 2021 LA  (Semana 2).
+Leitura dos labels e metadados do ASVspoof 2021 LA
 
 Filosofia deste módulo: NÃO confiar cegamente na posição das colunas. O código
 inspeciona o arquivo, detecta sozinho onde está o rótulo (bonafide/spoof) e o ID
 do áudio, e monta uma tabela limpa. Se o formato do arquivo variar um pouco, o
 código continua funcionando.
 
-Tabela de saída (o que o cronograma pede nesta semana):
+Tabela de saída:
     arquivo | caminho | label | classe_binaria
     onde classe_binaria: 0 = bonafide (real), 1 = spoof (sintético)
 """

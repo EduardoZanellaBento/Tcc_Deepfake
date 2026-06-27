@@ -1,5 +1,5 @@
 """
-Verificação de ambiente — Semana 1.
+Verificação de ambiente
 
 Roda este script depois de instalar o requirements.txt. Ele confirma que todas
 as bibliotecas estão instaladas, mostra as versões, checa se há GPU disponível
