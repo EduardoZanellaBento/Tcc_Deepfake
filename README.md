@@ -47,26 +47,26 @@ deteccao-voz-sintetica/
 
 ## Mapa pasta × cronograma do TC II
 
-| Semana | Foco                         | Onde mexe                          |
-|--------|------------------------------|------------------------------------|
-| 1      | Ambiente + dataset           | `config/`, `data/raw/`, `scripts/` |
-| 2      | Leitura de labels            | `src/data/`, `notebooks/`          |
-| 3      | Pré-processamento            | `src/data/`, `data/processed/`     |
-| 4      | Extração de features         | `src/features/`, `data/features/`  |
-| 5–7    | Random Forest + SVM          | `src/models/`, `results/`          |
-| 8–10   | CNN                          | `src/features/`, `src/models/`     |
-| 11     | Comparação final             | `results/`                         |
-| 12–13  | Escrita                      | —                                  |
+| Foco                         | Onde mexe                          |
+|------------------------------|------------------------------------|
+| Ambiente + dataset           | `config/`, `data/raw/`, `scripts/` |
+| Leitura de labels            | `src/data/`, `notebooks/`          |
+| Pré-processamento            | `src/data/`, `data/processed/`     |
+| Extração de features         | `src/features/`, `data/features/`  |
+| Random Forest + SVM          | `src/models/`, `results/`          |
+| CNN                          | `src/features/`, `src/models/`     |
+| Comparação final             | `results/`                         |
 
 ## Como começar
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install numpy pandas scipy librosa soundfile scikit-learn matplotlib seaborn tqdm pyyaml jupyter nbformat
+source .venv/bin/activate          # Windows: .venv/Scripts/activate
+pip install requirements.txt
 python scripts/verificar_ambiente.py
 ```
-## Ambiente
+## Preparar ambiente
 ```bash
+source .venv/Scripts/activate
 jupyter notebook
 ```

@@ -46,9 +46,10 @@ def main():
     ok &= checar("seaborn",      lambda: __import__("seaborn").__version__)
     ok &= checar("yaml",         lambda: __import__("yaml").__version__)
     ok &= checar("tqdm",         lambda: __import__("tqdm").__version__)
+    ok &= checar("webrtcvad",    lambda: __import__("webrtcvad").__version__)
 
     # TensorFlow é opcional nesta fase (só a CNN precisa). Não derruba o check.
-    print("\nDeep learning (necessário a partir da Semana 8):")
+    print("\nDeep learning (necessário somente para CNN):")
     try:
         import tensorflow as tf
         gpus = tf.config.list_physical_devices("GPU")

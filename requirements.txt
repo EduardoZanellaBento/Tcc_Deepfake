@@ -1,26 +1,26 @@
 # --- Núcleo numérico e dados ---
-numpy>=1.26
-pandas>=2.0
-scipy>=1.11
+numpy>=2.2.6
+pandas>=2.3.3
+scipy>=1.15.3
 
 # --- Áudio: I/O, MFCC, ZCR, centróide espectral, espectrogramas ---
-librosa>=0.10
-soundfile>=0.12
+librosa>=0.11.0
+soundfile>=0.14.0
 
 # --- Machine learning clássico (RF, SVM, métricas, split, tuning) ---
-scikit-learn>=1.4
+scikit-learn>=1.7.2
 
 # --- Deep learning (CNN). Alternativa: trocar por torch se preferir PyTorch ---
-tensorflow>=2.15
+tensorflow>=2.21.0
 
 # --- Visualização (matriz de confusão, gráficos) ---
-matplotlib>=3.8
-seaborn>=0.13
+matplotlib>=3.10.9
+seaborn>=0.13.2
 
 # --- Utilidades ---
-tqdm>=4.66          # barras de progresso
-pyyaml>=6.0         # leitura do config.yaml
-jupyter>=1.0        # notebooks
+tqdm>=4.68.3       # barras de progresso
+pyyaml>=6.0.3      # leitura do config.yaml
+jupyter>=1.1.1     # notebooks
 
-# --- VAD (remoção de silêncio) — escolha UMA na Semana 3 ---
-# webrtcvad-wheels>=2.0.12   # VAD simples e leve (recomendado para começar)
+# --- VAD (remoção de silêncio) ---
+webrtcvad-wheels>=2.0.12   # VAD simples e leve (recomendado para começar)
