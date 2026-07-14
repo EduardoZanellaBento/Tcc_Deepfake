@@ -62,7 +62,7 @@ deteccao-voz-sintetica/
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv/Scripts/activate
-pip install requirements.txt
+pip install -r requirements.txt
 python scripts/verificar_ambiente.py
 ```
 ## Preparar ambiente
