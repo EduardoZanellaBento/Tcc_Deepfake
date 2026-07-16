@@ -1,0 +1,42 @@
+{
+  "modelo": "random_forest_baseline",
+  "acuracia": 0.9085368092527997,
+  "precisao_spoof": 0.9076877411694865,
+  "recall_spoof": 0.9998773858666775,
+  "f1_spoof": 0.9515548727124215,
+  "precisao_bonafide": 0.9893992932862191,
+  "recall_bonafide": 0.10115606936416185,
+  "f1_bonafide": 0.18354637823664371,
+  "f1_macro": 0.5675506254745326,
+  "eer": 0.17612776800224722,
+  "limiar_eer": 0.88,
+  "tempo_treino_s": 9.91,
+  "tempo_inferencia_total_s": 0.047,
+  "tempo_inferencia_por_audio_ms": 0.0017,
+  "n_treino": 127096,
+  "n_validacao": 27235,
+  "semente": 42,
+  "acuracia_baseline_trivial": 0.8983660730677437,
+  "matriz_confusao": [
+    [
+      280,
+      2488
+    ],
+    [
+      3,
+      24464
+    ]
+  ],
+  "top10_features": {
+    "mfcc4_std": 0.05564,
+    "centroide_media": 0.02748,
+    "mfcc15_media": 0.02707,
+    "mfcc1_media": 0.027,
+    "mfcc2_std": 0.02643,
+    "mfcc1_std": 0.0263,
+    "mfcc8_media": 0.02598,
+    "mfcc18_std": 0.02593,
+    "mfcc13_media": 0.02563,
+    "mfcc4_media": 0.0255
+  }
+}
