@@ -13,8 +13,11 @@ dataset:
   # Subamostragem estratificada: eval completo (181.566); sem subamostragem, para aderir ao protocolo do ASVspoof 2021.
   # Mantém a proporção real/sintético do conjunto original.
   usar_subamostra: false
-  tamanho_subamostra: 25000   # nº total de áudios após subamostragem
 
+modelos:
+  svm:
+    tamanho_subamostra: 30000
+  
 audio:
   sample_rate: 16000   # Hz. ASVspoof é 16kHz. Manter alto preserva artefatos de alta freq.
   duracao_segundos: 4.0  # padroniza duração (corta/preenche). Define janela fixa de entrada.
