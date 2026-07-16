@@ -26,6 +26,7 @@ from pathlib import Path
 
 import numpy as np
 import librosa
+import soundfile as sf
 import webrtcvad
 
 
@@ -33,18 +34,25 @@ import webrtcvad
 # 1) Carregamento + padronização de sample rate e canais
 # ---------------------------------------------------------------------------
 def carregar_audio(caminho: str, sr: int = 16000) -> np.ndarray:
-    """Carrega um áudio como mono, reamostrando para `sr`.
+    """Carrega um áudio como mono float32 em [-1, 1], reamostrando para `sr`.
 
-    librosa já faz duas padronizações importantes de uma vez:
-      - mono=True  -> mistura eventuais canais estéreo num só (o ASVspoof é mono,
-        mas deixamos explícito para robustez).
-      - sr=16000   -> força a taxa de amostragem. No ASVspoof já é 16 kHz, então
-        aqui é praticamente um passa-direto; mas fixar isso garante que, se algum
-        arquivo vier diferente, ele é reamostrado em vez de contaminar o pipeline.
+    Lemos com soundfile DIRETO, e não com librosa.load, por um motivo de
+    diagnóstico: quando o soundfile falha, o librosa.load engole a exceção real
+    e tenta o fallback via audioread — que no Windows sem ffmpeg só produz um
+    NoBackendError() vazio. Com a leitura direta, a exceção verdadeira do
+    decodificador (ex.: LibsndfileError) sobe intacta até o erros.csv.
 
-    Retorna a forma de onda em float32 na faixa [-1, 1].
+    Padronizações aplicadas:
+      - mono: eventuais canais extras são misturados pela média (o ASVspoof é
+        mono; isto é só robustez).
+      - sr=16000: no ASVspoof já é 16 kHz, então a reamostragem é um passa-direto;
+        só reamostramos de fato se o arquivo vier com taxa diferente.
     """
-    y, _ = librosa.load(caminho, sr=sr, mono=True)
+    y, sr_orig = sf.read(caminho, dtype="float32", always_2d=False)
+    if y.ndim > 1:
+        y = y.mean(axis=1)
+    if sr_orig != sr:
+        y = librosa.resample(y, orig_sr=sr_orig, target_sr=sr)
     return y.astype(np.float32)
 
 

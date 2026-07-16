@@ -5,7 +5,12 @@ scipy>=1.15.3
 
 # --- Áudio: I/O, MFCC, ZCR, centróide espectral, espectrogramas ---
 librosa>=0.11.0
-soundfile>=0.14.0
+# soundfile PINADO em 0.12.1 (libsndfile 1.2.0): os wheels 0.13/0.14 para Windows
+# embutem um libsndfile 1.2.2 cujo decodificador FLAC falha em ~44% dos FLACs
+# válidos do ASVspoof 2021 LA eval (LibsndfileError determinístico no meio do
+# stream). Verificado por MD5 do STREAMINFO e por decodificador independente
+# (dr_flac): os arquivos são íntegros; o bug é do binário embutido.
+soundfile==0.12.1
 
 # --- Machine learning clássico (RF, SVM, métricas, split, tuning) ---
 scikit-learn>=1.7.2

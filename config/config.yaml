@@ -10,9 +10,9 @@ dataset:
   nome: "ASVspoof2021_LA_eval"
   caminho_audios: "data/raw/ASVspoof2021_LA_eval/flac"
   caminho_chaves: "data/raw/keys/LA/CM/trial_metadata.txt"  # labels (bonafide/spoof)
-  # Subamostragem estratificada: 181k áudios é demais para um notebook de aluno.
+  # Subamostragem estratificada: eval completo (181.566); sem subamostragem, para aderir ao protocolo do ASVspoof 2021.
   # Mantém a proporção real/sintético do conjunto original.
-  usar_subamostra: true
+  usar_subamostra: false
   tamanho_subamostra: 25000   # nº total de áudios após subamostragem
 
 audio:
