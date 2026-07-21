@@ -1,0 +1,13 @@
+,,prop_fala,centroide_media,centroide_std,zcr_media,zcr_std,classe_binaria
+pearson,prop_fala,1.0,0.081,0.013,0.084,0.041,0.41
+pearson,centroide_media,0.081,1.0,0.685,0.97,0.782,-0.022
+pearson,centroide_std,0.013,0.685,1.0,0.644,0.95,-0.006
+pearson,zcr_media,0.084,0.97,0.644,1.0,0.789,-0.006
+pearson,zcr_std,0.041,0.782,0.95,0.789,1.0,0.008
+pearson,classe_binaria,0.41,-0.022,-0.006,-0.006,0.008,1.0
+spearman,prop_fala,1.0,0.042,-0.032,0.044,0.009,0.389
+spearman,centroide_media,0.042,1.0,0.65,0.965,0.765,-0.036
+spearman,centroide_std,-0.032,0.65,1.0,0.614,0.922,-0.02
+spearman,zcr_media,0.044,0.965,0.614,1.0,0.781,-0.02
+spearman,zcr_std,0.009,0.765,0.922,0.781,1.0,-0.0
+spearman,classe_binaria,0.389,-0.036,-0.02,-0.02,-0.0,1.0

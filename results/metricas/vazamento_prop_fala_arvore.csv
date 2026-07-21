@@ -1,0 +1,2 @@
+modelo,n_treino,n_validacao,f1_macro,eer,cm_bonafide_como_bonafide,cm_bonafide_como_spoof,cm_spoof_como_bonafide,cm_spoof_como_spoof
+arvore_so_prop_fala,115139,24703,0.6503,0.1933,2267,184,5473,16779
