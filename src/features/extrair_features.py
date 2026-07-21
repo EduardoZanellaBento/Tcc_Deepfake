@@ -78,7 +78,13 @@ def extrair_vetor(y: np.ndarray, sr: int, cfg: dict) -> np.ndarray:
     # ZCR -> (1, n_janelas): cruzamentos por zero. Ruído/fricativas de alta freq.
     zcr = librosa.feature.zero_crossing_rate(y, frame_length=win, hop_length=hop)
     # Centróide espectral -> (1, n_janelas): "centro de massa" do espectro.
-    cent = librosa.feature.spectral_centroid(y=y, sr=sr, n_fft=n_fft, hop_length=hop)
+    # TODO: requer re-extração — o features.csv atual foi gerado SEM win_length
+    # (a chamada usava a janela default = n_fft = 512 em vez dos 400 usados por
+    # MFCC/ZCR). A correção abaixo só vale a partir do próximo lote único de
+    # re-extração (decisão do Eduardo); NÃO rodar a extração por causa disto.
+    cent = librosa.feature.spectral_centroid(
+        y=y, sr=sr, n_fft=n_fft, hop_length=hop, win_length=win
+    )
 
     # Agregação temporal: para cada série, média e desvio-padrão ao longo do tempo.
     partes = []
