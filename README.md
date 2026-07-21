@@ -26,7 +26,7 @@ ASVspoof 2021 — subconjunto **Logical Access (LA)**.
 ## Estrutura de pastas
 
 ```
-deteccao-voz-sintetica/
+Tcc_Deepfake/
 ├── config/             # parâmetros do experimento (config.yaml)
 ├── data/
 │   ├── raw/            # áudios + chaves originais (NÃO versionado no git)
@@ -69,4 +69,14 @@ python scripts/verificar_ambiente.py
 ```bash
 source .venv/Scripts/activate
 jupyter notebook
+```
+
+## Como executar os módulos
+
+Sempre a partir da **raiz** do projeto, com `python -m` (os imports são relativos):
+
+```bash
+python -m src.data.split
+python -m src.models.treinar_rf
+python -m src.features.extrair_features   # ATENÇÃO: re-extração leva horas; só rodar com decisão explícita
 ```
