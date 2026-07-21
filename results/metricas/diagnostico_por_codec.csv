@@ -1,0 +1,8 @@
+codec,banda,n,n_bonafide,f1_macro,recall_bonafide,recall_spoof,eer
+alaw,estreita,3834,384,0.6743,0.2422,0.9997,0.1373
+ulaw,estreita,3859,420,0.6668,0.2333,1.0,0.1467
+gsm,estreita,3977,375,0.4806,0.0053,0.9997,0.2268
+pstn,estreita,3953,400,0.4734,0.0,1.0,0.2684
+g722,larga,3850,418,0.5571,0.0909,1.0,0.1335
+opus,larga,3855,391,0.4888,0.0153,1.0,0.1838
+none,larga,3907,380,0.5785,0.1132,0.9997,0.1161
