@@ -10,12 +10,27 @@ dataset:
   nome: "ASVspoof2021_LA_eval"
   caminho_audios: "data/raw/ASVspoof2021_LA_eval/flac"
   caminho_chaves: "data/raw/keys/LA/CM/trial_metadata.txt"  # labels (bonafide/spoof)
+  # TODO [DECISÃO METODOLÓGICA — Eduardo + Prof. Anderson]
+  # O total de 181.566 NÃO é o conjunto eval: é eval(148.176) + progress(16.464) +
+  # hidden(16.926). O subconjunto 'hidden' == 'only_speech' (silêncio pré-cortado),
+  # pré-processamento distinto do restante (notrim), o que confunde a análise de
+  # prop_fala. O conjunto oficialmente pontuado do ASVspoof 2021 LA é fase=='eval'.
+  # Recomendação registrada: filtrar para fase=='eval' (148.176, notrim).
+  # NÃO filtrar automaticamente — decisão do orientador. Ver diagnostico_composicao_dataset.py.
   # Subamostragem estratificada: eval completo (181.566); sem subamostragem, para aderir ao protocolo do ASVspoof 2021.
   # Mantém a proporção real/sintético do conjunto original.
   usar_subamostra: false
 
 modelos:
   svm:
+    # TODO [DECISÃO METODOLÓGICA — Eduardo + Prof. Anderson, PENDENTE]
+    # SVM-RBF é O(n^2)~O(n^3); ~127k amostras de treino são inviáveis (matriz de kernel
+    # > 60GB). Recomendação registrada: subamostra estratificada ÚNICA (~30k) por
+    # classe_binaria × codec, seed 42, salva em disco, COMPARTILHADA por RF, SVM e CNN,
+    # para preservar o "mesmo ambiente experimental" da pergunta de pesquisa.
+    # Evidência de suficiência: scripts/curva_aprendizado_rf.py.
+    # NÃO implementar o ramo de subamostra até a decisão. Split de val/teste ficam
+    # SEMPRE completos.
     tamanho_subamostra: 30000
   
 audio:
@@ -24,6 +39,16 @@ audio:
   vad: true            # remoção de silêncio (Voice Activity Detection)
 
 features:                # parâmetros das características manuais (RF e SVM)
+  # TODO [DECISÃO METODOLÓGICA — Eduardo + Prof. Anderson]
+  # fmax=4000 GLOBAL está REJEITADO pela composição do dataset:
+  #   banda estreita (teto 4kHz): alaw, ulaw, gsm, pstn  -> 57%
+  #   banda larga  (>4kHz):       g722, opus, none        -> 43%
+  # Filtrar tudo em 4kHz destruiria sinal real em 43% dos dados, justamente a banda
+  # alta onde vivem os artefatos de síntese. Decisão: NÃO filtrar globalmente e
+  # reportar métrica POR CODEC (ver scripts/diagnostico_por_codec.py).
+  # NÃO alterar fmax e NÃO re-extrair sem decisão explícita.
+  # Estado atual: nenhum fmax é passado ao librosa — o MFCC usa o default
+  # (fmax = sr/2 = 8000 Hz). O features.csv em disco foi extraído assim.
   n_mfcc: 20           # nº de coeficientes MFCC
   n_fft: 512           # tamanho da FFT
   hop_length: 256      # passo entre janelas

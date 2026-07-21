@@ -32,6 +32,15 @@ Saída: data/processed/split.csv  com [arquivo, conjunto], conjunto ∈
 artefato versionável e auditável, idêntico para RF, SVM e CNN. Sem isso, cada
 modelo poderia (por descuido) treinar numa partição diferente, e a comparação —
 que é o coração deste trabalho — perderia o sentido.
+
+TODO [LIMITAÇÃO CONHECIDA — documentar no TC II]
+Split aleatório por utterance, estratificado só por classe_binaria. Cada ataque
+(A07-A19), codec e LOCUTOR se repete em milhares de arquivos, aparecendo em treino E
+teste. O modelo pode memorizar a assinatura de um vocoder/locutor específico.
+Implicações: (1) métricas otimistas vs. cenário cross-attack; (2) NÃO são
+comparáveis ao EER de 1,32% de Yamagishi et al. (2022), cujo protocolo é
+deliberadamente cross-attack. Mitigação mínima: reportar métricas por ataque
+(B2) e por codec (B5). Ideal: experimento leave-one-attack-out (decisão do orientador).
 """
 
 from pathlib import Path
