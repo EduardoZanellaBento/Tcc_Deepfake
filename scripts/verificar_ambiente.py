@@ -48,15 +48,33 @@ def main():
     ok &= checar("tqdm",         lambda: __import__("tqdm").__version__)
     ok &= checar("webrtcvad",    lambda: __import__("webrtcvad").__version__)
 
-    # TensorFlow é opcional nesta fase (só a CNN precisa). Não derruba o check.
+    # PyTorch é opcional nesta fase (só a CNN precisa). Não derruba o check.
     print("\nDeep learning (necessário somente para CNN):")
     try:
-        import tensorflow as tf
-        gpus = tf.config.list_physical_devices("GPU")
-        print(f"  [OK]   tensorflow     {tf.__version__}")
-        print(f"         GPU disponível: {'SIM (' + str(len(gpus)) + ')' if gpus else 'NÃO (vai usar CPU)'}")
+        import torch
+        print(f"  [OK]   torch          {torch.__version__}")
+        print(f"         compilado para CUDA: {torch.version.cuda}")
+
+        if torch.cuda.is_available():
+            cap = torch.cuda.get_device_capability(0)
+            vram = torch.cuda.get_device_properties(0).total_memory / 1024**3
+            print(f"         GPU: {torch.cuda.get_device_name(0)}")
+            print(f"         compute capability: {cap}  |  VRAM: {vram:.1f} GB")
+            # TESTE REAL: em Blackwell (sm_120) a GPU pode ser DETECTADA e mesmo
+            # assim não haver kernel compilado para ela. O erro "no kernel image
+            # is available for execution on the device" só aparece ao EXECUTAR
+            # algo de verdade — nunca no is_available(). Por isso o matmul.
+            a = torch.randn(1000, 1000, device="cuda")
+            _ = a @ a
+            torch.cuda.synchronize()
+            print("         teste de execução na GPU: OK")
+        else:
+            print("         GPU disponível: NÃO (vai usar CPU)")
+            print("         Se torch.version.cuda for None, foi instalada a build")
+            print("         CPU-only. Reinstale com:")
+            print("           pip install torch --index-url https://download.pytorch.org/whl/cu128")
     except Exception as e:
-        print(f"  [INFO] tensorflow ainda não instalado/configurado -> {e}")
+        print(f"  [INFO] torch ainda não instalado/configurado -> {e}")
 
     print("\nEstrutura de dados:")
     for p in ["data/raw", "data/processed", "data/features"]:

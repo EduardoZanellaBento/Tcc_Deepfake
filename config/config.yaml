@@ -87,3 +87,48 @@ metricas:
   - f1
   - eer                # Equal Error Rate — métrica padrão da literatura ASVspoof
   - tempo_inferencia   # viabilidade computacional (diferencial do trabalho)
+
+# =============================================================================
+# DECISÃO METODOLÓGICA - protocolo de medição de tempo
+# =============================================================================
+# PROBLEMA: RF e SVM rodam em CPU; a CNN roda em GPU (RTX 5060 Ti 16GB, sm_120).
+# Comparar 0,0017 ms/áudio de RF em CPU com uma CNN em GPU não é justo em nenhuma
+# direção: medir tudo em CPU penaliza artificialmente a CNN, e medir cada um no
+# seu hardware natural compara MÁQUINAS, não MODELOS.
+#
+# DECISÃO: reportar quatro medições.
+#   (1) RF   — CPU
+#   (2) SVM  — CPU
+#   (3) CNN  — GPU  (melhor caso, hardware dedicado)
+#   (4) CNN  — CPU  (hardware modesto, sem GPU)
+#
+# JUSTIFICATIVA: a vantagem dos modelos clássicos, na pergunta de pesquisa, não é
+# serem mais rápidos em igualdade de hardware — é NÃO EXIGIREM GPU. O par (3)/(4)
+# é o único arranjo que evidencia isso.
+#
+# REGRAS DE MEDIÇÃO (a serem implementadas quando o módulo de tempo for escrito):
+#   - descartar as primeiras execuções (inicialização do contexto CUDA, carga de
+#     kernels e autotune do cuDNN podem tornar a 1ª inferência 100x mais lenta);
+#   - SEMPRE chamar torch.cuda.synchronize() ANTES e DEPOIS do trecho cronometrado
+#     (CUDA é assíncrono: sem isso, mede-se o tempo de ENFILEIRAR, não de executar,
+#     e a CNN parece milhares de vezes mais rápida do que é);
+#   - medir latência (batch=1, cenário de uso real) E throughput (lote) separadamente;
+#   - fixar n_jobs igual para todos os modelos clássicos e declarar qual foi;
+#   - reportar mediana de N execuções + mínimo e máximo, nunca medição única;
+#   - registrar hardware e versões no JSON de resultados, como já é feito em
+#     results/metricas/curva_aprendizado_rf.json.
+#
+# incluir_extracao_features: medir também o pipeline COMPLETO (carregar + VAD +
+#   extrair features/gerar espectrograma + predizer), e não só o predict. O
+#   predict do RF leva 0,0017 ms; a extração com librosa leva ordens de grandeza
+#   mais. A hipótese é que o pré-processamento DOMINE o custo nos três modelos,
+#   tornando a escolha do classificador quase irrelevante para o tempo de
+#   inferência real. Se confirmado, é um achado de engenharia relevante para o TC II.
+# =============================================================================
+tempo:
+  cenarios: ["cpu", "gpu"]
+  repeticoes: 10
+  descartar_aquecimento: 3
+  medir_latencia: true        # batch = 1
+  medir_throughput: true      # lote
+  incluir_extracao_features: true

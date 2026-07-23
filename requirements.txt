@@ -15,8 +15,19 @@ soundfile==0.12.1
 # --- Machine learning clássico (RF, SVM, métricas, split, tuning) ---
 scikit-learn>=1.7.2
 
-# --- Deep learning (CNN). Alternativa: trocar por torch se preferir PyTorch ---
-tensorflow>=2.21.0
+# --- Deep learning (CNN) ---
+# PyTorch em vez de TensorFlow. Motivo: a GPU do experimento é uma RTX 5060 Ti 16GB
+# (arquitetura Blackwell, compute capability sm_120). O TensorFlow estável não
+# distribui kernels CUDA pré-compilados para sm_120 — rodá-lo exigiria build da
+# fonte ou nightly com compilação JIT. Soma-se a isso o fato de o TensorFlow não
+# ter suporte nativo a GPU no Windows desde a 2.10, e este projeto roda em Windows.
+# O PyTorch >= 2.7 foi a primeira versão estável a publicar wheels nativos para
+# CUDA 12.8 com suporte a sm_120. Verificado nesta máquina em 23/07/2026:
+#   torch 2.11.0+cu128 | cuda disponível: True | capability (12, 0) | matmul OK
+# Instalação (o índice é OBRIGATÓRIO: no Windows o PyPI padrão entrega build
+# CPU-only, e o torch.cuda.is_available() retorna False silenciosamente):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+torch>=2.7
 
 # --- Visualização (matriz de confusão, gráficos) ---
 matplotlib>=3.10.9

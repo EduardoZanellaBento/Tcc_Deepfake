@@ -58,17 +58,50 @@ def fixar_seeds(semente: int = 42) -> int:
     return semente
 
 
-def fixar_seeds_tensorflow(semente: int = 42) -> None:
-    """Extensão para a CNN. Só importa o TF se ele for usado.
+def fixar_seeds_torch(semente: int = 42, estrito: bool = True) -> int:
+    """Extensão para a CNN em PyTorch. Só importa o torch se ele for usado.
 
-    Nota: mesmo com semente fixa, o treino em GPU pode ser NÃO-determinístico,
-    porque operações cuDNN (redução em paralelo, atomics) somam em float em ordem
-    variável. `enable_op_determinism()` força versões determinísticas dessas
-    operações — ao custo de algum desempenho. Para um TCC, vale a troca: um
-    resultado reproduzível vale mais do que alguns minutos de treino.
+    POR QUE NÃO BASTA `torch.manual_seed`:
+        O treino em GPU tem fontes de não-determinismo que a semente não alcança.
+        Operações do cuDNN (convolução, redução em paralelo, atomics) somam em
+        ponto flutuante numa ORDEM que varia entre execuções. Como soma de float
+        não é associativa, (a+b)+c != a+(b+c) nos últimos bits — e essa diferença
+        se amplifica ao longo do treino. Resultado: mesma semente, pesos finais
+        diferentes. Por isso são necessárias quatro travas, não uma.
+
+      1. manual_seed / manual_seed_all -> pesos iniciais, dropout, embaralhamento.
+      2. cudnn.deterministic = True    -> força algoritmos determinísticos.
+      3. cudnn.benchmark = False       -> o benchmark escolhe o algoritmo mais
+         rápido medindo em tempo de execução; essa escolha VARIA conforme a carga
+         da máquina. Rápido, porém não reprodutível.
+      4. CUBLAS_WORKSPACE_CONFIG       -> exigido pelo cuBLAS (CUDA >= 10.2) para
+         que operações de matriz sejam determinísticas. Precisa ser definido ANTES
+         da primeira chamada CUDA, por isso vem no topo da função.
+
+    ATENÇÃO: o DataLoader com num_workers > 0 cria processos filhos com
+    sementes próprias. Se houver embaralhamento lá dentro, será preciso passar
+    `generator=torch.Generator().manual_seed(semente)` e um `worker_init_fn`.
+    Esta função NÃO cobre esse caso.
+
+    Args:
+        semente: valor lido de config.yaml.
+        estrito: se True, `use_deterministic_algorithms` levanta erro ao encontrar
+            uma operação sem versão determinística. Se False, apenas avisa. Comece
+            com True; se alguma camada da CNN não tiver implementação determinística,
+            passe False e REGISTRE isso na metodologia — é uma limitação honesta,
+            bem melhor do que silenciar o problema.
+
+    Returns:
+        A semente usada, para registrar junto com os resultados.
     """
-    import tensorflow as tf
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
+    import torch
 
     fixar_seeds(semente)
-    tf.random.set_seed(semente)
-    tf.config.experimental.enable_op_determinism()
+    torch.manual_seed(semente)
+    torch.cuda.manual_seed_all(semente)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True, warn_only=not estrito)
+    return semente
