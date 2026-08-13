@@ -1,0 +1,59 @@
+{
+  "semente": 42,
+  "versoes": {
+    "numpy": "2.2.6",
+    "sklearn": "1.7.2",
+    "pandas": "2.3.3"
+  },
+  "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+  "estratificacao": "classe_binaria x codec",
+  "tamanhos": [
+    5000,
+    10000,
+    20000,
+    40000,
+    80000,
+    103723
+  ],
+  "resultados": [
+    {
+      "n_treino": 5000,
+      "f1_macro": 0.476,
+      "eer": 0.303,
+      "tempo_treino_s": 0.24
+    },
+    {
+      "n_treino": 10000,
+      "f1_macro": 0.4801,
+      "eer": 0.2843,
+      "tempo_treino_s": 0.49
+    },
+    {
+      "n_treino": 20000,
+      "f1_macro": 0.4882,
+      "eer": 0.2512,
+      "tempo_treino_s": 1.12
+    },
+    {
+      "n_treino": 40000,
+      "f1_macro": 0.5059,
+      "eer": 0.2226,
+      "tempo_treino_s": 2.55
+    },
+    {
+      "n_treino": 80000,
+      "f1_macro": 0.5356,
+      "eer": 0.1945,
+      "tempo_treino_s": 5.55
+    },
+    {
+      "n_treino": 103723,
+      "f1_macro": 0.5573,
+      "eer": 0.1818,
+      "tempo_treino_s": 7.29
+    }
+  ],
+  "f1_macro_maximo": 0.5573,
+  "satura_em_n": 103723,
+  "tolerancia_saturacao": 0.005
+}

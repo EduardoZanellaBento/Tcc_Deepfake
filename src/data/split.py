@@ -6,15 +6,24 @@ Partição dos dados — split estratificado 70/15/15
 
 A resposta, e a arquitetura deste módulo:
 
-    181.566 áudios
+    148.176 áudios (fase == 'eval' — decisão do orientador; ver abaixo)
         |
-        +-- TREINO 70% (127.096) --> é AQUI que o Stratified 5-Fold roda,
+        +-- TREINO 70% (103.723) --> é AQUI que o Stratified 5-Fold roda,
         |                            durante a busca de hiperparâmetros.
         |                            O 5-fold particiona SÓ o treino.
         |
-        +-- VALIDAÇÃO 15% (27.235) -> comparar modelos / decisões de projeto
+        +-- VALIDAÇÃO 15% (22.226) -> comparar modelos / decisões de projeto
         |
-        +-- TESTE 15% (27.235) ----> INTOCADO até o resultado final. Usado UMA vez.
+        +-- TESTE 15% (22.227) ----> INTOCADO até o resultado final. Usado UMA vez.
+
+UNIVERSO DO EXPERIMENTO (decisão metodológica aprovada pelo orientador):
+    fase == 'eval' (148.176) — o conjunto oficialmente pontuado do ASVspoof 2021
+    LA. 'progress' (16.464) e 'hidden' (16.926) são EXCLUÍDOS: o hidden tem
+    silêncio pré-cortado na origem (trim == 'only_speech'), pré-processamento
+    distinto que contamina qualquer análise de proporção de fala. O filtro vem
+    da coluna `fase` do labels.csv, não de uma lista hard-coded de arquivos.
+    O split anterior, no universo de 181.566, está preservado em
+    data/processed/split_181k.csv (é ele que gerou o rf_baseline.json histórico).
 
 Por que três conjuntos e não dois:
     Se você escolhe hiperparâmetros olhando o teste, o teste deixa de ser uma
@@ -51,13 +60,16 @@ from sklearn.model_selection import train_test_split
 from ..utils.seeds import fixar_seeds
 
 
-def criar_split(cfg: dict, raiz: Path, forcar: bool = False) -> pd.DataFrame:
-    """Gera (ou recarrega) a partição estratificada 70/15/15.
+def criar_split(cfg: dict, raiz: Path, forcar: bool = False,
+                fase: str = "eval") -> pd.DataFrame:
+    """Gera (ou recarrega) a partição estratificada 70/15/15 no universo `fase`.
 
     Args:
         cfg: config.yaml carregado.
         raiz: raiz do projeto.
         forcar: se True, regera mesmo que split.csv já exista.
+        fase: universo do experimento, filtrado pela coluna `fase` do
+            labels.csv. Default 'eval' (148.176) — decisão do orientador.
 
     Returns:
         DataFrame [arquivo, conjunto].
@@ -73,6 +85,22 @@ def criar_split(cfg: dict, raiz: Path, forcar: bool = False) -> pd.DataFrame:
 
     feats = pd.read_csv(raiz / "data" / "features" / "features.csv",
                         usecols=["arquivo", "classe_binaria"])
+
+    # ---- Filtro de universo: fase == 'eval' (vem do labels.csv) ---------------
+    # O features.csv não tem a coluna `fase`; ela mora no labels.csv. O merge é
+    # validado: se algum áudio do universo escolhido não tiver features, o erro
+    # é explícito (mesma filosofia de carregar_dados_split).
+    labels = pd.read_csv(raiz / "data" / "processed" / "labels.csv",
+                         usecols=["arquivo", "fase"])
+    n_universo = int((labels["fase"] == fase).sum())
+    feats = feats.merge(labels.loc[labels["fase"] == fase, ["arquivo"]],
+                        on="arquivo", how="inner")
+    if len(feats) != n_universo:
+        raise ValueError(
+            f"Universo fase=='{fase}' tem {n_universo} áudios no labels.csv, mas "
+            f"só {len(feats)} têm features extraídas. Investigar antes de regerar."
+        )
+    print(f"Universo do split: fase=='{fase}' -> {len(feats)} áudios.")
 
     p_treino = cfg["split"]["treino"]
     p_val = cfg["split"]["validacao"]
@@ -118,14 +146,21 @@ def criar_split(cfg: dict, raiz: Path, forcar: bool = False) -> pd.DataFrame:
 
 
 def carregar_dados_split(raiz: Path) -> pd.DataFrame:
-    """Junta features.csv + split.csv numa única tabela pronta para treinar."""
+    """Junta features.csv + split.csv numa única tabela pronta para treinar.
+
+    O universo do experimento é o do split.csv (fase=='eval', 148.176), que é um
+    SUBCONJUNTO do features.csv (181.566, extraído antes da decisão de filtrar).
+    A integridade que importa: TODA linha do split precisa encontrar suas
+    features — se o merge devolver menos linhas que o split, há áudio sem
+    features e o erro é explícito.
+    """
     feats = pd.read_csv(raiz / "data" / "features" / "features.csv")
     split = pd.read_csv(raiz / "data" / "processed" / "split.csv")
     df = feats.merge(split, on="arquivo", how="inner")
 
-    if len(df) != len(feats):
+    if len(df) != len(split):
         raise ValueError(
-            f"Merge perdeu linhas: features={len(feats)}, resultado={len(df)}. "
+            f"Merge perdeu linhas: split={len(split)}, resultado={len(df)}. "
             "O split.csv provavelmente foi gerado a partir de outro features.csv. "
             "Regere com forcar=True."
         )

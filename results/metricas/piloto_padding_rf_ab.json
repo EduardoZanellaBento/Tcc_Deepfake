@@ -1,0 +1,72 @@
+{
+  "n_piloto": 2000,
+  "n_erros": 0,
+  "semente": 42,
+  "estratificacao_amostra": "classe_binaria x codec (maior resto), universo eval",
+  "definicao_frame_valido": "centro do frame (i*hop, center=True) dentro do áudio real pós-VAD, pré-padding",
+  "aviso": "com 2.000 áudios os números do RF A/B são INSTÁVEIS — indicativo, não conclusivo; o delta por feature é mais estável",
+  "rf_interno_70_30": {
+    "A": {
+      "f1_macro": 0.4905,
+      "eer": 0.2815
+    },
+    "B": {
+      "f1_macro": 0.5068,
+      "eer": 0.2657
+    }
+  },
+  "delta_f1_macro_B_menos_A": 0.0163,
+  "delta_eer_B_menos_A": -0.0158,
+  "top10_features_assimetria_padronizada": [
+    {
+      "feature": "centroide_std",
+      "assimetria_padronizada": 0.5194,
+      "delta_relativo_pct": 11.58
+    },
+    {
+      "feature": "mfcc1_std",
+      "assimetria_padronizada": -0.2914,
+      "delta_relativo_pct": 31.77
+    },
+    {
+      "feature": "mfcc14_std",
+      "assimetria_padronizada": -0.2289,
+      "delta_relativo_pct": 19.73
+    },
+    {
+      "feature": "mfcc4_media",
+      "assimetria_padronizada": 0.2073,
+      "delta_relativo_pct": 46.58
+    },
+    {
+      "feature": "zcr_std",
+      "assimetria_padronizada": 0.2065,
+      "delta_relativo_pct": 13.69
+    },
+    {
+      "feature": "mfcc8_std",
+      "assimetria_padronizada": -0.2006,
+      "delta_relativo_pct": 14.97
+    },
+    {
+      "feature": "mfcc19_std",
+      "assimetria_padronizada": -0.1936,
+      "delta_relativo_pct": 12.22
+    },
+    {
+      "feature": "mfcc8_media",
+      "assimetria_padronizada": -0.1765,
+      "delta_relativo_pct": 46.11
+    },
+    {
+      "feature": "mfcc11_std",
+      "assimetria_padronizada": -0.1611,
+      "delta_relativo_pct": 16.62
+    },
+    {
+      "feature": "mfcc3_std",
+      "assimetria_padronizada": 0.1542,
+      "delta_relativo_pct": 21.75
+    }
+  ]
+}

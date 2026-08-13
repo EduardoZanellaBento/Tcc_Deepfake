@@ -9,6 +9,8 @@ __pycache__/
 data/raw/
 data/processed/*
 !data/processed/split.csv
+!data/processed/split_181k.csv
+!data/processed/subamostra_30k.csv
 data/features/*.csv
 
 # Modelos treinados (regeneraveis pelo pipeline)

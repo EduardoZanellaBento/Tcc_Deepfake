@@ -79,6 +79,16 @@ desbalanceamento:
 tuning:
   metodo: "random_search"   # mais eficiente que grid search em espaços grandes
   n_iter: 30
+  # TODO [OBRIGATÓRIO no espaço de busca — ver results/metricas/NOTA_LIMIAR.md]
+  # 1. min_samples_leaf entre 5 e 20: com max_depth=None as folhas ficam puras e
+  #    o class_weight='balanced' é neutralizado no predict_proba (o peso muda os
+  #    splits, mas a probabilidade de folha pura é 1,0 independentemente dele).
+  # 2. class_weight='balanced_subsample' como alternativa ao 'balanced'.
+  # 3. SELEÇÃO DE LIMIAR NA VALIDAÇÃO (max f1_macro ou limiar do EER) como REGRA
+  #    DE PROTOCOLO para RF, SVM e CNN igualmente — decisão por score >= limiar
+  #    (convenção de empate registrada em nota_divergencia_f1.md). Sem isso, a
+  #    comparação central do trabalho fica enviesada pelo limiar fixo 0,50.
+  # NÃO alterar valores agora — itens entram na fase de ajuste (semana 7).
 
 metricas:
   - acuracia

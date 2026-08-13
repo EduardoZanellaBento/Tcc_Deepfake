@@ -1,0 +1,16 @@
+{
+  "alvo": 30000,
+  "n_final": 30000,
+  "semente": 42,
+  "escopo": "somente conjunto=='treino'; validação e teste permanecem completos",
+  "estratificacao": "classe_binaria x codec x ataque (bonafide: ataque=='-' é o próprio estrato bonafide)",
+  "n_estratos": 98,
+  "regra_alocacao": "proporcional por maior resto (largest remainder); piso de 1 por estrato, excedente retirado dos maiores; amostragem por estrato com random_state=42",
+  "piso_por_estrato": 1,
+  "piso_acionado": false,
+  "maior_desvio_pct_pontos": 0.0018,
+  "razao_spoof_bonafide_treino": 9.0013,
+  "razao_spoof_bonafide_subamostra": 9.0,
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d",
+  "hash_md5_split_csv_origem": "9143f0c7b83ec2db4aa144ed5deb3402"
+}

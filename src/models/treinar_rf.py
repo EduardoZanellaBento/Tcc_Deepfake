@@ -29,6 +29,7 @@ DECISÕES DE PROJETO:
    É por isso que acurácia sozinha, aqui, é uma métrica enganosa.
 """
 
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -133,7 +134,14 @@ def plotar_matriz_confusao(cm: np.ndarray, caminho: Path, titulo: str) -> None:
     print(f"Matriz de confusão salva em {caminho}")
 
 
-def treinar(cfg: dict, raiz: Path) -> dict:
+def treinar(cfg: dict, raiz: Path, nome: str = "rf_baseline_eval") -> dict:
+    """Treina o RF baseline no split atual e salva artefatos com o prefixo `nome`.
+
+    Default 'rf_baseline_eval': o universo do experimento passou a ser
+    fase=='eval' (148.176). Os artefatos históricos do universo de 181.566
+    (rf_baseline.json, rf_baseline.joblib, matriz_confusao_rf_baseline.png)
+    são baseline de REFERÊNCIA citado no trabalho e não devem ser sobrescritos.
+    """
     semente = fixar_seeds(cfg["semente"])
 
     # ---- Dados ---------------------------------------------------------------
@@ -181,7 +189,7 @@ def treinar(cfg: dict, raiz: Path) -> dict:
     scores = modelo.predict_proba(X_va)[:, 1]   # P(spoof) — coluna da classe 1
 
     # ---- Métricas ------------------------------------------------------------
-    m = avaliar(y_va, y_pred, scores, "random_forest_baseline")
+    m = avaliar(y_va, y_pred, scores, nome)
     m["tempo_treino_s"] = round(t_treino, 2)
     m["tempo_inferencia_total_s"] = round(t_inf, 4)
     m["tempo_inferencia_por_audio_ms"] = round(1000 * t_inf / len(X_va), 4)
@@ -222,26 +230,31 @@ def treinar(cfg: dict, raiz: Path) -> dict:
     # afirmação mais forte, usar permutation_importance.
     imp = pd.Series(modelo.feature_importances_, index=cols).sort_values(ascending=False)
     print("\n  top 10 features (importância por impureza — ler com ressalva):")
-    for nome, v in imp.head(10).items():
-        print(f"    {nome:<20} {v:.4f}")
+    for feat, v in imp.head(10).items():
+        print(f"    {feat:<20} {v:.4f}")
     m["top10_features"] = imp.head(10).round(5).to_dict()
 
     # ---- Persistência --------------------------------------------------------
+    # Rastreabilidade: o hash do split identifica exatamente qual partição gerou
+    # estas métricas (mesmo padrão do curva_aprendizado_rf.json).
+    split_csv = raiz / "data" / "processed" / "split.csv"
+    m["hash_md5_split_csv"] = hashlib.md5(split_csv.read_bytes()).hexdigest()
+
     (raiz / "models").mkdir(exist_ok=True)
-    joblib.dump(modelo, raiz / "models" / "rf_baseline.joblib")
+    joblib.dump(modelo, raiz / "models" / f"{nome}.joblib")
 
     dir_met = raiz / "results" / "metricas"
     dir_met.mkdir(parents=True, exist_ok=True)
-    with open(dir_met / "rf_baseline.json", "w", encoding="utf-8") as f:
+    with open(dir_met / f"{nome}.json", "w", encoding="utf-8") as f:
         json.dump(m, f, indent=2, ensure_ascii=False)
 
     plotar_matriz_confusao(
         cm,
-        raiz / "results" / "figuras" / "matriz_confusao_rf_baseline.png",
-        "Random Forest baseline — validação",
+        raiz / "results" / "figuras" / f"matriz_confusao_{nome}.png",
+        f"Random Forest baseline (eval) — validação",
     )
-    print(f"\nModelo salvo em models/rf_baseline.joblib")
-    print(f"Métricas salvas em results/metricas/rf_baseline.json")
+    print(f"\nModelo salvo em models/{nome}.joblib")
+    print(f"Métricas salvas em results/metricas/{nome}.json")
     return m
 
 

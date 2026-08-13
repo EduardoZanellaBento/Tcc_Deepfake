@@ -51,6 +51,10 @@ from src.data.split import carregar_dados_split, colunas_features
 from src.models.treinar_rf import calcular_eer
 
 RAIZ = Path(__file__).resolve().parents[1]
+# Universo eval (148.176): os artefatos são salvos com sufixo _eval. Os arquivos
+# curva_aprendizado_rf.{csv,json,png} SEM sufixo são a curva histórica do
+# universo de 181.566 e ficam preservados como referência.
+NOME = "curva_aprendizado_rf_eval"
 TAMANHOS = [5000, 10000, 20000, 40000, 80000, None]   # None = treino inteiro
 MIN_ESTRATO = 10          # estratos menores que isto são colapsados em 'outros'
 TOL_SATURACAO = 0.005     # satura no 1º tamanho a menos de 0,005 do f1 máximo
@@ -116,7 +120,7 @@ def main() -> None:
     res = pd.DataFrame(linhas)
     dir_met = RAIZ / "results" / "metricas"
     dir_met.mkdir(parents=True, exist_ok=True)
-    res.to_csv(dir_met / "curva_aprendizado_rf.csv", index=False)
+    res.to_csv(dir_met / f"{NOME}.csv", index=False)
 
     # ---- Ponto de saturação ------------------------------------------------
     f1_max = res["f1_macro"].max()
@@ -137,7 +141,7 @@ def main() -> None:
         "satura_em_n": int(saturado["n_treino"]),
         "tolerancia_saturacao": TOL_SATURACAO,
     }
-    with open(dir_met / "curva_aprendizado_rf.json", "w", encoding="utf-8") as f:
+    with open(dir_met / f"{NOME}.json", "w", encoding="utf-8") as f:
         json.dump(registro, f, indent=2, ensure_ascii=False)
 
     # ---- Figura ------------------------------------------------------------
@@ -163,7 +167,7 @@ def main() -> None:
     fig.tight_layout()
     dir_fig = RAIZ / "results" / "figuras"
     dir_fig.mkdir(parents=True, exist_ok=True)
-    fig.savefig(dir_fig / "curva_aprendizado_rf.png", dpi=150)
+    fig.savefig(dir_fig / f"{NOME}.png", dpi=150)
     plt.close(fig)
 
     # ---- Conclusão ---------------------------------------------------------
@@ -179,9 +183,9 @@ tamanho <= ~30k, treinar com a subamostra estratificada proposta não
 prejudica o desempenho do RF — evidência de que a comparação RF × SVM × CNN
 no mesmo subconjunto é justa. A decisão em si segue pendente (orientador).
 
-CSV : {dir_met / 'curva_aprendizado_rf.csv'}
-JSON: {dir_met / 'curva_aprendizado_rf.json'}
-PNG : {dir_fig / 'curva_aprendizado_rf.png'}
+CSV : {dir_met / (NOME + '.csv')}
+JSON: {dir_met / (NOME + '.json')}
+PNG : {dir_fig / (NOME + '.png')}
 """)
 
 

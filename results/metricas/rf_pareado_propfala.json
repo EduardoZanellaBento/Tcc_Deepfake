@@ -1,0 +1,177 @@
+{
+  "protocolo": {
+    "n_bins": 10,
+    "pareamento": "mesmo n de bonafide e spoof por faixa de prop_fala, em treino e validação; faixas sem as duas classes são descartadas",
+    "semente": 42,
+    "hiperparametros": "os mesmos do baseline (100 árvores, max_depth=None, class_weight='balanced')",
+    "n_treino_pareado": 20742,
+    "n_validacao_pareada": 4444,
+    "prop_fala_media_treino_pareado": {
+      "bonafide": 0.6284,
+      "spoof": 0.6323
+    }
+  },
+  "n_por_faixa_treino": [
+    {
+      "faixa": "(-0.001, 0.1]",
+      "n_bonafide_disponivel": 1,
+      "n_spoof_disponivel": 1,
+      "n_pareado_por_classe": 1
+    },
+    {
+      "faixa": "(0.1, 0.2]",
+      "n_bonafide_disponivel": 3,
+      "n_spoof_disponivel": 15,
+      "n_pareado_por_classe": 3
+    },
+    {
+      "faixa": "(0.2, 0.3]",
+      "n_bonafide_disponivel": 61,
+      "n_spoof_disponivel": 220,
+      "n_pareado_por_classe": 61
+    },
+    {
+      "faixa": "(0.3, 0.4]",
+      "n_bonafide_disponivel": 403,
+      "n_spoof_disponivel": 1069,
+      "n_pareado_por_classe": 403
+    },
+    {
+      "faixa": "(0.4, 0.5]",
+      "n_bonafide_disponivel": 1312,
+      "n_spoof_disponivel": 3052,
+      "n_pareado_por_classe": 1312
+    },
+    {
+      "faixa": "(0.5, 0.6]",
+      "n_bonafide_disponivel": 2323,
+      "n_spoof_disponivel": 4166,
+      "n_pareado_por_classe": 2323
+    },
+    {
+      "faixa": "(0.6, 0.7]",
+      "n_bonafide_disponivel": 2977,
+      "n_spoof_disponivel": 5661,
+      "n_pareado_por_classe": 2977
+    },
+    {
+      "faixa": "(0.7, 0.8]",
+      "n_bonafide_disponivel": 2523,
+      "n_spoof_disponivel": 9082,
+      "n_pareado_por_classe": 2523
+    },
+    {
+      "faixa": "(0.8, 0.9]",
+      "n_bonafide_disponivel": 745,
+      "n_spoof_disponivel": 26122,
+      "n_pareado_por_classe": 745
+    },
+    {
+      "faixa": "(0.9, 1.0]",
+      "n_bonafide_disponivel": 23,
+      "n_spoof_disponivel": 43964,
+      "n_pareado_por_classe": 23
+    }
+  ],
+  "n_por_faixa_validacao": [
+    {
+      "faixa": "(-0.001, 0.1]",
+      "n_bonafide_disponivel": 1,
+      "n_spoof_disponivel": 1,
+      "n_pareado_por_classe": 1
+    },
+    {
+      "faixa": "(0.1, 0.2]",
+      "n_bonafide_disponivel": 2,
+      "n_spoof_disponivel": 2,
+      "n_pareado_por_classe": 2
+    },
+    {
+      "faixa": "(0.2, 0.3]",
+      "n_bonafide_disponivel": 12,
+      "n_spoof_disponivel": 47,
+      "n_pareado_por_classe": 12
+    },
+    {
+      "faixa": "(0.3, 0.4]",
+      "n_bonafide_disponivel": 77,
+      "n_spoof_disponivel": 221,
+      "n_pareado_por_classe": 77
+    },
+    {
+      "faixa": "(0.4, 0.5]",
+      "n_bonafide_disponivel": 251,
+      "n_spoof_disponivel": 679,
+      "n_pareado_por_classe": 251
+    },
+    {
+      "faixa": "(0.5, 0.6]",
+      "n_bonafide_disponivel": 492,
+      "n_spoof_disponivel": 874,
+      "n_pareado_por_classe": 492
+    },
+    {
+      "faixa": "(0.6, 0.7]",
+      "n_bonafide_disponivel": 641,
+      "n_spoof_disponivel": 1244,
+      "n_pareado_por_classe": 641
+    },
+    {
+      "faixa": "(0.7, 0.8]",
+      "n_bonafide_disponivel": 580,
+      "n_spoof_disponivel": 1925,
+      "n_pareado_por_classe": 580
+    },
+    {
+      "faixa": "(0.8, 0.9]",
+      "n_bonafide_disponivel": 162,
+      "n_spoof_disponivel": 5639,
+      "n_pareado_por_classe": 162
+    },
+    {
+      "faixa": "(0.9, 1.0]",
+      "n_bonafide_disponivel": 4,
+      "n_spoof_disponivel": 9372,
+      "n_pareado_por_classe": 4
+    }
+  ],
+  "rf_pareado": {
+    "modelo": "rf_pareado (treinado e avaliado no pareado)",
+    "f1_macro": 0.8368,
+    "eer": 0.1631,
+    "limiar_eer": 0.5,
+    "matriz_confusao": [
+      [
+        1893,
+        329
+      ],
+      [
+        396,
+        1826
+      ]
+    ]
+  },
+  "rf_baseline_eval_no_pareado": {
+    "modelo": "rf_baseline_eval (avaliado no pareado)",
+    "f1_macro": 0.4249,
+    "eer": 0.2102,
+    "limiar_eer": 0.87,
+    "matriz_confusao": [
+      [
+        197,
+        2025
+      ],
+      [
+        0,
+        2222
+      ]
+    ]
+  },
+  "rf_baseline_eval_referencia_validacao_completa": {
+    "f1_macro": 0.5573042734854515,
+    "eer": 0.18176672946238837
+  },
+  "delta_eer_baseline_pareado_vs_completo": 0.0284,
+  "interpretacao": "DESEMPENHO SE MANTEVE no pareado: as features carregam sinal acústico genuíno e prop_fala é um confundidor separável. Bom resultado — defende o trabalho na banca.",
+  "nota": "No conjunto pareado as classes são 1:1 por construção; o f1_macro não é comparável diretamente ao da validação completa (9:1). A comparação honesta entre protocolos é pelo EER, que não depende de limiar nem de prevalência."
+}

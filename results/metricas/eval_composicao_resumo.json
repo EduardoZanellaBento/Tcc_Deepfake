@@ -1,0 +1,18 @@
+{
+  "universo": "fase == 'eval' (ASVspoof 2021 LA, conjunto pontuado)",
+  "total": 148176,
+  "bonafide": 14816,
+  "spoof": 133360,
+  "razao_spoof_bonafide": 9.0011,
+  "n_codecs": 7,
+  "n_ataques": 14,
+  "trim_uniforme_notrim": true,
+  "trim_contagens": {
+    "notrim": 148176
+  },
+  "excluidos": {
+    "progress": 16464,
+    "hidden": 16926
+  },
+  "features_csv_cobre_eval_completo": true
+}
