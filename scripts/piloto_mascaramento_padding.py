@@ -47,12 +47,12 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import yaml
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.preprocessamento import (aplicar_vad, carregar_audio,
                                        normalizar_amplitude,
@@ -141,8 +141,8 @@ def _extrair_ab(args: tuple) -> dict:
 
 
 def main() -> None:
-    semente = fixar_seeds(42)
-    cfg = yaml.safe_load(open(RAIZ / "config" / "config.yaml", encoding="utf-8"))
+    cfg = carregar_config(RAIZ)
+    semente = fixar_seeds(cfg["semente"])
 
     labels = pd.read_csv(RAIZ / "data" / "processed" / "labels.csv")
     piloto = amostrar_piloto(labels, N_PILOTO, semente)

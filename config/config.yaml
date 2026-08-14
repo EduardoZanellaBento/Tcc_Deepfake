@@ -2,78 +2,141 @@
 # CONFIGURAÇÃO CENTRAL DO EXPERIMENTO
 # Todo parâmetro metodológico mora aqui. Quando a banca perguntar "qual sample
 # rate? quantos MFCCs? qual a semente?", a resposta está neste arquivo.
+# Chaves que o código ainda não consome estão marcadas como
+# "(declarativo — ainda não consumido pelo código)"; toda chave sem essa marca
+# é lida por pelo menos um .py.
 # =============================================================================
 
 semente: 42          # reprodutibilidade: mesma semente => mesmos splits/resultados
+                     # lida via src/utils (carregar_config + fixar_seeds) por
+                     # split, treino e TODOS os scripts de diagnóstico.
 
 dataset:
-  nome: "ASVspoof2021_LA_eval"
+  nome: "ASVspoof2021_LA_eval"   # (declarativo — ainda não consumido pelo código)
   caminho_audios: "data/raw/ASVspoof2021_LA_eval/flac"
   caminho_chaves: "data/raw/keys/LA/CM/trial_metadata.txt"  # labels (bonafide/spoof)
-  # TODO [DECISÃO METODOLÓGICA — Eduardo + Prof. Anderson]
-  # O total de 181.566 NÃO é o conjunto eval: é eval(148.176) + progress(16.464) +
-  # hidden(16.926). O subconjunto 'hidden' == 'only_speech' (silêncio pré-cortado),
-  # pré-processamento distinto do restante (notrim), o que confunde a análise de
-  # prop_fala. O conjunto oficialmente pontuado do ASVspoof 2021 LA é fase=='eval'.
-  # Recomendação registrada: filtrar para fase=='eval' (148.176, notrim).
-  # NÃO filtrar automaticamente — decisão do orientador. Ver diagnostico_composicao_dataset.py.
-  # Subamostragem estratificada: eval completo (181.566); sem subamostragem, para aderir ao protocolo do ASVspoof 2021.
-  # Mantém a proporção real/sintético do conjunto original.
-  usar_subamostra: false
+  # DECIDIDO [aprovado pelo orientador] — universo do experimento.
+  # fase == 'eval': 148.176 áudios, o conjunto oficialmente pontuado do
+  # ASVspoof 2021 LA. O total bruto de 181.566 do labels.csv NÃO é o conjunto
+  # eval: é eval (148.176) + progress (16.464) + hidden (16.926). 'progress' e
+  # 'hidden' são EXCLUÍDOS por controle metodológico: o 'hidden' tem silêncio
+  # pré-cortado na origem (trim == 'only_speech'), um pré-processamento
+  # distinto do restante (notrim) que contamina qualquer análise de prop_fala.
+  # Verificação: scripts/composicao_eval.py. Consumo: src/data/split.py lê esta
+  # chave (o parâmetro `fase` de criar_split vira override pontual para
+  # diagnósticos; se None, vale o config).
+  fase: "eval"
+
+# -----------------------------------------------------------------------------
+# BRAÇO DUPLO DO EXPERIMENTO
+# A subamostra é parâmetro DE EXPERIMENTO, não de modelo. O orientador foi
+# explícito: "Essa mesma subamostra deve ser usada para treino e ajuste dos
+# três pipelines, RF, SVM e CNN." Deixá-la sob modelos.svm convidaria a
+# aplicá-la só ao SVM e destruiria a comparação — o coração do trabalho.
+# -----------------------------------------------------------------------------
+experimento:
+  # DECIDIDO [aprovado pelo orientador] — por que DOIS braços:
+  # a curva de aprendizado no universo eval (curva_aprendizado_rf_eval.json)
+  # mostra que o RF NÃO satura antes do treino completo (f1_macro 0,4882 em
+  # 20k -> 0,5573 em 103.723), logo a subamostra de 30k CUSTA desempenho real
+  # e o braço de referência existe para quantificar esse custo.
+  #   braco: "principal"  -> RF, SVM e CNN treinam na MESMA subamostra de ~30k
+  #                          (mesmo ambiente experimental; comparação limpa —
+  #                          exigência da pergunta de pesquisa).
+  #   braco: "referencia" -> treino no conjunto completo de treino do eval
+  #                          (103.723); quantifica quanto a subamostra custou.
+  # Em AMBOS os braços, VALIDAÇÃO e TESTE permanecem COMPLETOS — exigência
+  # textual do orientador. `braco` substitui o antigo booleano
+  # `usar_subamostra`, que deixou de fazer sentido: os dois braços rodam,
+  # não é liga/desliga.
+  # TODO [quando SVM/CNN existirem]: nenhum modelo consome `braco` ainda.
+  # Ao implementar, 'principal' filtra o treino pelos IDs de
+  # `caminho_subamostra` e 'referencia' usa o treino completo — ver docstring
+  # de src/models/treinar_rf.py.
+  braco: "principal"          # (declarativo — ainda não consumido pelo código)
+  # As três chaves abaixo são lidas por scripts/gerar_subamostra.py:
+  tamanho_subamostra: 30000   # alvo; o n final pode divergir por arredondamento
+                              # (registrado em subamostra_30k.json, não maquiado)
+  caminho_subamostra: "data/processed/subamostra_30k.csv"
+  estratificacao_subamostra: ["classe_binaria", "codec", "ataque"]  # 98 estratos no eval
 
 modelos:
   svm:
-    # TODO [DECISÃO METODOLÓGICA — Eduardo + Prof. Anderson, PENDENTE]
-    # SVM-RBF é O(n^2)~O(n^3); ~127k amostras de treino são inviáveis (matriz de kernel
-    # > 60GB). Recomendação registrada: subamostra estratificada ÚNICA (~30k) por
-    # classe_binaria × codec, seed 42, salva em disco, COMPARTILHADA por RF, SVM e CNN,
-    # para preservar o "mesmo ambiente experimental" da pergunta de pesquisa.
-    # Evidência de suficiência: scripts/curva_aprendizado_rf.py.
-    # NÃO implementar o ramo de subamostra até a decisão. Split de val/teste ficam
-    # SEMPRE completos.
-    tamanho_subamostra: 30000
-  
+    # A subamostra de treino NÃO mora mais aqui — ela é compartilhada por RF,
+    # SVM e CNN e virou parâmetro do bloco `experimento` (topo do arquivo).
+    # A motivação (SVM-RBF é O(n²)–O(n³), inviável nos 103.723 de treino) está
+    # documentada lá e em scripts/gerar_subamostra.py.
+
 audio:
   sample_rate: 16000   # Hz. ASVspoof é 16kHz. Manter alto preserva artefatos de alta freq.
   duracao_segundos: 4.0  # padroniza duração (corta/preenche). Define janela fixa de entrada.
   vad: true            # remoção de silêncio (Voice Activity Detection)
 
 features:                # parâmetros das características manuais (RF e SVM)
-  # TODO [DECISÃO METODOLÓGICA — Eduardo + Prof. Anderson]
-  # fmax=4000 GLOBAL está REJEITADO pela composição do dataset:
+  # DECIDIDO [ratificado pelo orientador] — sem fmax=4000 global:
+  # "Não limite as features a 4 kHz... Preserve a banda disponível e reporte
+  # as métricas por codec." Justificativa pela composição do dataset:
   #   banda estreita (teto 4kHz): alaw, ulaw, gsm, pstn  -> 57%
   #   banda larga  (>4kHz):       g722, opus, none        -> 43%
-  # Filtrar tudo em 4kHz destruiria sinal real em 43% dos dados, justamente a banda
-  # alta onde vivem os artefatos de síntese. Decisão: NÃO filtrar globalmente e
-  # reportar métrica POR CODEC (ver scripts/diagnostico_por_codec.py).
-  # NÃO alterar fmax e NÃO re-extrair sem decisão explícita.
+  # Filtrar tudo em 4kHz destruiria sinal real em 43% dos dados, justamente a
+  # banda alta onde vivem os artefatos de síntese. Métricas POR CODEC em
+  # scripts/diagnostico_por_codec.py.
   # Estado atual: nenhum fmax é passado ao librosa — o MFCC usa o default
   # (fmax = sr/2 = 8000 Hz). O features.csv em disco foi extraído assim.
+  #
+  # ============================================================
+  # ⚠️  NÃO RE-EXTRAIR SEM DECISÃO EXPLÍCITA REGISTRADA.
+  # ============================================================
+  # A re-extração leva HORAS e segue BLOQUEADA até o orientador revisar o
+  # pacote. Pendências acumuladas para o LOTE ÚNICO de re-extração
+  # (mesma lista do README — manter as duas em sincronia):
+  #   1. `win_length` do centróide espectral — o features.csv atual foi
+  #      extraído sem win_length no spectral_centroid (usou o default
+  #      n_fft=512 em vez dos 400 de MFCC/ZCR). A correção já está no código
+  #      e vale a partir do próximo lote.
+  #   2. Filtro fase == 'eval' — extrair somente o universo aprovado (148.176).
+  #   3. Mascaramento de padding na agregação temporal — recomendado pelo
+  #      piloto (RECOMENDACAO_MASCARAMENTO.md); aguarda aprovação do orientador.
+  #   4. `n_frames_validos` como coluna de diagnóstico — junto com prop_fala,
+  #      e igualmente FORA do X (adicionar à lista `excluir` em
+  #      colunas_features).
+  # Cada item esquecido aqui é uma re-extração inteira desperdiçada.
   n_mfcc: 20           # nº de coeficientes MFCC
   n_fft: 512           # tamanho da FFT
   hop_length: 256      # passo entre janelas
   win_length: 400      # ~25ms a 16kHz (janelamento)
   # Por áudio guardamos média + desvio-padrão de cada feature ao longo do tempo,
   # transformando uma série temporal num vetor de tamanho fixo (entrada tabular).
-  agregacao: ["media", "desvio_padrao"]
+  agregacao: ["media", "desvio_padrao"]  # (declarativo — ainda não consumido pelo código)
 
-espectrograma:           # entrada da CNN
-  tipo: "mel"          # "mel" (mel-spectrogram) ou "linear"
+espectrograma:           # entrada da CNN — (declarativo — ainda não consumido
+  tipo: "mel"            #  pelo código: a CNN ainda não foi implementada)
   n_mels: 128
   altura: 128          # dimensões da "imagem" que entra na CNN
   largura: 256
 
 split:
+  # DECIDIDO [aprovado pelo orientador] — split aleatório por utterance mantido
+  # como baseline, com LIMITAÇÃO DECLARADA (mesmo texto do README):
+  # cada ataque (A07–A19), codec e locutor aparece em treino E teste, logo o
+  # modelo pode memorizar a assinatura de um vocoder/locutor específico e as
+  # métricas são potencialmente OTIMISTAS e NÃO comparáveis ao EER de 1,32% de
+  # Yamagishi et al. (2022), cujo protocolo é deliberadamente cross-attack.
+  # Mitigação: métricas por ataque (diagnostico_por_ataque.py) e por codec
+  # (diagnostico_por_codec.py). Robustez (split por ataque /
+  # leave-one-attack-out) prevista como ANÁLISE COMPLEMENTAR, após fechar
+  # RF, SVM e CNN.
   treino: 0.70
   validacao: 0.15
   teste: 0.15
   estratificado: true  # mantém proporção real/sintético em cada subconjunto
+                       # (declarativo — o stratify é fixo em src/data/split.py)
 
-validacao_cruzada:
+validacao_cruzada:       # (declarativo — consumido na fase de ajuste, semana 7)
   tipo: "stratified_kfold"
   n_folds: 5
 
-desbalanceamento:
+desbalanceamento:        # (declarativo — treinar_rf.py fixa class_weight='balanced')
   estrategia: "class_weights"   # penaliza mais o erro na classe minoritária (real)
 
 tuning:
@@ -90,7 +153,7 @@ tuning:
   #    comparação central do trabalho fica enviesada pelo limiar fixo 0,50.
   # NÃO alterar valores agora — itens entram na fase de ajuste (semana 7).
 
-metricas:
+metricas:                # (declarativo — treinar_rf.py calcula esta lista, sem lê-la)
   - acuracia
   - precisao
   - recall

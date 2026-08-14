@@ -61,19 +61,23 @@ from ..utils.seeds import fixar_seeds
 
 
 def criar_split(cfg: dict, raiz: Path, forcar: bool = False,
-                fase: str = "eval") -> pd.DataFrame:
+                fase: str | None = None) -> pd.DataFrame:
     """Gera (ou recarrega) a partição estratificada 70/15/15 no universo `fase`.
 
     Args:
         cfg: config.yaml carregado.
         raiz: raiz do projeto.
         forcar: se True, regera mesmo que split.csv já exista.
-        fase: universo do experimento, filtrado pela coluna `fase` do
-            labels.csv. Default 'eval' (148.176) — decisão do orientador.
+        fase: override PONTUAL do universo, para scripts de diagnóstico.
+            Se None (default), vale `cfg["dataset"]["fase"]` — 'eval'
+            (148.176), decisão do orientador. O comportamento padrão é
+            governado pelo config, não por este parâmetro.
 
     Returns:
         DataFrame [arquivo, conjunto].
     """
+    if fase is None:
+        fase = cfg["dataset"]["fase"]
     semente = fixar_seeds(cfg["semente"])
     saida = raiz / "data" / "processed" / "split.csv"
 

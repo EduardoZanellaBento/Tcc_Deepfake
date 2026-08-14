@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, recall_score
 
+from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split, colunas_features
 from src.models.treinar_rf import calcular_eer
@@ -47,7 +48,8 @@ ORDEM_CODECS = ["alaw", "ulaw", "gsm", "pstn", "g722", "opus", "none"]
 
 
 def main() -> None:
-    semente = fixar_seeds(42)
+    cfg = carregar_config(RAIZ)
+    semente = fixar_seeds(cfg["semente"])
 
     # ---- Dados: features + split, depois metadados por 'arquivo' -----------
     df = carregar_dados_split(RAIZ)
@@ -144,7 +146,7 @@ Leitura: se o desempenho é sistematicamente melhor na banda larga, a evidência
 suporta a hipótese de que os artefatos discriminativos capturados por
 ZCR/centróide vivem na banda alta (>4 kHz), que os codecs telefônicos removem.
 Isso também REJEITA um fmax=4000 global (destruiria os 43% de banda larga) —
-ver TODO metodológico 9.1 no config.yaml.
+decisão RATIFICADA pelo orientador; ver o bloco `features` do config.yaml.
 
 CSV : {dir_met / 'diagnostico_por_codec.csv'}
 PNG : {dir_fig / 'diagnostico_por_codec.png'}

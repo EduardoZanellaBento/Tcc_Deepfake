@@ -27,6 +27,17 @@ DECISÕES DE PROJETO:
 4. Comparação contra o CLASSIFICADOR TRIVIAL (sempre "spoof"). Se o RF não superar
    ~89,8% de acurácia, ele não aprendeu nada — apenas descobriu a classe majoritária.
    É por isso que acurácia sozinha, aqui, é uma métrica enganosa.
+
+TODO [braço duplo — implementar quando SVM/CNN existirem]:
+   A chave `experimento.braco` do config.yaml ainda NÃO é consumida por nenhum
+   modelo. Quando o braço for implementado aqui:
+     braco == 'principal'  -> filtrar o TREINO pelos IDs de
+                              `experimento.caminho_subamostra` (subamostra ~30k
+                              compartilhada por RF, SVM e CNN);
+     braco == 'referencia' -> treinar no conjunto de treino COMPLETO do eval
+                              (103.723), para quantificar o custo da subamostra.
+   Em AMBOS os braços, VALIDAÇÃO e TESTE permanecem COMPLETOS (exigência
+   textual do orientador).
 """
 
 import hashlib

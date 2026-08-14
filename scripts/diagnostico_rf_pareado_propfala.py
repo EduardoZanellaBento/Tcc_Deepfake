@@ -46,6 +46,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, f1_score
 
+from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split, colunas_features
 from src.models.treinar_rf import calcular_eer
@@ -88,7 +89,8 @@ def avaliar(nome: str, y, y_pred, scores) -> dict:
 
 
 def main() -> None:
-    semente = fixar_seeds(42)
+    cfg = carregar_config(RAIZ)
+    semente = fixar_seeds(cfg["semente"])
 
     df = carregar_dados_split(RAIZ)
     cols = colunas_features(df)

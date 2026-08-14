@@ -4,18 +4,18 @@ Diagnóstico B4 — Composição do dataset (fase, trim, codec)
 
 SÓ LÊ E REPORTA. Não altera pipeline, não treina, não toca no teste.
 
-MOTIVAÇÃO:
-    O config.yaml declara o dataset como "eval completo (181.566)", mas a
-    inspeção do trial_metadata.txt mostrou que 181.566 NÃO é o conjunto eval:
-    é a soma de eval (148.176) + progress (16.464) + hidden (16.926). O
+MOTIVAÇÃO (histórica — a decisão já foi tomada):
+    O config.yaml da época declarava o dataset como o total bruto de 181.566,
+    mas a inspeção do trial_metadata.txt mostrou que 181.566 NÃO é o conjunto
+    eval: é a soma de eval (148.176) + progress (16.464) + hidden (16.926). O
     subconjunto 'hidden' tem pré-processamento distinto (trim == 'only_speech',
     silêncio pré-cortado na origem), o que contamina qualquer análise que
     dependa de proporção de fala/silêncio. O conjunto oficialmente pontuado do
     ASVspoof 2021 LA é fase == 'eval'.
 
-    Este script quantifica essa composição e gera a evidência para a decisão
-    metodológica (TODO 9.3 no config.yaml) — que é do orientador, não deste
-    código.
+    Este script quantifica essa composição e gerou a evidência para a decisão
+    metodológica — hoje APROVADA pelo orientador e registrada no config.yaml
+    (dataset.fase: 'eval').
 
 SAÍDAS:
     results/metricas/composicao_fase.csv
@@ -100,9 +100,9 @@ def main() -> None:
    banda estreita (teto ~4 kHz): alaw, ulaw, gsm, pstn = {int(labels['codec'].isin(['alaw','ulaw','gsm','pstn']).sum())} ({100*labels['codec'].isin(['alaw','ulaw','gsm','pstn']).mean():.0f}%)
    banda larga   (>4 kHz):       g722, opus, none      = {int(labels['codec'].isin(['g722','opus','none']).sum())} ({100*labels['codec'].isin(['g722','opus','none']).mean():.0f}%)
 
-4. A decisão de filtrar (ou não) para fase=='eval' é METODOLÓGICA e está
-   registrada como TODO no config.yaml (seção dataset). Este script apenas
-   produz a evidência; não filtra nada.
+4. A decisão de filtrar para fase=='eval' é METODOLÓGICA, foi APROVADA pelo
+   orientador e está registrada no config.yaml (dataset.fase: 'eval'). Este
+   script apenas produz a evidência; não filtra nada.
 """)
     print(f"CSVs salvos em {DIR_MET}")
 

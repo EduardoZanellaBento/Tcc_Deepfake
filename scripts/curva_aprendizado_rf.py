@@ -7,12 +7,13 @@ treino e avalia SEMPRE no mesmo split de validação. O teste continua lacrado.
 Não altera features, não re-extrai nada, não implementa a subamostra do SVM.
 
 OBJETIVO:
-    O SVM-RBF é O(n²)–O(n³) e não roda nos ~127k de treino; a recomendação
-    pendente (TODO 9.2 no config.yaml) é uma subamostra estratificada (~30k)
-    compartilhada por RF, SVM e CNN. Esta curva responde à objeção da banca de
-    que "o SVM viu menos dado": se o desempenho do RF SATURA antes de 127k,
-    subamostrar não prejudica a comparação. Isto é EVIDÊNCIA para a decisão,
-    não a decisão em si.
+    O SVM-RBF é O(n²)–O(n³) e não roda nos ~103k de treino do eval; a decisão
+    APROVADA (bloco `experimento` do config.yaml) é uma subamostra
+    estratificada (~30k) compartilhada por RF, SVM e CNN. Esta curva responde
+    à objeção da banca de que "o SVM viu menos dado": o RF NÃO satura antes do
+    treino completo, e é exatamente essa evidência que justifica o braço de
+    referência (quantificar o custo da subamostra). Isto é EVIDÊNCIA para a
+    decisão, não a decisão em si.
 
 PROTOCOLO:
     Para cada tamanho em [5.000, 10.000, 20.000, 40.000, 80.000, TODOS]:
@@ -46,6 +47,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
 
+from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split, colunas_features
 from src.models.treinar_rf import calcular_eer
@@ -75,7 +77,8 @@ def subamostrar(treino: pd.DataFrame, n: int, semente: int) -> pd.DataFrame:
 
 
 def main() -> None:
-    semente = fixar_seeds(42)
+    cfg = carregar_config(RAIZ)
+    semente = fixar_seeds(cfg["semente"])
 
     df = carregar_dados_split(RAIZ)
     cols = colunas_features(df)

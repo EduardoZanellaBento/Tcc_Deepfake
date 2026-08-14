@@ -21,6 +21,13 @@ ESTRATIFICAÇÃO (todos os requisitos textuais do orientador):
     estrato vazio, é o próprio estrato bonafide (7 codecs × bonafide + 7 codecs
     × 13 ataques de spoof = 98 estratos no universo eval).
 
+PARÂMETROS (config.yaml, bloco `experimento`):
+    alvo    <- experimento.tamanho_subamostra
+    saída   <- experimento.caminho_subamostra
+    estratos<- experimento.estratificacao_subamostra
+    A constante PISO permanece no código de propósito: é regra de IMPLEMENTAÇÃO
+    da alocação (nenhum estrato pode zerar), não parâmetro metodológico.
+
 REGRA DE ALOCAÇÃO (documentação obrigatória):
     Proporcional ao tamanho de cada estrato no treino completo, pelo método do
     MAIOR RESTO (largest remainder): aloca floor(alvo * n_estrato / n_treino) a
@@ -54,11 +61,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 
 RAIZ = Path(__file__).resolve().parents[1]
-ALVO = 30_000
-PISO = 1
+PISO = 1   # regra de implementação (ver docstring) — não é parâmetro do config
 
 
 def alocar_maior_resto(tamanhos: pd.Series, alvo: int, piso: int) -> pd.Series:
@@ -88,12 +95,15 @@ def alocar_maior_resto(tamanhos: pd.Series, alvo: int, piso: int) -> pd.Series:
 
 
 def main() -> None:
-    semente = fixar_seeds(42)
+    cfg = carregar_config(RAIZ)
+    semente = fixar_seeds(cfg["semente"])
+    alvo = int(cfg["experimento"]["tamanho_subamostra"])
+    colunas_estrato = list(cfg["experimento"]["estratificacao_subamostra"])
+    saida = RAIZ / cfg["experimento"]["caminho_subamostra"]
 
     split = pd.read_csv(RAIZ / "data" / "processed" / "split.csv")
     labels = pd.read_csv(RAIZ / "data" / "processed" / "labels.csv",
-                         usecols=["arquivo", "classe_binaria", "codec",
-                                  "ataque", "fase"])
+                         usecols=["arquivo", "fase", *colunas_estrato])
 
     treino = split[split["conjunto"] == "treino"].merge(labels, on="arquivo",
                                                         how="inner")
@@ -102,16 +112,15 @@ def main() -> None:
     if not (treino["fase"] == "eval").all():
         raise SystemExit("FALHA: split de treino contém linhas fora do universo eval.")
 
-    print(f"Treino completo: {len(treino)} | alvo da subamostra: {ALVO}")
+    print(f"Treino completo: {len(treino)} | alvo da subamostra: {alvo}")
 
-    # ---- Estratos: classe_binaria × codec × ataque ---------------------------
-    treino["estrato"] = (treino["classe_binaria"].astype(str) + "|" +
-                         treino["codec"] + "|" + treino["ataque"])
+    # ---- Estratos (config: experimento.estratificacao_subamostra) ------------
+    treino["estrato"] = treino[colunas_estrato].astype(str).agg("|".join, axis=1)
     tamanhos = treino["estrato"].value_counts().sort_index()
     print(f"Estratos: {len(tamanhos)} (menor: {tamanhos.min()}, "
           f"maior: {tamanhos.max()})")
 
-    aloc = alocar_maior_resto(tamanhos, ALVO, PISO)
+    aloc = alocar_maior_resto(tamanhos, alvo, PISO)
 
     # ---- Amostragem determinística por estrato -------------------------------
     partes = []
@@ -120,13 +129,12 @@ def main() -> None:
         partes.append(sub.sample(n=int(aloc[estrato]), random_state=semente))
     amostra = pd.concat(partes)
 
-    amostra = amostra[["arquivo", "classe_binaria", "codec", "ataque"]] \
+    amostra = amostra[["arquivo", *colunas_estrato]] \
         .sort_values("arquivo").reset_index(drop=True)
     n_final = len(amostra)
     print(f"n final da subamostra: {n_final} "
-          f"({'exato' if n_final == ALVO else 'diverge do alvo — registrado'})")
+          f"({'exato' if n_final == alvo else 'diverge do alvo — registrado'})")
 
-    saida = RAIZ / "data" / "processed" / "subamostra_30k.csv"
     amostra.to_csv(saida, index=False)
     print(f"IDs salvos em {saida}")
 
@@ -156,7 +164,7 @@ def main() -> None:
     # ---- JSON de rastreabilidade ---------------------------------------------
     split_csv = RAIZ / "data" / "processed" / "split.csv"
     registro = {
-        "alvo": ALVO,
+        "alvo": alvo,
         "n_final": n_final,
         "semente": semente,
         "escopo": "somente conjunto=='treino'; validação e teste permanecem completos",
@@ -167,7 +175,7 @@ def main() -> None:
                           "piso de 1 por estrato, excedente retirado dos maiores; "
                           "amostragem por estrato com random_state=42",
         "piso_por_estrato": PISO,
-        "piso_acionado": bool((np.floor(ALVO * tamanhos / tamanhos.sum()) == 0).any()),
+        "piso_acionado": bool((np.floor(alvo * tamanhos / tamanhos.sum()) == 0).any()),
         "maior_desvio_pct_pontos": float(desvio_max),
         "razao_spoof_bonafide_treino": round(razao(treino), 4),
         "razao_spoof_bonafide_subamostra": round(razao(amostra), 4),

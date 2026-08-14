@@ -46,6 +46,7 @@ import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score, confusion_matrix
 
+from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split
 from src.models.treinar_rf import calcular_eer
@@ -56,7 +57,8 @@ COLS_CORR = ["prop_fala", "centroide_media", "centroide_std",
 
 
 def main() -> None:
-    semente = fixar_seeds(42)
+    cfg = carregar_config(RAIZ)
+    semente = fixar_seeds(cfg["semente"])
 
     df = carregar_dados_split(RAIZ)
     labels = pd.read_csv(RAIZ / "data" / "processed" / "labels.csv",

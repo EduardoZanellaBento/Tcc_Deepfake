@@ -37,9 +37,9 @@ ASVspoof 2021 — subconjunto **Logical Access (LA)**.
    distinto que contamina qualquer análise de proporção de fala.
    → `scripts/composicao_eval.py`, filtro em `src/data/split.py`.
 3. **Sem `fmax=4000` global; métricas reportadas por codec.**
-   57% do dataset é banda estreita (alaw/ulaw/gsm/pstn, teto ~4 kHz) e 43% banda
-   larga (g722/opus/none): filtrar tudo em 4 kHz destruiria justamente a banda alta
-   onde vivem artefatos de síntese. → `scripts/diagnostico_por_codec.py`.
+   58% do universo eval é banda estreita (alaw/ulaw/gsm/pstn, teto ~4 kHz) e 42%
+   banda larga (g722/opus/none): filtrar tudo em 4 kHz destruiria justamente a banda
+   alta onde vivem artefatos de síntese. → `scripts/diagnostico_por_codec.py`.
 4. **Split aleatório por utterance mantido como baseline, com limitação declarada**
    (ver seção "Limitação do split" abaixo). → `src/data/split.py`.
 

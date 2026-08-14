@@ -38,6 +38,7 @@ from sklearn.metrics import (
     roc_curve, auc, precision_recall_curve, f1_score, recall_score,
 )
 
+from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split, colunas_features
 from src.models.treinar_rf import calcular_eer
@@ -46,7 +47,8 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
-    semente = fixar_seeds(42)
+    cfg = carregar_config(RAIZ)
+    semente = fixar_seeds(cfg["semente"])
 
     df = carregar_dados_split(RAIZ)
     cols = colunas_features(df)
