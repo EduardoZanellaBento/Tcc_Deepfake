@@ -49,7 +49,7 @@ from sklearn.metrics import f1_score, confusion_matrix
 from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split
-from src.models.treinar_rf import calcular_eer
+from src.models.avaliacao import calcular_eer
 
 RAIZ = Path(__file__).resolve().parents[1]
 COLS_CORR = ["prop_fala", "centroide_media", "centroide_std",

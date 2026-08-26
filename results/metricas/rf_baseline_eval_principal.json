@@ -1,0 +1,45 @@
+{
+  "modelo": "rf_baseline_eval_principal",
+  "acuracia": 0.9024565823809952,
+  "precisao_spoof": 0.9022190149738408,
+  "recall_spoof": 1.0,
+  "f1_spoof": 0.9485963581183612,
+  "precisao_bonafide": 1.0,
+  "recall_bonafide": 0.024302430243024302,
+  "f1_bonafide": 0.04745166959578207,
+  "f1_macro": 0.4980240138570716,
+  "eer": 0.23668709102463933,
+  "limiar_eer": 0.89,
+  "tempo_treino_s": 1.86,
+  "tempo_inferencia_total_s": 0.0308,
+  "tempo_inferencia_por_audio_ms": 0.0014,
+  "braco": "principal",
+  "n_treino": 30000,
+  "n_validacao": 22226,
+  "semente": 42,
+  "acuracia_baseline_trivial": 0.9000269954107801,
+  "matriz_confusao": [
+    [
+      54,
+      2168
+    ],
+    [
+      0,
+      20004
+    ]
+  ],
+  "top10_features": {
+    "mfcc4_std": 0.05559,
+    "mfcc2_std": 0.02987,
+    "mfcc1_std": 0.02947,
+    "centroide_media": 0.02768,
+    "mfcc13_media": 0.02731,
+    "mfcc18_std": 0.02633,
+    "mfcc1_media": 0.02621,
+    "mfcc5_std": 0.02559,
+    "mfcc8_media": 0.02534,
+    "mfcc3_std": 0.02523
+  },
+  "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d"
+}

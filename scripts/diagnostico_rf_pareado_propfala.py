@@ -49,7 +49,7 @@ from sklearn.metrics import confusion_matrix, f1_score
 from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split, colunas_features
-from src.models.treinar_rf import calcular_eer
+from src.models.avaliacao import calcular_eer
 
 RAIZ = Path(__file__).resolve().parents[1]
 N_BINS = 10

@@ -160,10 +160,34 @@ def padronizar_duracao(y: np.ndarray, sr: int, dur_segundos: float) -> np.ndarra
 # ---------------------------------------------------------------------------
 # 5) Orquestrador: o pipeline completo por áudio
 # ---------------------------------------------------------------------------
-def preprocessar_audio(caminho: str, cfg: dict) -> tuple[np.ndarray, float]:
+def preprocessar_audio(caminho: str, cfg: dict) -> tuple[np.ndarray, float, int]:
     """Aplica a cadeia inteira a um arquivo, lendo os parâmetros do config.yaml.
 
-    Retorna (forma_de_onda_final, proporcao_de_fala).
+    Retorna (forma_de_onda_final, proporcao_de_fala, n_amostras_validas).
+
+    POR QUE O TERCEIRO VALOR EXISTE [aprovado pelo orientador — mascaramento]:
+        `y` sai daqui SEMPRE com sr*dur amostras, mas parte disso pode ser
+        zero-padding inserido no passo 4 só para igualar o formato do vetor.
+        Quem calcula as features precisa saber ONDE o áudio real termina, para
+        agregar média/desvio APENAS sobre os frames válidos. Sem esse número, a
+        informação morre aqui dentro e a agregação passa a medir, em parte, a
+        formatação do tensor em vez da fala: medido na checagem, a mediana é de
+        121 frames válidos em 251 — metade do tensor é padding, e incluí-lo
+        desloca as features em ~30%.
+        Justificativa completa e a discussão da assimetria entre classes:
+        docstring de src/features/extrair_features.py.
+
+        ATENÇÃO: `prop_fala` e este contador medem coisas DIFERENTES. prop_fala é
+        a fração do áudio ORIGINAL que o VAD manteve; n_amostras_validas é o
+        tamanho ABSOLUTO do que sobrou, comparado ao alvo de 4,0 s. Um áudio
+        longo com prop_fala baixa pode acabar com MENOS padding que um curto com
+        prop_fala alta. Não inferir um do outro.
+
+        n_amostras_validas = min(len(y_pos_VAD), alvo):
+          - `min` porque, se o áudio pós-VAD for MAIOR que o alvo, ele é cortado
+            e não existe padding nenhum — todas as amostras são válidas;
+          - o caso prop_fala == 0 (o VAD zerou tudo e devolvemos o áudio
+            original) cai naturalmente aqui: o áudio original é o sinal válido.
     """
     sr = cfg["audio"]["sample_rate"]
     dur = cfg["audio"]["duracao_segundos"]
@@ -176,8 +200,11 @@ def preprocessar_audio(caminho: str, cfg: dict) -> tuple[np.ndarray, float]:
     if usar_vad:
         y, proporcao_fala = aplicar_vad(y, sr)
 
+    # nº de amostras REAIS que sobrevivem à padronização (medido ANTES do padding)
+    n_amostras_validas = min(len(y), int(sr * dur))
+
     y = padronizar_duracao(y, sr, dur)
-    return y, proporcao_fala
+    return y, proporcao_fala, n_amostras_validas
 
 
 # ---------------------------------------------------------------------------
@@ -215,11 +242,13 @@ if __name__ == "__main__":
         y_bruto = carregar_audio(caminho, sr)
         dur_bruta = len(y_bruto) / sr
 
-        y_final, prop = preprocessar_audio(caminho, cfg)
+        y_final, prop, n_val = preprocessar_audio(caminho, cfg)
 
         print(f"\n{Path(caminho).name}  [{linha['label']}]")
         print(f"  bruto     : {len(y_bruto):>7} amostras  ({dur_bruta:5.2f}s)")
         print(f"  pós-VAD   : {prop*100:5.1f}% de fala mantida")
+        print(f"  válidas   : {n_val:>7} amostras  "
+              f"({100*n_val/alvo:5.1f}% do alvo; o resto é zero-padding)")
         print(f"  final     : {len(y_final):>7} amostras  "
               f"({'OK' if len(y_final) == alvo else 'ERRO DE TAMANHO'})")
 

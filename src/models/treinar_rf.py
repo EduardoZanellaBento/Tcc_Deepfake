@@ -28,16 +28,17 @@ DECISÕES DE PROJETO:
    ~89,8% de acurácia, ele não aprendeu nada — apenas descobriu a classe majoritária.
    É por isso que acurácia sozinha, aqui, é uma métrica enganosa.
 
-TODO [braço duplo — implementar quando SVM/CNN existirem]:
-   A chave `experimento.braco` do config.yaml ainda NÃO é consumida por nenhum
-   modelo. Quando o braço for implementado aqui:
-     braco == 'principal'  -> filtrar o TREINO pelos IDs de
+5. Braço duplo (chave `experimento.braco` do config.yaml, lida via
+   filtrar_treino_braco em src/data/split.py):
+     braco == 'principal'  -> TREINO filtrado pelos IDs de
                               `experimento.caminho_subamostra` (subamostra ~30k
                               compartilhada por RF, SVM e CNN);
-     braco == 'referencia' -> treinar no conjunto de treino COMPLETO do eval
-                              (103.723), para quantificar o custo da subamostra.
+     braco == 'referencia' -> treino no conjunto COMPLETO do eval (103.723),
+                              para quantificar o custo da subamostra.
    Em AMBOS os braços, VALIDAÇÃO e TESTE permanecem COMPLETOS (exigência
-   textual do orientador).
+   textual do orientador). Regra de negócio: o RF roda nos DOIS braços (o
+   __main__ faz isso); o SVM, quando existir, roda SÓ no principal. Artefatos
+   por braço: rf_baseline_eval_principal.* e rf_baseline_eval_referencia.*.
 """
 
 import hashlib
@@ -47,112 +48,38 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use("Agg")          # backend sem janela: só salva arquivo
-import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    confusion_matrix,
-    roc_curve,
-)
+from sklearn.metrics import accuracy_score, confusion_matrix
 import joblib
 
 from ..utils.seeds import fixar_seeds
-from ..data.split import carregar_dados_split, colunas_features, resumo_split
+from ..data.split import (carregar_dados_split, colunas_features,
+                          filtrar_treino_braco, resumo_split)
+# calcular_eer é re-exportado aqui por compatibilidade: consumidores antigos
+# importavam de src.models.treinar_rf. O lugar canônico é src.models.avaliacao.
+from .avaliacao import avaliar, calcular_eer, plotar_matriz_confusao
 
 
-def calcular_eer(y_true: np.ndarray, scores: np.ndarray) -> tuple[float, float]:
-    """Equal Error Rate — a métrica padrão do ASVspoof.
+def treinar(cfg: dict, raiz: Path, nome: str | None = None,
+            braco: str | None = None) -> dict:
+    """Treina o RF baseline no braço pedido e salva artefatos com o prefixo `nome`.
 
-    O QUE É: acurácia/F1 dependem de um limiar fixo (0,5). O EER remove essa
-    arbitrariedade — ele varre TODOS os limiares possíveis e encontra o ponto em
-    que a taxa de falsos positivos (FPR) iguala a de falsos negativos (FNR). É esse
-    valor comum que se reporta. Menor = melhor. Por ser independente de limiar, é
-    o que permite comparar esse número com o da literatura (Yamagishi et al. 2022
-    reportam EER de 1,32% em LA).
-
-    Convenção adotada aqui: classe positiva = spoof (classe_binaria = 1), e `scores`
-    é a probabilidade predita de ser spoof. Trocar a classe positiva troca o significado de FPR e FNR.
-
-    Returns:
-        (eer, limiar_no_eer)
+    Args:
+        cfg: config.yaml carregado.
+        raiz: raiz do projeto.
+        nome: prefixo dos artefatos. Default: 'rf_baseline_eval_{braco}'.
+            Não colide com os baselines já publicados: rf_baseline.* (universo
+            histórico de 181.566) e rf_baseline_eval.* (universo eval, treino
+            completo, anterior ao braço duplo) ficam preservados como referência
+            citada no trabalho e NÃO devem ser sobrescritos.
+        braco: 'principal' (subamostra ~30k) ou 'referencia' (treino completo).
+            Se None, vale cfg['experimento']['braco'] — config que ninguém lê é
+            comentário. Ver filtrar_treino_braco em src/data/split.py.
     """
-    fpr, tpr, limiares = roc_curve(y_true, scores, pos_label=1)
-    fnr = 1 - tpr
-    # O ponto onde as duas curvas se cruzam: |FNR - FPR| mínimo.
-    i = int(np.nanargmin(np.abs(fnr - fpr)))
-    eer = (fpr[i] + fnr[i]) / 2
-    return float(eer), float(limiares[i])
-
-
-def avaliar(y_true, y_pred, scores, nome: str) -> dict:
-    """Calcula o conjunto de métricas do config.yaml e imprime a leitura crítica."""
-    m = {
-        "modelo": nome,
-        "acuracia": float(accuracy_score(y_true, y_pred)),
-        # zero_division=0: se o modelo NUNCA prevê uma classe, a precisão dela é 0/0.
-        # Sem isso o sklearn emite warning e devolve 0 silenciosamente.
-        "precisao_spoof": float(precision_score(y_true, y_pred, pos_label=1, zero_division=0)),
-        "recall_spoof": float(recall_score(y_true, y_pred, pos_label=1, zero_division=0)),
-        "f1_spoof": float(f1_score(y_true, y_pred, pos_label=1, zero_division=0)),
-        # A classe minoritária é a que revela se o modelo realmente aprendeu:
-        "precisao_bonafide": float(precision_score(y_true, y_pred, pos_label=0, zero_division=0)),
-        "recall_bonafide": float(recall_score(y_true, y_pred, pos_label=0, zero_division=0)),
-        "f1_bonafide": float(f1_score(y_true, y_pred, pos_label=0, zero_division=0)),
-        # f1 macro: média não ponderada das duas classes. Com dados desbalanceados, é MUITO mais informativo que a acurácia — não deixa a classe majoritária esconder o fracasso na minoritária.
-        "f1_macro": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
-    }
-    eer, limiar = calcular_eer(y_true, scores)
-    m["eer"] = eer
-    m["limiar_eer"] = limiar
-    return m
-
-
-def plotar_matriz_confusao(cm: np.ndarray, caminho: Path, titulo: str) -> None:
-    """Matriz de confusão com contagens absolutas E percentual por linha.
-
-    Percentual POR LINHA (normalizado pelo total real de cada classe) é o que
-    importa aqui: com 8,8:1, os números absolutos da linha 'spoof' esmagam
-    visualmente os da 'bonafide' e escondem o erro que interessa.
-    """
-    fig, ax = plt.subplots(figsize=(5.5, 4.6))
-    cm_pct = cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100
-
-    im = ax.imshow(cm_pct, cmap="Blues", vmin=0, vmax=100)
-    nomes = ["bonafide (0)", "spoof (1)"]
-    ax.set_xticks([0, 1], labels=nomes)
-    ax.set_yticks([0, 1], labels=nomes)
-    ax.set_xlabel("Predito")
-    ax.set_ylabel("Real")
-    ax.set_title(titulo)
-
-    for i in range(2):
-        for j in range(2):
-            ax.text(j, i, f"{cm[i, j]:,}\n({cm_pct[i, j]:.1f}%)",
-                    ha="center", va="center",
-                    color="white" if cm_pct[i, j] > 50 else "black",
-                    fontsize=11)
-
-    fig.colorbar(im, ax=ax, label="% da classe real")
-    fig.tight_layout()
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(caminho, dpi=150)
-    plt.close(fig)
-    print(f"Matriz de confusão salva em {caminho}")
-
-
-def treinar(cfg: dict, raiz: Path, nome: str = "rf_baseline_eval") -> dict:
-    """Treina o RF baseline no split atual e salva artefatos com o prefixo `nome`.
-
-    Default 'rf_baseline_eval': o universo do experimento passou a ser
-    fase=='eval' (148.176). Os artefatos históricos do universo de 181.566
-    (rf_baseline.json, rf_baseline.joblib, matriz_confusao_rf_baseline.png)
-    são baseline de REFERÊNCIA citado no trabalho e não devem ser sobrescritos.
-    """
+    if braco is None:
+        braco = cfg["experimento"]["braco"]
+    if nome is None:
+        nome = f"rf_baseline_eval_{braco}"
     semente = fixar_seeds(cfg["semente"])
 
     # ---- Dados ---------------------------------------------------------------
@@ -164,6 +91,12 @@ def treinar(cfg: dict, raiz: Path, nome: str = "rf_baseline_eval") -> dict:
 
     treino = df[df["conjunto"] == "treino"]
     validacao = df[df["conjunto"] == "validacao"]
+
+    # ---- Braço do experimento (só o TREINO muda; validação/teste completos) --
+    n_treino_completo = len(treino)
+    treino = filtrar_treino_braco(treino, braco, cfg, raiz)
+    print(f"\nBraço '{braco}': treino com {len(treino)} de "
+          f"{n_treino_completo} áudios (validação e teste completos).")
 
     X_tr, y_tr = treino[cols].values, treino["classe_binaria"].values
     X_va, y_va = validacao[cols].values, validacao["classe_binaria"].values
@@ -204,6 +137,7 @@ def treinar(cfg: dict, raiz: Path, nome: str = "rf_baseline_eval") -> dict:
     m["tempo_treino_s"] = round(t_treino, 2)
     m["tempo_inferencia_total_s"] = round(t_inf, 4)
     m["tempo_inferencia_por_audio_ms"] = round(1000 * t_inf / len(X_va), 4)
+    m["braco"] = braco
     m["n_treino"] = int(len(X_tr))
     m["n_validacao"] = int(len(X_va))
     m["semente"] = semente
@@ -218,7 +152,7 @@ def treinar(cfg: dict, raiz: Path, nome: str = "rf_baseline_eval") -> dict:
 
     # ---- Relatório -----------------------------------------------------------
     print("\n" + "=" * 64)
-    print("RESULTADOS — Random Forest baseline (conjunto de VALIDAÇÃO)")
+    print(f"RESULTADOS — RF baseline, braço '{braco}' (conjunto de VALIDAÇÃO)")
     print("=" * 64)
     print(f"  acurácia            : {m['acuracia']:.4f}")
     print(f"  acurácia trivial    : {m['acuracia_baseline_trivial']:.4f}  <- sempre 'spoof'")
@@ -250,6 +184,10 @@ def treinar(cfg: dict, raiz: Path, nome: str = "rf_baseline_eval") -> dict:
     # estas métricas (mesmo padrão do curva_aprendizado_rf.json).
     split_csv = raiz / "data" / "processed" / "split.csv"
     m["hash_md5_split_csv"] = hashlib.md5(split_csv.read_bytes()).hexdigest()
+    if braco == "principal":
+        subamostra_csv = raiz / cfg["experimento"]["caminho_subamostra"]
+        m["hash_md5_subamostra_csv"] = hashlib.md5(
+            subamostra_csv.read_bytes()).hexdigest()
 
     (raiz / "models").mkdir(exist_ok=True)
     joblib.dump(modelo, raiz / "models" / f"{nome}.joblib")
@@ -262,7 +200,7 @@ def treinar(cfg: dict, raiz: Path, nome: str = "rf_baseline_eval") -> dict:
     plotar_matriz_confusao(
         cm,
         raiz / "results" / "figuras" / f"matriz_confusao_{nome}.png",
-        f"Random Forest baseline (eval) — validação",
+        f"Random Forest baseline (eval, braço {braco}) — validação",
     )
     print(f"\nModelo salvo em models/{nome}.joblib")
     print(f"Métricas salvas em results/metricas/{nome}.json")
@@ -274,4 +212,8 @@ if __name__ == "__main__":
 
     RAIZ = Path(__file__).resolve().parents[2]
     cfg = yaml.safe_load(open(RAIZ / "config" / "config.yaml", encoding="utf-8"))
-    treinar(cfg, RAIZ)
+    # Regra de negócio do braço duplo: o RF roda nos DOIS braços — 'principal'
+    # é o ambiente da comparação RF × SVM × CNN, 'referencia' quantifica o
+    # custo da subamostra. O SVM (quando existir) roda SÓ no principal.
+    for braco in ("principal", "referencia"):
+        treinar(cfg, RAIZ, braco=braco)

@@ -1,0 +1,44 @@
+{
+  "modelo": "rf_baseline_eval_referencia",
+  "acuracia": 0.9088454962656348,
+  "precisao_spoof": 0.9080715453059742,
+  "recall_spoof": 0.9999500099980004,
+  "f1_spoof": 0.9517986296155311,
+  "precisao_bonafide": 0.9949494949494949,
+  "recall_bonafide": 0.08865886588658865,
+  "f1_bonafide": 0.1628099173553719,
+  "f1_macro": 0.5573042734854515,
+  "eer": 0.18176672946238837,
+  "limiar_eer": 0.88,
+  "tempo_treino_s": 8.49,
+  "tempo_inferencia_total_s": 0.0459,
+  "tempo_inferencia_por_audio_ms": 0.0021,
+  "braco": "referencia",
+  "n_treino": 103723,
+  "n_validacao": 22226,
+  "semente": 42,
+  "acuracia_baseline_trivial": 0.9000269954107801,
+  "matriz_confusao": [
+    [
+      197,
+      2025
+    ],
+    [
+      1,
+      20003
+    ]
+  ],
+  "top10_features": {
+    "mfcc4_std": 0.05443,
+    "centroide_media": 0.03235,
+    "mfcc1_std": 0.02846,
+    "mfcc2_std": 0.02845,
+    "mfcc1_media": 0.02739,
+    "mfcc15_media": 0.02734,
+    "mfcc13_media": 0.02599,
+    "mfcc8_media": 0.02531,
+    "mfcc3_std": 0.0253,
+    "mfcc4_media": 0.02517
+  },
+  "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402"
+}

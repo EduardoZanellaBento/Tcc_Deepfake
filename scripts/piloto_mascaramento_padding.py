@@ -58,7 +58,7 @@ from src.data.preprocessamento import (aplicar_vad, carregar_audio,
                                        normalizar_amplitude,
                                        padronizar_duracao)
 from src.features.extrair_features import nomes_features
-from src.models.treinar_rf import calcular_eer
+from src.models.avaliacao import calcular_eer
 
 RAIZ = Path(__file__).resolve().parents[1]
 N_PILOTO = 2000

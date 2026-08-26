@@ -49,11 +49,13 @@ experimento:
   # textual do orientador. `braco` substitui o antigo booleano
   # `usar_subamostra`, que deixou de fazer sentido: os dois braços rodam,
   # não é liga/desliga.
-  # TODO [quando SVM/CNN existirem]: nenhum modelo consome `braco` ainda.
-  # Ao implementar, 'principal' filtra o treino pelos IDs de
-  # `caminho_subamostra` e 'referencia' usa o treino completo — ver docstring
-  # de src/models/treinar_rf.py.
-  braco: "principal"          # (declarativo — ainda não consumido pelo código)
+  # Consumo: src/data/split.py (filtrar_treino_braco) — 'principal' filtra o
+  # TREINO pelos IDs de `caminho_subamostra`, 'referencia' usa o treino
+  # completo; validação e teste permanecem completos nos dois braços. O RF
+  # (src/models/treinar_rf.py) roda os DOIS braços e salva artefatos com
+  # sufixo _principal/_referencia; esta chave é o braço DEFAULT para quem
+  # treina um braço só (o SVM, quando existir, roda somente no principal).
+  braco: "principal"
   # As três chaves abaixo são lidas por scripts/gerar_subamostra.py:
   tamanho_subamostra: 30000   # alvo; o n final pode divergir por arredondamento
                               # (registrado em subamostra_30k.json, não maquiado)
@@ -69,7 +71,12 @@ modelos:
 
 audio:
   sample_rate: 16000   # Hz. ASVspoof é 16kHz. Manter alto preserva artefatos de alta freq.
-  duracao_segundos: 4.0  # padroniza duração (corta/preenche). Define janela fixa de entrada.
+  # DECIDIDO [aprovado pelo orientador] — 4,0 s é FIXO. Testar outras durações
+  # abriria um novo eixo experimental e consumiria tempo do TC II; o problema do
+  # zero-padding é tratado pelo mascaramento da agregação (features.mascarar_padding),
+  # não pela duração. Se necessário, a escolha da duração entra como LIMITAÇÃO ou
+  # TRABALHO FUTURO no texto — nunca como experimento adicional agora.
+  duracao_segundos: 4.0  # padroniza duração (corta/preenche). Janela fixa de entrada.
   vad: true            # remoção de silêncio (Voice Activity Detection)
 
 features:                # parâmetros das características manuais (RF e SVM)
@@ -85,26 +92,44 @@ features:                # parâmetros das características manuais (RF e SVM)
   # (fmax = sr/2 = 8000 Hz). O features.csv em disco foi extraído assim.
   #
   # ============================================================
-  # ⚠️  NÃO RE-EXTRAIR SEM DECISÃO EXPLÍCITA REGISTRADA.
+  # ⚠️  LOTE ÚNICO DE RE-EXTRAÇÃO — status das pendências
   # ============================================================
-  # A re-extração leva HORAS e segue BLOQUEADA até o orientador revisar o
-  # pacote. Pendências acumuladas para o LOTE ÚNICO de re-extração
-  # (mesma lista do README — manter as duas em sincronia):
-  #   1. `win_length` do centróide espectral — o features.csv atual foi
-  #      extraído sem win_length no spectral_centroid (usou o default
-  #      n_fft=512 em vez dos 400 de MFCC/ZCR). A correção já está no código
-  #      e vale a partir do próximo lote.
-  #   2. Filtro fase == 'eval' — extrair somente o universo aprovado (148.176).
-  #   3. Mascaramento de padding na agregação temporal — recomendado pelo
-  #      piloto (RECOMENDACAO_MASCARAMENTO.md); aguarda aprovação do orientador.
-  #   4. `n_frames_validos` como coluna de diagnóstico — junto com prop_fala,
-  #      e igualmente FORA do X (adicionar à lista `excluir` em
-  #      colunas_features).
-  # Cada item esquecido aqui é uma re-extração inteira desperdiçada.
+  # As quatro pendências foram APROVADAS pelo orientador e JÁ ESTÃO NO CÓDIGO
+  # (bloco 1 do cronograma, 25–27/08). O features.csv em disco ainda é o ANTIGO:
+  # ele só passa a refletir isto depois do lote único (28–30/08).
+  #   1. [FEITO no código] win_length=400 no spectral_centroid — o CSV antigo
+  #      usou o default (n_fft=512), dando ao centróide resolução temporal
+  #      diferente da do MFCC/ZCR.
+  #   2. [FEITO no código] filtro fase == 'eval' dentro de executar() — extrai
+  #      só o universo aprovado (148.176), não os 181.566 do labels.csv.
+  #   3. [FEITO no código] mascaramento de padding na agregação temporal
+  #      (chave `mascarar_padding`, abaixo).
+  #   4. [FEITO no código] n_frames_validos e n_frames_total como colunas de
+  #      diagnóstico, FORA do X (COLUNAS_DIAGNOSTICO em extrair_features.py,
+  #      consumida por colunas_features em src/data/split.py).
+  # Evidência da checagem: results/metricas/checagem_mascaramento.json
+  # (gerada por `python -m scripts.verificar_mascaramento`).
+  # DEPOIS DO LOTE ÚNICO AS FEATURES FICAM CONGELADAS — nova re-extração só
+  # por erro grave, com decisão registrada.
   n_mfcc: 20           # nº de coeficientes MFCC
   n_fft: 512           # tamanho da FFT
   hop_length: 256      # passo entre janelas
-  win_length: 400      # ~25ms a 16kHz (janelamento)
+  win_length: 400      # ~25ms a 16kHz — vale para MFCC, ZCR E centróide
+  # DECIDIDO [aprovado pelo orientador] — mascaramento de padding:
+  # a agregação (média/desvio) usa SOMENTE os frames cujo centro cai dentro do
+  # áudio real pós-VAD; os zeros inseridos para fechar os 4,0 s não entram na
+  # conta. Medido em checagem_mascaramento.json: a mediana é 121 frames válidos
+  # de 251 — metade do tensor é padding, e incluí-lo desloca as features em 30%
+  # (mediana) a 47% (máximo). Além disso a distorção é ASSIMÉTRICA entre as
+  # classes (até |0,47| padronizado em mfcc1_std/centroide_std/mfcc5_media),
+  # embora a FRAÇÃO de padding seja quase igual (44,8% bonafide vs 45,2% spoof)
+  # — a assimetria vem do conteúdo acústico, não da quantidade de zeros.
+  # Justificativa completa: docstring de src/features/extrair_features.py e
+  # results/metricas/RECOMENDACAO_MASCARAMENTO.md (com o adendo de 26/08).
+  # Consumo: _processar_um em src/features/extrair_features.py (default True se
+  # a chave sumir — config incompleto não reverte decisão metodológica).
+  # false existe apenas para reproduzir o CSV antigo em comparações A/B.
+  mascarar_padding: true
   # Por áudio guardamos média + desvio-padrão de cada feature ao longo do tempo,
   # transformando uma série temporal num vetor de tamanho fixo (entrada tabular).
   agregacao: ["media", "desvio_padrao"]  # (declarativo — ainda não consumido pelo código)

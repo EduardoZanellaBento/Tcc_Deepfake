@@ -1,0 +1,64 @@
+{
+  "semente": 42,
+  "universo": "eval",
+  "duracao_segundos": 4.0,
+  "hop_length": 256,
+  "win_length": 400,
+  "definicao_frame_valido": "centro do frame (i*hop, center=True) dentro do áudio real pós-VAD e pré-padding — idêntica à do piloto scripts/piloto_mascaramento_padding.py",
+  "parte_a_ab_controlado": {
+    "n_audios": 200,
+    "n_erros": 0,
+    "features_sem_nenhuma_mudanca": 0,
+    "mascaramento_ativo": true,
+    "delta_relativo_pct_mediano": 30.3,
+    "delta_relativo_pct_maximo": 47.03,
+    "top5_assimetria_padronizada": [
+      {
+        "feature": "mfcc1_std",
+        "assimetria_padronizada": -0.4657,
+        "delta_relativo_pct": 30.74
+      },
+      {
+        "feature": "centroide_std",
+        "assimetria_padronizada": 0.4447,
+        "delta_relativo_pct": 12.87
+      },
+      {
+        "feature": "mfcc5_media",
+        "assimetria_padronizada": -0.4279,
+        "delta_relativo_pct": 45.81
+      },
+      {
+        "feature": "mfcc9_media",
+        "assimetria_padronizada": -0.3875,
+        "delta_relativo_pct": 46.85
+      },
+      {
+        "feature": "mfcc8_std",
+        "assimetria_padronizada": -0.3007,
+        "delta_relativo_pct": 13.33
+      }
+    ],
+    "fracao_padding_media_bonafide": 0.448,
+    "fracao_padding_media_spoof": 0.4523
+  },
+  "parte_b_runner": {
+    "n_linhas": 500,
+    "n_bonafide": 50,
+    "n_spoof": 450,
+    "n_colunas": 50,
+    "n_colunas_X": 44,
+    "fases_encontradas": [
+      "eval"
+    ],
+    "n_frames_total_unico": [
+      251
+    ],
+    "n_frames_validos_min": 42,
+    "n_frames_validos_mediana": 121.0,
+    "n_frames_validos_max": 250,
+    "problemas": [],
+    "aprovado": true
+  },
+  "aprovado_para_lote_unico": true
+}

@@ -112,6 +112,11 @@ braços:
   quantifica exatamente quanto a subamostra custou. Entra como linha extra na tabela
   final.
 
+Implementação: a chave `experimento.braco` do `config.yaml` é lida por
+`filtrar_treino_braco` (`src/data/split.py`); `treinar_rf.py` roda os dois braços e
+salva artefatos com sufixo `_principal`/`_referencia` (o `rf_baseline_eval.*`
+pré-braço-duplo fica preservado). O SVM, quando existir, roda só no principal.
+
 ## Como rodar cada script
 
 Sempre a partir da **raiz**, com `python -m` (imports relativos):
@@ -120,7 +125,7 @@ Sempre a partir da **raiz**, com `python -m` (imports relativos):
 # pipeline principal
 python -m src.data.carregar_dados            # regenera labels.csv do trial_metadata.txt
 python -m src.data.split                     # gera/recarrega o split 70/15/15 (universo eval)
-python -m src.models.treinar_rf              # RF baseline -> rf_baseline_eval.{json,joblib} + matriz de confusão
+python -m src.models.treinar_rf              # RF baseline nos DOIS braços -> rf_baseline_eval_{principal,referencia}.{json,joblib} + matrizes de confusão
 python -m src.features.extrair_features     # ATENÇÃO: re-extração leva HORAS; ver aviso abaixo
 
 # composição e subamostra
@@ -137,6 +142,7 @@ python -m scripts.curva_aprendizado_rf             # curva de aprendizado -> evi
 python -m scripts.diagnostico_padding_features     # correlação das 44 features com prop_fala
 python -m scripts.diagnostico_rf_pareado_propfala  # RF com classes pareadas por faixa de prop_fala
 python -m scripts.piloto_mascaramento_padding      # piloto A/B de mascaramento (2.000 áudios, arquivo separado)
+python -m scripts.verificar_mascaramento           # CHECAGEM do bloco 1: A/B controlado + esquema do CSV (roda ANTES do lote único)
 
 python scripts/verificar_ambiente.py         # sanidade do ambiente (versões, GPU, pastas)
 ```
@@ -168,19 +174,36 @@ consequência de protocolo (mesma regra de limiar para RF, SVM e CNN):
 roda com decisão explícita registrada**. O `data/features/features.csv` atual é o
 artefato de referência desta fase; não sobrescrever, não regerar parcialmente.
 
-### Pendências acumuladas para o lote único de re-extração (NÃO executar agora)
+### Pendências do lote único — todas APROVADAS e já implementadas no código
 
-1. **`win_length` do centróide espectral** — o `features.csv` atual foi extraído sem
-   `win_length` no `spectral_centroid` (usou o default `n_fft=512` em vez dos 400 de
-   MFCC/ZCR). A correção já está no código e vale a partir do próximo lote.
-2. **Filtro `fase == 'eval'`** — extrair somente o universo aprovado (148.176).
-3. **Mascaramento de padding na agregação temporal** — recomendado pelo piloto
-   (`RECOMENDACAO_MASCARAMENTO.md`); aguarda aprovação do orientador.
-4. **`n_frames_validos` como coluna de diagnóstico** — junto com `prop_fala`, e
-   igualmente **fora** do X (adicionar à lista `excluir` em `colunas_features`).
+O `features.csv` em disco ainda é o **antigo**; ele só reflete a lista abaixo depois
+do lote único (bloco 2 do cronograma, 28–30/08).
 
-Cada item esquecido aqui é uma re-extração inteira desperdiçada — manter a lista
-atualizada.
+1. **`win_length` do centróide espectral** — o CSV antigo foi extraído sem
+   `win_length` no `spectral_centroid` (default `n_fft=512` em vez dos 400 de
+   MFCC/ZCR), deixando o centróide com resolução temporal diferente das demais
+   features. ✔ corrigido em `extrair_vetor`.
+2. **Filtro `fase == 'eval'`** — extrair somente o universo aprovado (148.176), e não
+   os 181.566 do `labels.csv`. ✔ aplicado dentro de `executar()`.
+3. **Mascaramento de padding na agregação temporal** — média e desvio calculados
+   apenas sobre os frames válidos (centro do frame dentro do áudio real pós-VAD).
+   ✔ implementado; governado por `features.mascarar_padding` no config.
+   Justificativa: `RECOMENDACAO_MASCARAMENTO.md` (+ adendo de 26/08) e
+   `checagem_mascaramento.json`.
+4. **`n_frames_validos` e `n_frames_total` como colunas de diagnóstico** — no CSV,
+   mas **fora do X**, junto com `prop_fala`. ✔ `COLUNAS_DIAGNOSTICO` em
+   `src/features/extrair_features.py`, consumida por `colunas_features`
+   (`src/data/split.py`), que é o ponto único que define o X.
+
+**Checagem obrigatória antes do lote:** `python -m scripts.verificar_mascaramento` —
+prova, em teste A/B controlado, que o mascaramento altera as features; mede a
+assimetria da distorção entre as classes; e valida o esquema do CSV gerado pelo
+runner de produção (50 colunas = 3 identificação + 3 diagnóstico + 44 features;
+`colunas_features` devolvendo exatamente 44; sem NaN; universo só `eval`). Evidência
+em `results/metricas/checagem_mascaramento.json`.
+
+**Depois do lote único as features ficam CONGELADAS** — nova re-extração apenas por
+erro grave, com decisão registrada.
 
 ## Estrutura de pastas
 

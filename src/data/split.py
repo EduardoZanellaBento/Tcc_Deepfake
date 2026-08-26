@@ -171,16 +171,89 @@ def carregar_dados_split(raiz: Path) -> pd.DataFrame:
     return df
 
 
-def colunas_features(df: pd.DataFrame) -> list[str]:
-    """Devolve SÓ as 44 colunas de features acústicas.
+def filtrar_treino_braco(treino: pd.DataFrame, braco: str, cfg: dict,
+                         raiz: Path) -> pd.DataFrame:
+    """Aplica o braço do experimento (config: bloco `experimento`) ao TREINO.
 
-    CUIDADO (bug fácil de cometer): o features.csv também contém `prop_fala`, que é
-    um DIAGNÓSTICO do VAD, não uma feature declarada na metodologia. Se ela entrar
-    no X, estará treinando com uma variável que não está na fundamentação
-    teórica. Fora também `arquivo`, `label` e `classe_binaria` (esta última é o alvo: incluí-la seria vazamento
-    total, o modelo acertaria 100%).
+    Os dois braços (decisão do orientador, documentada no config.yaml):
+        'principal'  -> filtra o treino pelos IDs da subamostra estratificada
+                        (~30k) de `experimento.caminho_subamostra`, compartilhada
+                        por RF, SVM e CNN — o ambiente experimental da comparação.
+        'referencia' -> devolve o treino completo, sem alteração; existe para
+                        quantificar o custo da subamostra.
+
+    Aplica-se SOMENTE ao conjunto de treino: validação e teste permanecem
+    COMPLETOS nos dois braços (exigência textual do orientador). Quem chama é
+    responsável por passar apenas as linhas com conjunto == 'treino'.
+
+    Args:
+        treino: linhas de treino já unidas às features (carregar_dados_split).
+        braco: 'principal' ou 'referencia'. O default do experimento vem de
+            cfg['experimento']['braco']; o parâmetro é explícito para o RF
+            poder rodar os DOIS braços e o SVM (futuro) rodar só o principal.
+        cfg: config.yaml carregado.
+        raiz: raiz do projeto.
+
+    Returns:
+        DataFrame de treino do braço pedido.
     """
-    excluir = {"arquivo", "label", "classe_binaria", "prop_fala", "conjunto", "ataque"}
+    if braco == "referencia":
+        return treino
+    if braco != "principal":
+        raise ValueError(
+            f"Braço desconhecido: '{braco}'. Válidos: 'principal', 'referencia' "
+            "(config.yaml, chave experimento.braco)."
+        )
+
+    caminho = raiz / cfg["experimento"]["caminho_subamostra"]
+    if not caminho.exists():
+        raise FileNotFoundError(
+            f"Subamostra não encontrada em {caminho}. "
+            "Gere-a com: python -m scripts.gerar_subamostra"
+        )
+    ids = pd.read_csv(caminho, usecols=["arquivo"])
+
+    filtrado = treino.merge(ids, on="arquivo", how="inner")
+    # Integridade: TODO ID da subamostra precisa existir no treino atual. Menos
+    # linhas que a subamostra = ela foi gerada a partir de OUTRO split.
+    if len(filtrado) != len(ids):
+        raise ValueError(
+            f"Subamostra tem {len(ids)} IDs, mas só {len(filtrado)} estão no "
+            "treino atual. A subamostra foi gerada de outro split.csv — "
+            "regere com scripts/gerar_subamostra.py antes de treinar."
+        )
+    return filtrado
+
+
+def colunas_features(df: pd.DataFrame) -> list[str]:
+    """Devolve SÓ as 44 colunas de features acústicas. PONTO ÚNICO que define o X.
+
+    CUIDADO (bug fácil de cometer): o features.csv também contém colunas de
+    DIAGNÓSTICO, que não são features declaradas na metodologia:
+
+      - `prop_fala`        -> quanto do áudio o VAD manteve;
+      - `n_frames_validos` -> quantos frames entraram na agregação mascarada;
+      - `n_frames_total`   -> quantos frames existiriam sem mascarar.
+
+    As três medem QUANTIDADE DE FALA/SILÊNCIO do arquivo, não timbre. Como o
+    bonafide perde mais sinal no VAD que o spoof, qualquer uma delas dentro do X
+    daria ao modelo um atalho estatístico: ele acertaria classificando pela
+    duração da fala, não por artefato de síntese, e a conclusão do trabalho
+    desabaria na banca. Elas ficam no CSV porque são auditáveis e citáveis; ficam
+    fora do X porque não são o objeto de estudo.
+
+    Fora também `arquivo`, `label` e `classe_binaria` (esta última é o alvo:
+    incluí-la seria vazamento total, o modelo acertaria 100%), além de `conjunto`
+    e `ataque`, que entram por merge com split.csv / labels.csv.
+    """
+    # Import local (e não no topo) de propósito: extrair_features puxa o librosa,
+    # pesado e inútil para quem só vai treinar sobre o CSV. A lista mora lá
+    # porque é lá que essas colunas são ESCRITAS — uma cópia aqui seria a fonte
+    # clássica de divergência silenciosa entre quem grava e quem lê.
+    from ..features.extrair_features import COLUNAS_DIAGNOSTICO
+
+    excluir = {"arquivo", "label", "classe_binaria", "conjunto", "ataque"}
+    excluir.update(COLUNAS_DIAGNOSTICO)
     return [c for c in df.columns if c not in excluir]
 
 
