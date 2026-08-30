@@ -65,6 +65,8 @@ inflando as métricas artificialmente.
 Saída: data/features/features.csv  (uma linha por áudio)
 """
 
+import json
+import subprocess
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
 
@@ -181,6 +183,88 @@ def extrair_vetor(y: np.ndarray, sr: int, cfg: dict,
 
 
 # ---------------------------------------------------------------------------
+# Esquema do CSV e metadados da extração — usados pela guarda de retomada
+# ---------------------------------------------------------------------------
+def esquema_esperado(cfg: dict) -> list[str]:
+    """Colunas do CSV de features, na ordem exata em que `_processar_um` as monta.
+
+    É a definição ÚNICA do esquema: a guarda de retomada em `executar` compara o
+    cabeçalho do CSV existente contra esta lista.
+    """
+    return (["arquivo", "label", "classe_binaria"]
+            + COLUNAS_DIAGNOSTICO
+            + nomes_features(cfg["features"]["n_mfcc"]))
+
+
+def _meta_extracao(cfg: dict, raiz: Path, fase: str) -> dict:
+    """Assinatura da definição de feature vigente, gravada em <saida>.meta.json.
+
+    Transforma "confio no nome do arquivo" em "confiro a definição da feature":
+    a retomada só é segura se o CSV existente foi gerado por ESTA definição.
+    """
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=raiz, text=True,
+            stderr=subprocess.DEVNULL).strip()
+    except Exception:
+        commit = "desconhecido"
+    return {
+        "semente": cfg["semente"],
+        "fase": fase,
+        "mascarar_padding": bool(cfg["features"].get("mascarar_padding", True)),
+        "n_mfcc": cfg["features"]["n_mfcc"],
+        "n_fft": cfg["features"]["n_fft"],
+        "hop_length": cfg["features"]["hop_length"],
+        "win_length": cfg["features"]["win_length"],
+        "commit_git": commit,
+    }
+
+
+def _validar_retomada(saida: Path, esquema: list[str], meta_atual: dict) -> None:
+    """Trava contra corrupção silenciosa ao retomar sobre um CSV pré-existente.
+
+    POR QUE ESTA GUARDA EXISTE: a retomada pula áudios por NOME de arquivo, não
+    por versão da feature. Se o CSV em disco veio de outra definição (p.ex. o
+    features.csv antigo, de 48 colunas, sem mascaramento), dois desastres são
+    possíveis: (1) todos os áudios já constam no CSV antigo e o runner encerra
+    com "Nada a fazer" sem extrair nada — quem não ler o log acha que o lote
+    rodou; (2) pior, faltando um subconjunto, o `to_csv(mode="a", header=False)`
+    appendaria linhas de 50 colunas sob um cabeçalho de 48 — o pandas escreve na
+    ordem do DataFrame novo, sem alinhar com o header antigo, e o CSV fica
+    DESALINHADO sem levantar nenhuma exceção. Só se descobriria no treino, com
+    features trocadas de coluna. Um aviso em prosa (README/docstring) não é uma
+    trava; esta função é a trava.
+    """
+    colunas = list(pd.read_csv(saida, nrows=0).columns)
+    if colunas != esquema:
+        faltando = [c for c in esquema if c not in colunas]
+        sobrando = [c for c in colunas if c not in esquema]
+        detalhe = (f"faltando={faltando[:6]}, inesperadas={sobrando[:6]}"
+                   if (faltando or sobrando)
+                   else "mesmas colunas em ORDEM diferente")
+        raise ValueError(
+            f"{saida} foi gerado por OUTRA definição de feature "
+            f"(colunas divergentes: {detalhe}). Retomar sobre ele produziria um "
+            f"CSV meio antigo, meio novo — ou desalinhado. Renomeie/arquive o "
+            f"arquivo antes de rodar o lote."
+        )
+    meta_path = saida.with_suffix(".meta.json")
+    if meta_path.exists():
+        meta_gravada = json.loads(meta_path.read_text(encoding="utf-8"))
+        # commit_git é informativo (um commit de docs não muda a feature);
+        # os parâmetros metodológicos, sim, precisam bater exatamente.
+        chaves = [k for k in meta_atual if k != "commit_git"]
+        divergentes = {k: (meta_gravada.get(k), meta_atual[k])
+                       for k in chaves if meta_gravada.get(k) != meta_atual[k]}
+        if divergentes:
+            raise ValueError(
+                f"{meta_path} registra outra definição de extração "
+                f"(gravado vs atual): {divergentes}. Renomeie/arquive o CSV e o "
+                f".meta.json antes de retomar."
+            )
+
+
+# ---------------------------------------------------------------------------
 # Worker: processa UM áudio (top-level para ser "picklável" pelo multiprocessing)
 # ---------------------------------------------------------------------------
 def _processar_um(args: tuple) -> dict:
@@ -236,8 +320,10 @@ def executar(cfg: dict, raiz: Path, n_jobs: int | None = None,
     ATENÇÃO À RETOMADA APÓS MUDANÇA DE CÓDIGO: o checkpoint pula por NOME de
     arquivo, não por versão da feature. Retomar sobre um CSV gerado por uma
     definição ANTIGA de feature produziria um arquivo meio antigo, meio novo —
-    o pior artefato possível. Por isso o lote único começa com o features.csv
-    anterior renomeado, nunca com ele no lugar.
+    o pior artefato possível. Duas defesas: (1) o lote único começa com o
+    features.csv anterior renomeado; (2) `_validar_retomada` ABORTA se o
+    cabeçalho do CSV existente (ou o seu .meta.json) divergir da definição
+    vigente — a prosa virou trava de código.
 
     Args:
         fase: override pontual do universo (diagnósticos). None = vale o config.
@@ -296,11 +382,22 @@ def executar(cfg: dict, raiz: Path, n_jobs: int | None = None,
     saida = raiz / "data" / "features" / nome_saida
     saida.parent.mkdir(parents=True, exist_ok=True)
 
-    # Retomada: descobre o que já foi feito
+    esquema = esquema_esperado(cfg)
+    meta_atual = _meta_extracao(cfg, raiz, fase)
+
+    # Retomada: descobre o que já foi feito. GUARDA obrigatória antes de retomar
+    # — ver _validar_retomada para o desastre que ela impede.
     ja_feitos = set()
     if saida.exists():
+        _validar_retomada(saida, esquema, meta_atual)
         ja_feitos = set(pd.read_csv(saida, usecols=["arquivo"])["arquivo"])
-        print(f"Retomando: {len(ja_feitos)} áudios já extraídos serão pulados.")
+        print(f"Retomando: {len(ja_feitos)} áudios já extraídos serão pulados "
+              f"(esquema e meta conferidos).")
+
+    # Grava a assinatura da definição vigente ao lado do CSV. Na primeira rodada
+    # cria o arquivo; numa retomada legítima apenas atualiza o commit_git.
+    saida.with_suffix(".meta.json").write_text(
+        json.dumps(meta_atual, indent=2, ensure_ascii=False), encoding="utf-8")
 
     tarefas = [
         (r.arquivo, r.caminho, r.label, r.classe_binaria, cfg)
@@ -329,6 +426,9 @@ def executar(cfg: dict, raiz: Path, n_jobs: int | None = None,
     if buffer:  # sobra final
         pd.DataFrame(buffer).to_csv(saida, mode="a", header=escrever_header, index=False)
 
+    # O nome deriva de `nome_saida`: cada saída tem o SEU arquivo de erros, e o
+    # unlink abaixo só apaga o desta saída — erros de outras rodadas (p.ex. o
+    # histórico erros_run1.csv) nunca são tocados.
     erros_csv = raiz / "data" / "features" / f"erros_{Path(nome_saida).stem}.csv"
     if erros:
         pd.DataFrame(erros).to_csv(erros_csv, index=False)

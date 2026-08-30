@@ -1,0 +1,10 @@
+{
+  "semente": 42,
+  "fase": "eval",
+  "mascarar_padding": true,
+  "n_mfcc": 20,
+  "n_fft": 512,
+  "hop_length": 256,
+  "win_length": 400,
+  "commit_git": "9a23152e690208d3a0ecf4aa235ee8fc9cecaba8"
+}

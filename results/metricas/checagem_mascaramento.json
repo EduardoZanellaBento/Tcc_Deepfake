@@ -39,8 +39,11 @@
         "delta_relativo_pct": 13.33
       }
     ],
+    "prop_fala_media_bonafide": 0.6398,
+    "prop_fala_media_spoof": 0.8537,
     "fracao_padding_media_bonafide": 0.448,
-    "fracao_padding_media_spoof": 0.4523
+    "fracao_padding_media_spoof": 0.4523,
+    "diferenca_fracao_padding_bona_menos_spoof": -0.0043
   },
   "parte_b_runner": {
     "n_linhas": 500,

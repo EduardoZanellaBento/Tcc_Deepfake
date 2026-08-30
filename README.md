@@ -126,7 +126,7 @@ Sempre a partir da **raiz**, com `python -m` (imports relativos):
 python -m src.data.carregar_dados            # regenera labels.csv do trial_metadata.txt
 python -m src.data.split                     # gera/recarrega o split 70/15/15 (universo eval)
 python -m src.models.treinar_rf              # RF baseline nos DOIS braços -> rf_baseline_eval_{principal,referencia}.{json,joblib} + matrizes de confusão
-python -m src.features.extrair_features     # ATENÇÃO: re-extração leva HORAS; ver aviso abaixo
+python -m src.features.extrair_features     # ATENÇÃO: features CONGELADAS (lote único de 30/08); a guarda de esquema aborta retomadas inválidas — ver aviso abaixo
 
 # composição e subamostra
 python -m scripts.composicao_eval            # composição por classe/codec/ataque no eval (verifica 148.176)
@@ -142,7 +142,8 @@ python -m scripts.curva_aprendizado_rf             # curva de aprendizado -> evi
 python -m scripts.diagnostico_padding_features     # correlação das 44 features com prop_fala
 python -m scripts.diagnostico_rf_pareado_propfala  # RF com classes pareadas por faixa de prop_fala
 python -m scripts.piloto_mascaramento_padding      # piloto A/B de mascaramento (2.000 áudios, arquivo separado)
-python -m scripts.verificar_mascaramento           # CHECAGEM do bloco 1: A/B controlado + esquema do CSV (roda ANTES do lote único)
+python -m scripts.verificar_mascaramento           # CHECAGEM do bloco 1: A/B controlado + esquema do CSV (rodou ANTES do lote único)
+python -m scripts.validar_split_pos_lote           # split/subamostra preservados e íntegros após o lote único (hashes + IDs)
 
 python scripts/verificar_ambiente.py         # sanidade do ambiente (versões, GPU, pastas)
 ```
@@ -153,6 +154,13 @@ python scripts/verificar_ambiente.py         # sanidade do ambiente (versões, G
 |---|---:|---:|---:|---|
 | RF baseline histórico (universo 181k) | 127.096 | 0,5675 | 0,1761 | `results/metricas/rf_baseline.json` |
 | RF baseline **eval** (universo aprovado) | 103.723 | 0,5573 | 0,1818 | `results/metricas/rf_baseline_eval.json` |
+| RF **braço principal** (subamostra 30k) | 30.000 | 0,4980 | 0,2367 | `results/metricas/rf_baseline_eval_principal.json` |
+| RF **braço de referência** (treino completo) | 103.723 | 0,5573 | 0,1818 | `results/metricas/rf_baseline_eval_referencia.json` |
+
+Todos os valores acima foram medidos sobre o `features.csv` **antigo**
+(pré-mascaramento) — são a referência "antes" da comparação. Serão substituídos no
+Bloco 3 pelas métricas sobre as features congeladas, com limiar selecionado na
+validação (`NOTA_LIMIAR.md`).
 
 Métricas por codec e por ataque: `results/metricas/diagnostico_por_codec.csv` e
 `diagnostico_por_ataque.csv`. Diagnóstico do atalho de silêncio:
@@ -168,16 +176,26 @@ o f1_macro vai de 0,56 para 0,77 **sem re-treino**. Causa raiz, correções plan
 consequência de protocolo (mesma regra de limiar para RF, SVM e CNN):
 **`results/metricas/NOTA_LIMIAR.md`** e `nota_divergencia_f1.md`.
 
-## ⚠️ Re-extração de features
+## ⚠️ Re-extração de features — LOTE ÚNICO EXECUTADO, features CONGELADAS
 
-`python -m src.features.extrair_features` é uma operação de **horas** de CPU e **só
-roda com decisão explícita registrada**. O `data/features/features.csv` atual é o
-artefato de referência desta fase; não sobrescrever, não regerar parcialmente.
+O lote único de re-extração rodou em **30/08/2026** (148.176 áudios, 6 min 15 s,
+zero erros — dossiê completo em `results/metricas/DOSSIE_LOTE_UNICO.md`). O
+`data/features/features.csv` atual (hash MD5 `51b2f439bf6f1e10237acbc620bb92d9`)
+reflete as quatro pendências abaixo e está **CONGELADO**: nova re-extração só por
+erro grave, com decisão registrada. O CSV anterior está arquivado como
+`features_pre_mascaramento_c01c3c5c.csv` (hash `c01c3c5c6afdcad0dd95236ffd6910ad`).
 
-### Pendências do lote único — todas APROVADAS e já implementadas no código
+`python -m src.features.extrair_features` agora é protegido por uma **guarda de
+esquema/retomada** (`_validar_retomada`): retomar sobre um CSV de outra definição
+de feature (cabeçalho ou `features.meta.json` divergentes) aborta com erro
+explícito, em vez de produzir um CSV meio antigo, meio novo.
 
-O `features.csv` em disco ainda é o **antigo**; ele só reflete a lista abaixo depois
-do lote único (bloco 2 do cronograma, 28–30/08).
+O `split.csv` e a `subamostra_30k.csv` foram **preservados** através do lote (o
+split é partição de IDs; a re-extração muda valores, não o conjunto de arquivos) e
+revalidados por `python -m scripts.validar_split_pos_lote` — hashes inalterados,
+conjuntos de IDs idênticos (justificativa completa na seção 7 do dossiê).
+
+### Pendências do lote único — APROVADAS e APLICADAS no features.csv em 30/08/2026
 
 1. **`win_length` do centróide espectral** — o CSV antigo foi extraído sem
    `win_length` no `spectral_centroid` (default `n_fft=512` em vez dos 400 de
@@ -202,8 +220,9 @@ runner de produção (50 colunas = 3 identificação + 3 diagnóstico + 44 featu
 `colunas_features` devolvendo exatamente 44; sem NaN; universo só `eval`). Evidência
 em `results/metricas/checagem_mascaramento.json`.
 
-**Depois do lote único as features ficam CONGELADAS** — nova re-extração apenas por
-erro grave, com decisão registrada.
+**As features estão CONGELADAS desde 30/08/2026** — nova re-extração apenas por
+erro grave, com decisão registrada. A definição vigente está assinada em
+`data/features/features.meta.json` e conferida pela guarda de retomada.
 
 ## Estrutura de pastas
 

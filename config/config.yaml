@@ -82,35 +82,39 @@ audio:
 features:                # parâmetros das características manuais (RF e SVM)
   # DECIDIDO [ratificado pelo orientador] — sem fmax=4000 global:
   # "Não limite as features a 4 kHz... Preserve a banda disponível e reporte
-  # as métricas por codec." Justificativa pela composição do dataset:
-  #   banda estreita (teto 4kHz): alaw, ulaw, gsm, pstn  -> 57%
-  #   banda larga  (>4kHz):       g722, opus, none        -> 43%
-  # Filtrar tudo em 4kHz destruiria sinal real em 43% dos dados, justamente a
+  # as métricas por codec." Justificativa pela composição do dataset (fonte:
+  # results/metricas/eval_composicao_codec.csv — mesmos números do README):
+  #   banda estreita (teto 4kHz): alaw, ulaw, gsm, pstn  -> 85.860 (57,9%)
+  #   banda larga  (>4kHz):       g722, opus, none        -> 62.316 (42,1%)
+  # Filtrar tudo em 4kHz destruiria sinal real em 42% dos dados, justamente a
   # banda alta onde vivem os artefatos de síntese. Métricas POR CODEC em
   # scripts/diagnostico_por_codec.py.
   # Estado atual: nenhum fmax é passado ao librosa — o MFCC usa o default
   # (fmax = sr/2 = 8000 Hz). O features.csv em disco foi extraído assim.
   #
   # ============================================================
-  # ⚠️  LOTE ÚNICO DE RE-EXTRAÇÃO — status das pendências
+  # ⚠️  LOTE ÚNICO DE RE-EXTRAÇÃO — EXECUTADO; features CONGELADAS
   # ============================================================
-  # As quatro pendências foram APROVADAS pelo orientador e JÁ ESTÃO NO CÓDIGO
-  # (bloco 1 do cronograma, 25–27/08). O features.csv em disco ainda é o ANTIGO:
-  # ele só passa a refletir isto depois do lote único (28–30/08).
-  #   1. [FEITO no código] win_length=400 no spectral_centroid — o CSV antigo
-  #      usou o default (n_fft=512), dando ao centróide resolução temporal
-  #      diferente da do MFCC/ZCR.
-  #   2. [FEITO no código] filtro fase == 'eval' dentro de executar() — extrai
-  #      só o universo aprovado (148.176), não os 181.566 do labels.csv.
-  #   3. [FEITO no código] mascaramento de padding na agregação temporal
-  #      (chave `mascarar_padding`, abaixo).
-  #   4. [FEITO no código] n_frames_validos e n_frames_total como colunas de
-  #      diagnóstico, FORA do X (COLUNAS_DIAGNOSTICO em extrair_features.py,
-  #      consumida por colunas_features em src/data/split.py).
+  # As quatro pendências foram APROVADAS pelo orientador, implementadas no
+  # código (bloco 1, 25–27/08) e APLICADAS no features.csv pelo lote único de
+  # re-extração em 30/08/2026 (dossiê: results/metricas/DOSSIE_LOTE_UNICO.md):
+  #   1. [APLICADO no features.csv em 30/08/2026] win_length=400 no
+  #      spectral_centroid — o CSV antigo usou o default (n_fft=512), dando ao
+  #      centróide resolução temporal diferente da do MFCC/ZCR.
+  #   2. [APLICADO no features.csv em 30/08/2026] filtro fase == 'eval' dentro
+  #      de executar() — só o universo aprovado (148.176), não os 181.566.
+  #   3. [APLICADO no features.csv em 30/08/2026] mascaramento de padding na
+  #      agregação temporal (chave `mascarar_padding`, abaixo).
+  #   4. [APLICADO no features.csv em 30/08/2026] n_frames_validos e
+  #      n_frames_total como colunas de diagnóstico, FORA do X
+  #      (COLUNAS_DIAGNOSTICO em extrair_features.py, consumida por
+  #      colunas_features em src/data/split.py).
   # Evidência da checagem: results/metricas/checagem_mascaramento.json
   # (gerada por `python -m scripts.verificar_mascaramento`).
-  # DEPOIS DO LOTE ÚNICO AS FEATURES FICAM CONGELADAS — nova re-extração só
-  # por erro grave, com decisão registrada.
+  # AS FEATURES ESTÃO CONGELADAS — nova re-extração só por erro grave, com
+  # decisão registrada. A definição vigente está assinada em
+  # data/features/features.meta.json, conferido pela guarda de retomada de
+  # executar() (_validar_retomada em src/features/extrair_features.py).
   n_mfcc: 20           # nº de coeficientes MFCC
   n_fft: 512           # tamanho da FFT
   hop_length: 256      # passo entre janelas

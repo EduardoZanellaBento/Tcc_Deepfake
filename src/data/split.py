@@ -152,11 +152,13 @@ def criar_split(cfg: dict, raiz: Path, forcar: bool = False,
 def carregar_dados_split(raiz: Path) -> pd.DataFrame:
     """Junta features.csv + split.csv numa única tabela pronta para treinar.
 
-    O universo do experimento é o do split.csv (fase=='eval', 148.176), que é um
-    SUBCONJUNTO do features.csv (181.566, extraído antes da decisão de filtrar).
-    A integridade que importa: TODA linha do split precisa encontrar suas
-    features — se o merge devolver menos linhas que o split, há áudio sem
-    features e o erro é explícito.
+    Desde o lote único de re-extração (Bloco 2, 30/08/2026), features.csv e
+    split.csv cobrem EXATAMENTE o mesmo universo (fase=='eval', 148.176 áudios
+    cada). O split foi PRESERVADO através do lote — é uma partição de IDs, e a
+    re-extração mudou os valores das features, não o conjunto de arquivos
+    (validação: scripts/validar_split_pos_lote.py). A integridade que importa:
+    TODA linha do split precisa encontrar suas features — se o merge devolver
+    menos linhas que o split, há áudio sem features e o erro é explícito.
     """
     feats = pd.read_csv(raiz / "data" / "features" / "features.csv")
     split = pd.read_csv(raiz / "data" / "processed" / "split.csv")

@@ -12,6 +12,9 @@ data/processed/*
 !data/processed/split_181k.csv
 !data/processed/subamostra_30k.csv
 data/features/*.csv
+# meta do piloto e descartavel (regenerado a cada verificar_mascaramento);
+# o features.meta.json OFICIAL (assinatura da definicao congelada) e versionado
+data/features/features_piloto_mascarado.meta.json
 
 # Modelos treinados (regeneraveis pelo pipeline)
 models/*
