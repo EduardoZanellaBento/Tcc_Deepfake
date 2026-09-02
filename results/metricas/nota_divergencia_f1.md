@@ -1,5 +1,11 @@
 # Nota — divergência de f1_macro entre `rf_baseline.json` e `diagnostico_limiar_varredura.csv`
 
+> ⚠️ Números medidos sobre o `features.csv` **pré-mascaramento**
+> (MD5 `c01c3c5c…`). Servem como referência "antes"; a regra `score >= limiar`
+> registrada aqui virou código compartilhado em `src/models/avaliacao.py`
+> (Bloco 3), e esta divergência é reproduzida como teste por
+> `scripts/teste_reproducao_limiar.py`.
+
 **Números que não fechavam:**
 
 | Fonte | f1_macro no "limiar 0,50" | recall_bonafide |

@@ -1,0 +1,98 @@
+{
+  "modelo": "rf_tuned_referencia",
+  "limiar": 0.6195519477166891,
+  "regra": "score >= limiar",
+  "acuracia": 0.9168091424457843,
+  "precisao_spoof": 0.955491996587887,
+  "recall_spoof": 0.9519096180763847,
+  "f1_spoof": 0.9536974432173891,
+  "precisao_bonafide": 0.5811928602525033,
+  "recall_bonafide": 0.6008100810081008,
+  "f1_bonafide": 0.5908386811241425,
+  "f1_macro": 0.7722680621707658,
+  "eer": 0.15794210644819728,
+  "limiar_eer": 0.7547563704041442,
+  "selecao_limiar": {
+    "criterio": "f1_macro",
+    "regra": "score >= limiar",
+    "conjunto": "validacao",
+    "limiar": 0.6195519477166891,
+    "f1_macro": 0.7722680621707658,
+    "n_candidatos": 22103,
+    "n_empates_no_maximo": 1
+  },
+  "braco": "referencia",
+  "hiperparametros": {
+    "class_weight": "balanced",
+    "max_depth": 30,
+    "max_features": "sqrt",
+    "min_samples_leaf": 5,
+    "min_samples_split": 10,
+    "n_estimators": 300
+  },
+  "origem_hiperparametros": "MESMA configuração vencedora do braço principal, sem nova busca — um só fator por vez; ver docstring (limitação: limite inferior do ganho com o treino completo)",
+  "n_treino": 103723,
+  "n_validacao": 22226,
+  "semente": 42,
+  "tempo_treino_s": 18.88,
+  "n_jobs_treino": -1,
+  "matriz_confusao": [
+    [
+      1335,
+      887
+    ],
+    [
+      962,
+      19042
+    ]
+  ],
+  "roc_auc_validacao": 0.9191,
+  "top10_features": {
+    "mfcc1_media": 0.07488,
+    "mfcc1_std": 0.06108,
+    "mfcc4_std": 0.0438,
+    "mfcc3_std": 0.04269,
+    "mfcc4_media": 0.03852,
+    "mfcc2_media": 0.02956,
+    "mfcc8_media": 0.02755,
+    "mfcc5_std": 0.02707,
+    "mfcc19_std": 0.02565,
+    "mfcc10_std": 0.02209
+  },
+  "tempos_inferencia": {
+    "protocolo": {
+      "repeticoes": 10,
+      "descartar_aquecimento": 3,
+      "fonte": "config.yaml -> tempo"
+    },
+    "latencia_ms": {
+      "batch": 1,
+      "mediana": 5.7545,
+      "min": 5.1229,
+      "max": 7.1785
+    },
+    "throughput": {
+      "batch": 22226,
+      "total_s_mediana": 0.5966,
+      "total_s_min": 0.5651,
+      "total_s_max": 0.6774,
+      "ms_por_audio_mediana": 0.0268,
+      "audios_por_segundo_mediana": 37255.7
+    }
+  },
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1
+  },
+  "hash_md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+  "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d"
+}

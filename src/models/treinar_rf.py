@@ -57,7 +57,8 @@ from ..data.split import (carregar_dados_split, colunas_features,
                           filtrar_treino_braco, resumo_split)
 # calcular_eer é re-exportado aqui por compatibilidade: consumidores antigos
 # importavam de src.models.treinar_rf. O lugar canônico é src.models.avaliacao.
-from .avaliacao import avaliar, calcular_eer, plotar_matriz_confusao
+from .avaliacao import (aplicar_limiar, avaliar, calcular_eer,
+                        plotar_matriz_confusao)
 
 
 def treinar(cfg: dict, raiz: Path, nome: str | None = None,
@@ -128,12 +129,20 @@ def treinar(cfg: dict, raiz: Path, nome: str | None = None,
     # Para a comparação final com SVM/CNN valer, os três precisam ser medidos do
     # mesmo jeito, no mesmo hardware, com o mesmo n_jobs. Registre isso.
     t0 = time.perf_counter()
-    y_pred = modelo.predict(X_va)
+    y_pred_argmax = modelo.predict(X_va)        # só para o tempo; ver abaixo
     t_inf = time.perf_counter() - t0
     scores = modelo.predict_proba(X_va)[:, 1]   # P(spoof) — coluna da classe 1
 
     # ---- Métricas ------------------------------------------------------------
-    m = avaliar(y_va, y_pred, scores, nome)
+    # Regra única do protocolo (Bloco 3): score >= limiar, com o y_pred derivado
+    # DENTRO de avaliar(). O baseline usa limiar 0,50 explícito — que NÃO é
+    # idêntico ao argmax do predict() nos empates exatos de score
+    # (nota_divergencia_f1.md); os JSONs históricos rf_baseline*.json foram
+    # gerados pela assinatura antiga (argmax) e ficam preservados como estão.
+    limiar_baseline = 0.50
+    del y_pred_argmax
+    m = avaliar(y_va, scores, nome, limiar=limiar_baseline)
+    y_pred = aplicar_limiar(scores, limiar_baseline)
     m["tempo_treino_s"] = round(t_treino, 2)
     m["tempo_inferencia_total_s"] = round(t_inf, 4)
     m["tempo_inferencia_por_audio_ms"] = round(1000 * t_inf / len(X_va), 4)

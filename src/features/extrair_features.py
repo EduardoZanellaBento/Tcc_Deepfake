@@ -208,6 +208,17 @@ def _meta_extracao(cfg: dict, raiz: Path, fase: str) -> dict:
             stderr=subprocess.DEVNULL).strip()
     except Exception:
         commit = "desconhecido"
+    # git_dirty: True se havia mudanças não commitadas quando o lote rodou.
+    # Sem isso, `commit_git` pode apontar um commit que NÃO contém o código que
+    # de fato executou (foi o caso do lote único: a guarda _validar_retomada
+    # rodou antes de ser commitada). Como commit_git, é informativo — fica FORA
+    # da comparação de _validar_retomada.
+    try:
+        dirty = bool(subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=raiz,
+            stderr=subprocess.DEVNULL).strip())
+    except Exception:
+        dirty = None
     return {
         "semente": cfg["semente"],
         "fase": fase,
@@ -217,6 +228,7 @@ def _meta_extracao(cfg: dict, raiz: Path, fase: str) -> dict:
         "hop_length": cfg["features"]["hop_length"],
         "win_length": cfg["features"]["win_length"],
         "commit_git": commit,
+        "git_dirty": dirty,
     }
 
 
@@ -251,9 +263,9 @@ def _validar_retomada(saida: Path, esquema: list[str], meta_atual: dict) -> None
     meta_path = saida.with_suffix(".meta.json")
     if meta_path.exists():
         meta_gravada = json.loads(meta_path.read_text(encoding="utf-8"))
-        # commit_git é informativo (um commit de docs não muda a feature);
-        # os parâmetros metodológicos, sim, precisam bater exatamente.
-        chaves = [k for k in meta_atual if k != "commit_git"]
+        # commit_git e git_dirty são informativos (um commit de docs não muda a
+        # feature); os parâmetros metodológicos, sim, precisam bater exatamente.
+        chaves = [k for k in meta_atual if k not in ("commit_git", "git_dirty")]
         divergentes = {k: (meta_gravada.get(k), meta_atual[k])
                        for k in chaves if meta_gravada.get(k) != meta_atual[k]}
         if divergentes:

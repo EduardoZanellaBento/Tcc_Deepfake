@@ -1,0 +1,66 @@
+{
+  "modelo": "rf_random_search",
+  "braco": "principal",
+  "n_treino": 30000,
+  "cv": "StratifiedKFold(5, shuffle=True, random_state=42) sobre o treino do braço principal",
+  "n_iter": 30,
+  "criterio_busca": "EER (make_scorer greater_is_better=False), roc_auc reportado ao lado",
+  "justificativa_criterio": "métrica independente de limiar: buscar por f1_macro@0,50 selecionaria configurações com scores centrados em 0,50, não as que melhor ordenam; o limiar será selecionado depois, na validação (ver docstring de src/models/ajustar_rf.py e NOTA_LIMIAR.md)",
+  "alternativa_considerada": "f1_macro com seleção de limiar dentro de cada fold — mais fiel ao protocolo final, porém com seleção aninhada, maior variância e scorer customizado delicado; não adotada",
+  "espaco_busca": {
+    "min_samples_leaf": "randint(5, 21) [obrigatório — orientador]",
+    "class_weight": "['balanced', 'balanced_subsample'] [obrigatório — orientador]",
+    "n_estimators": [
+      100,
+      200,
+      300,
+      500
+    ],
+    "max_depth": [
+      null,
+      10,
+      20,
+      30
+    ],
+    "min_samples_split": [
+      2,
+      5,
+      10
+    ],
+    "max_features": [
+      "sqrt",
+      "log2",
+      0.3
+    ]
+  },
+  "paralelismo": "RandomizedSearchCV(n_jobs=-1) com RandomForestClassifier(n_jobs=1)",
+  "tempo_busca_s": 603.8,
+  "melhor": {
+    "params": {
+      "class_weight": "balanced",
+      "max_depth": 30,
+      "max_features": "sqrt",
+      "min_samples_leaf": 5,
+      "min_samples_split": 10,
+      "n_estimators": 300
+    },
+    "eer_cv_medio": 0.2059,
+    "eer_cv_std": 0.0117,
+    "roc_auc_cv_medio": 0.8725,
+    "roc_auc_cv_std": 0.0095
+  },
+  "semente": 42,
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1
+  },
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d"
+}

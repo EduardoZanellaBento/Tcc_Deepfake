@@ -1,5 +1,10 @@
 # Nota técnica — limiar de decisão do RF baseline
 
+> ⚠️ Números medidos sobre o `features.csv` **pré-mascaramento**
+> (MD5 `c01c3c5c…`). Servem como referência "antes"; para as features congeladas
+> (lote único de 30/08), ver `rf_tuned_principal.json` — que já aplica a seleção
+> de limiar na validação recomendada na seção 3 desta nota.
+
 Resposta à observação do orientador: *"F1 macro 0,5675 com AUC 0,9055 sugere que o
 ranking do modelo pode estar razoável, mas o limiar de decisão, o desbalanceamento ou
 a distribuição das classes está prejudicando a classificação final."*

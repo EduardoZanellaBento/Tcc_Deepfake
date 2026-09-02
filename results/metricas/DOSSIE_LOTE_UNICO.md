@@ -25,7 +25,9 @@ Nota de proveniência: `features_proveniencia_mista.csv` tem o **mesmo tamanho**
 (85.455.802 bytes) do `features.csv` antigo, mas **MD5 diferente**
 (`1c2175e6ecaea1001e1be4a08f0854d0`) — não é uma cópia byte a byte (provável
 diferença de ordem de linhas entre rodadas). Ambos ficam arquivados em
-`data/features/` como histórico; nenhum foi apagado.
+`data/features/` como histórico; nenhum foi apagado. O inventário completo da
+pasta (papel, MD5 e contagem de cada CSV, incluindo os pilotos) está em
+**`data/features/LEIA-ME.md`** (decisão D2 — artefatos históricos documentados).
 
 ## 2. Contagens — as contas fecham
 

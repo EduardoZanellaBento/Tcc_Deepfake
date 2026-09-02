@@ -1,0 +1,49 @@
+{
+  "modelo": "svm_random_search",
+  "braco": "principal",
+  "n_treino": 30000,
+  "cv": "StratifiedKFold(5, shuffle=True, random_state=42) sobre o treino do braço principal",
+  "n_iter_config": 30,
+  "n_iter_efetivo": 30,
+  "projecao_horas_antes_da_busca": 0.03,
+  "orcamento_horas": 6.0,
+  "paralelismo_efetivo_assumido": 6,
+  "tempo_um_fit_fold_s": 4.6,
+  "tempo_busca_s": 364.9,
+  "criterio_busca": "EER via decision_function (greater_is_better=False), roc_auc ao lado",
+  "justificativa_criterio": "mesma do RF — ver rf_random_search.json e docstring de src/models/ajustar_rf.py",
+  "espaco_busca": {
+    "svc__C": "loguniform(0.1, 100)",
+    "svc__gamma": "['scale'] (50%) + loguniform(1e-4, 1e-1) (50%)",
+    "svc__class_weight": [
+      "balanced",
+      null
+    ]
+  },
+  "score": "decision_function (probability=False — Platt scaling dispensado; escala real centrada em zero, documentada)",
+  "paralelismo": "RandomizedSearchCV(n_jobs=-1) com SVC single-thread",
+  "melhor": {
+    "params": {
+      "svc__C": 24.526126311336764,
+      "svc__class_weight": "balanced",
+      "svc__gamma": "scale"
+    },
+    "eer_cv_medio": 0.1528,
+    "eer_cv_std": 0.0076,
+    "roc_auc_cv_medio": 0.9224
+  },
+  "semente": 42,
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1
+  },
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d"
+}

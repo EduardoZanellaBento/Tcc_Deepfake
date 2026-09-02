@@ -126,6 +126,8 @@ Sempre a partir da **raiz**, com `python -m` (imports relativos):
 python -m src.data.carregar_dados            # regenera labels.csv do trial_metadata.txt
 python -m src.data.split                     # gera/recarrega o split 70/15/15 (universo eval)
 python -m src.models.treinar_rf              # RF baseline nos DOIS braços -> rf_baseline_eval_{principal,referencia}.{json,joblib} + matrizes de confusão
+python -m src.models.ajustar_rf              # Bloco 3: Random Search (EER, 5-fold no treino do braço principal) + treino final nos DOIS braços -> rf_tuned_{principal,referencia}.*
+python -m src.models.treinar_svm             # Bloco 3: SVM RBF (só braço principal) — cronometra 1 fit antes da busca; decision_function -> svm_tuned_principal.*
 python -m src.features.extrair_features     # ATENÇÃO: features CONGELADAS (lote único de 30/08); a guarda de esquema aborta retomadas inválidas — ver aviso abaixo
 
 # composição e subamostra
@@ -139,16 +141,46 @@ python -m scripts.diagnostico_limiar               # ROC, PR e varredura de limi
 python -m scripts.diagnostico_por_ataque           # desempenho do RF por ataque A07–A19
 python -m scripts.diagnostico_por_codec            # desempenho do RF por codec (banda estreita × larga)
 python -m scripts.curva_aprendizado_rf             # curva de aprendizado -> evidência do braço duplo
-python -m scripts.diagnostico_padding_features     # correlação das 44 features com prop_fala
+python -m scripts.diagnostico_padding_features     # correlação das 44 features com prop_fala e n_frames_validos (pós-lote; o "antes" está em *_pre_lote.*)
 python -m scripts.diagnostico_rf_pareado_propfala  # RF com classes pareadas por faixa de prop_fala
 python -m scripts.piloto_mascaramento_padding      # piloto A/B de mascaramento (2.000 áudios, arquivo separado)
 python -m scripts.verificar_mascaramento           # CHECAGEM do bloco 1: A/B controlado + esquema do CSV (rodou ANTES do lote único)
 python -m scripts.validar_split_pos_lote           # split/subamostra preservados e íntegros após o lote único (hashes + IDs)
+python -m scripts.teste_reproducao_limiar          # TESTE: a avaliar/selecionar_limiar novas reproduzem os 0,5598 e as 25 amostras de nota_divergencia_f1.md
+python -m scripts.estabilidade_modelos             # Bloco 3: 5 sementes no RF + bootstrap da validação em RF e SVM (rodar após ajustar_rf e treinar_svm)
 
 python scripts/verificar_ambiente.py         # sanidade do ambiente (versões, GPU, pastas)
 ```
 
-## Resultados atuais (RF baseline, conjunto de validação)
+## Resultados atuais (conjunto de validação)
+
+### Bloco 3 — features congeladas, hiperparâmetros ajustados, limiar selecionado na validação
+
+| Configuração | n treino | limiar | f1_macro | EER | Arquivo |
+|---|---:|---:|---:|---:|---|
+| RF ajustado, **braço principal** (30k) | 30.000 | 0,6516 | **0,7225** | 0,1930 | `results/metricas/rf_tuned_principal.json` |
+| RF ajustado, **braço de referência** (treino completo, mesma config) | 103.723 | 0,6196 | **0,7723** | 0,1579 | `results/metricas/rf_tuned_referencia.json` |
+| SVM RBF ajustado, braço principal | 30.000 | −0,0329* | **0,7987** | 0,1462 | `results/metricas/svm_tuned_principal.json` |
+
+\* O limiar do SVM vive na escala do `decision_function` (real, centrada em zero),
+não em [0, 1] como o `predict_proba` do RF — não é inconsistência: a regra do
+protocolo ("selecionar na validação, aplicar no teste") é agnóstica de escala, e
+`selecionar_limiar` opera sobre `np.unique(scores)` sem supor intervalo.
+
+Protocolo comum aos modelos (`src/models/avaliacao.py`): decisão por
+`score >= limiar`, limiar **selecionado na validação** maximizando f1_macro sobre
+os `np.unique(scores)` e apenas **aplicado** em qualquer outro conjunto; busca de
+hiperparâmetros por **EER** (independente de limiar — justificativa em
+`rf_random_search.json`), `StratifiedKFold(5)` só no treino do braço principal.
+Estabilidade (`estabilidade_rf_svm.json`): RF entre 5 sementes varia ±0,0004 de
+f1_macro; bootstrap da validação (1.000 reamostragens, limiar fixo) dá IC95
+[0,712; 0,732] para o RF e [0,790; 0,808] para o SVM. A diferença RF×SVM
+(Δf1 = 0,076, ΔEER = 0,047) é **maior** que qualquer dispersão medida — a
+vantagem do SVM no braço principal é real, não ruído. O SVM com
+`probability=False` é determinístico (não há variância de treino a medir; a
+estabilidade dele é só a de estimativa, por bootstrap).
+
+### Referência "antes" (baseline argmax, features pré-mascaramento)
 
 | Configuração | n treino | f1_macro | EER | Arquivo |
 |---|---:|---:|---:|---|
@@ -157,24 +189,25 @@ python scripts/verificar_ambiente.py         # sanidade do ambiente (versões, G
 | RF **braço principal** (subamostra 30k) | 30.000 | 0,4980 | 0,2367 | `results/metricas/rf_baseline_eval_principal.json` |
 | RF **braço de referência** (treino completo) | 103.723 | 0,5573 | 0,1818 | `results/metricas/rf_baseline_eval_referencia.json` |
 
-Todos os valores acima foram medidos sobre o `features.csv` **antigo**
-(pré-mascaramento) — são a referência "antes" da comparação. Serão substituídos no
-Bloco 3 pelas métricas sobre as features congeladas, com limiar selecionado na
-validação (`NOTA_LIMIAR.md`).
+Valores medidos sobre o `features.csv` **antigo** (pré-mascaramento), com decisão
+por `predict()`/argmax no limiar implícito 0,50 — a referência "antes" da
+comparação (ressalva registrada no cabeçalho das notas técnicas correspondentes).
 
 Métricas por codec e por ataque: `results/metricas/diagnostico_por_codec.csv` e
 `diagnostico_por_ataque.csv`. Diagnóstico do atalho de silêncio:
-`rf_pareado_propfala.json`, `padding_corr_features_propfala.csv` e
-`RECOMENDACAO_MASCARAMENTO.md`.
+`rf_pareado_propfala.json`, `padding_corr_features_propfala_{pre,pos}_lote.csv` e
+`RECOMENDACAO_MASCARAMENTO.md` (adendos de 26/08 e pós-lote).
 
 ### Nota sobre o limiar de decisão
 
-O f1_macro baixo com AUC alta (~0,90) **não** significa ausência de sinal: o par
-(`class_weight='balanced'`, limiar 0,50) está desajustado — as folhas puras do RF
-neutralizam o peso de classe e o limiar ótimo fica em ~0,80–0,88. Movendo só o limiar,
-o f1_macro vai de 0,56 para 0,77 **sem re-treino**. Causa raiz, correções planejadas e
-consequência de protocolo (mesma regra de limiar para RF, SVM e CNN):
-**`results/metricas/NOTA_LIMIAR.md`** e `nota_divergencia_f1.md`.
+O f1_macro baixo do baseline com AUC alta (~0,90) **não** significava ausência de
+sinal: o par (`class_weight='balanced'`, limiar 0,50) estava desajustado — as
+folhas puras do RF neutralizam o peso de classe e o limiar ótimo fica longe de
+0,50. O Bloco 3 implementou as três correções da nota (min_samples_leaf no espaço
+de busca, `balanced_subsample` como alternativa e seleção de limiar na validação
+como **regra de protocolo** para RF, SVM e CNN, em `src/models/avaliacao.py` —
+com teste de reprodução em `scripts/teste_reproducao_limiar.py`). Causa raiz e
+histórico: **`results/metricas/NOTA_LIMIAR.md`** e `nota_divergencia_f1.md`.
 
 ## ⚠️ Re-extração de features — LOTE ÚNICO EXECUTADO, features CONGELADAS
 
@@ -232,7 +265,7 @@ Tcc_Deepfake/
 ├── data/
 │   ├── raw/            # áudios + chaves originais (NÃO versionado no git)
 │   ├── processed/      # labels.csv, split.csv, split_181k.csv, subamostra_30k.csv
-│   └── features/       # features.csv (44 features/áudio) + piloto_padding.csv
+│   └── features/       # features.csv (CONGELADO) + históricos e pilotos — inventário em data/features/LEIA-ME.md
 ├── notebooks/          # exploração e prototipagem
 ├── src/
 │   ├── data/           # carregamento de labels, pré-processamento, split

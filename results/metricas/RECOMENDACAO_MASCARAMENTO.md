@@ -1,5 +1,10 @@
 # Recomendação — mascaramento de padding na agregação temporal
 
+> ⚠️ Números medidos sobre o `features.csv` **pré-mascaramento**
+> (MD5 `c01c3c5c…`). Servem como referência "antes"; para as features congeladas
+> (lote único de 30/08), ver o **adendo de 30/08** ao fim deste documento e
+> `padding_corr_features_propfala_pos_lote.csv`.
+
 **Contexto.** O pipeline é `VAD → padronizar para 4,0 s com zero-padding`. As 44
 features são média/desvio-padrão de séries (MFCC, ZCR, centróide) calculadas sobre os
 4,0 s inteiros — frames de silêncio puro incluídos. Como bonafide perde mais sinal no
@@ -121,3 +126,60 @@ argumento central — ele é de construção, não de resultado — e (2) como a
 secundário, com a explicação correta. **Não** afirmar que o bonafide recebe mais
 padding: o dado próprio do trabalho diz o contrário, e essa é uma pergunta de banca
 fácil de fazer e constrangedora de errar.
+
+---
+
+## Adendo 2 (pós-lote único de 30/08) — o mascaramento medido no CSV congelado, e a correção de uma afirmação
+
+O lote único de re-extração foi executado em 30/08/2026 (`DOSSIE_LOTE_UNICO.md`);
+este adendo recalcula a correlação das 44 features com `prop_fala` sobre o
+`features.csv` **congelado** (MD5 `51b2f439…`, universo eval, 148.176) e a compara
+com a rodada pré-mascaramento (arquivada em
+`padding_corr_features_propfala_pre_lote.csv`; a rodada nova está em
+`padding_corr_features_propfala_pos_lote.csv`). Como no adendo de 26/08, o texto
+original acima **não foi reescrito** — ele é anotado.
+
+| | features antigas (pré-masc.) | features congeladas |
+|---|---:|---:|
+| média de \|r\| | 0,150 | **0,101** |
+| máximo de \|r\| | 0,260 (`mfcc19_media`) | **0,320 (`mfcc1_std`)** |
+| features com \|r\| > 0,30 | nenhuma | **`mfcc1_std`** |
+
+**1. A contaminação média caiu 33% — e a queda está toda nas features `_std`.**
+`mfcc19_std` 0,230 → 0,044; `mfcc8_std` 0,156 → 0,003; `mfcc11_std` 0,160 → 0,022;
+`mfcc15_std` 0,164 → 0,051; `mfcc16_std` 0,183 → 0,073; `mfcc20_std` 0,179 → 0,075.
+É a confirmação quantitativa de que o mascaramento funcionou: os zeros do padding
+inflavam o desvio-padrão **proporcionalmente à quantidade de padding**, então o
+desvio carregava informação sobre silêncio. Removidos os zeros, essa via fecha.
+Esta evidência é nova (não existia em nenhum diagnóstico anterior) e é favorável à
+decisão de mascarar — usar no texto.
+
+**2. CORREÇÃO de afirmação: o item 1 da seção "Evidência" ficou falso para as
+features congeladas.** Ele diz: *"Nenhuma das 44 features passa de |r| = 0,3"*.
+Isso era verdade para as features antigas e **não é mais**: `mfcc1_std` foi na
+direção oposta de todas as outras, sozinha — **+0,032 → −0,320** — e é a única
+acima de 0,30. Interpretação: `mfcc1` é o coeficiente ligado à **energia**; antes,
+seu desvio era dominado pelos frames de padding (todos com energia nula e
+idênticos), que **achatavam** a variação real e escondiam a relação com
+`prop_fala`. Depois do mascaramento, `mfcc1_std` mede a dinâmica de energia da fala
+que sobreviveu ao VAD — e um áudio do qual o VAD cortou muito é, por construção, um
+áudio de energia irregular. A correlação residual é **acústica e genuína**, não o
+atalho de formatação do tensor.
+
+Evidência de apoio: contra `n_frames_validos` (a contagem direta de frames que
+entraram na agregação — quantidade de silêncio em forma pura), o máximo é
+\|r\| = **0,14** (também `mfcc1_std`), **menor** que contra `prop_fala`. Se o
+resíduo fosse "quantidade de padding" disfarçada, seria o contrário.
+
+Cruzamento com o modelo (diagnóstico re-rodado sobre o RF **ajustado** do Bloco 3,
+`rf_tuned_principal.json`): `mfcc1_std` está no top10 de importância (2ª posição,
+0,057). Ou seja, o modelo usa a feature com o maior resíduo — o que torna a
+interpretação acústica acima obrigatória no texto, junto com a ressalva de que a
+resposta causal definitiva (pareamento por `prop_fala` sobre as features
+congeladas) fica como análise complementar.
+
+**Consequência para o texto do TC II:** onde o trabalho citar o item 1 da
+Evidência, citar junto esta revisão: para as features congeladas, a frase correta é
+*"uma única feature (`mfcc1_std`, r = −0,32) passa de |r| = 0,3, com interpretação
+acústica e não de formatação"*. A afirmação foi revista à luz de dado novo — o
+rastro fica, como no adendo de 26/08.
