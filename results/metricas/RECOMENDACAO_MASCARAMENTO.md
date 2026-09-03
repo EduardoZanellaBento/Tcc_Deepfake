@@ -183,3 +183,40 @@ Evidência, citar junto esta revisão: para as features congeladas, a frase corr
 *"uma única feature (`mfcc1_std`, r = −0,32) passa de |r| = 0,3, com interpretação
 acústica e não de formatação"*. A afirmação foi revista à luz de dado novo — o
 rastro fica, como no adendo de 26/08.
+### Fechamento com dado: a ablação da `mfcc1_std` (03/09)
+
+A interpretação acústica acima era, até aqui, argumento. A ablação
+(`results/metricas/ablacao_mfcc1_std.json`, `scripts/ablacao_mfcc1_std.py`) põe um
+número no lugar: o mesmo RF ajustado, mesma semente, mesmo treino de 30k, mesma
+validação, **43 features em vez de 44** — só a `mfcc1_std` fora.
+
+| | com `mfcc1_std` (44) | sem `mfcc1_std` (43) | Δ |
+|---|---:|---:|---:|
+| f1_macro | 0,7225 | 0,7148 | **−0,0077** |
+| EER | 0,1930 | 0,1980 | **+0,0050** |
+
+Medido por **bootstrap pareado** (1.000 reamostragens, mesmos índices aplicados aos
+dois modelos — os dois são avaliados nas mesmas 22.226 linhas e compartilham 43 das
+44 features, logo os erros são correlacionados e o bootstrap não pareado
+superestimaria a incerteza): IC95 do ΔEER = **[+0,0006; +0,0111]** e do Δf1_macro =
+**[+0,0016; +0,0140]**. Nenhum contém zero — **a feature contribui de verdade**.
+
+E, ao mesmo tempo, **a magnitude é desprezível**: +0,0050 de EER é **+2,6%
+relativo** e apenas **10,7%** da distância entre RF e SVM (0,0468). As duas
+afirmações convivem e as duas devem ser ditas: *estatisticamente detectável,
+praticamente irrelevante*.
+
+**O que isso encerra.** A ablação mede quanto o desempenho **depende** da feature —
+ela não decide sozinha se a `mfcc1_std` é atalho ou acústica. Mas ela dá o **limite
+superior do estrago**: ainda que a feature fosse atalho puro, removê-la custaria
+0,005 de EER. O modelo **não se apoia** nela. Somado à evidência de que o resíduo
+contra `n_frames_validos` (0,14) é menor que contra `prop_fala` (0,32), a leitura
+acústica se sustenta e a pergunta de banca *"o seu modelo não está detectando
+silêncio?"* passa a ter resposta numérica, não retórica.
+
+**Ressalva de método, declarada:** a régua de leitura foi pré-registrada com duas
+faixas ("piora menor que a dispersão" / "piora muito maior que a dispersão") e o
+resultado caiu no vão entre elas — 1,2× o desvio não pareado, 1,8× o pareado. Foi
+preciso acrescentar uma faixa intermediária **depois** de ver o número, o que é
+exatamente aquilo que o pré-registro serve para evitar. A decisão fica registrada,
+com os atenuantes, em `nota_sobre_o_pre_registro` dentro do JSON — e não apagada.

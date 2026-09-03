@@ -50,6 +50,12 @@
     "roc_auc_cv_std": 0.0095
   },
   "semente": 42,
+  "limitacao_otimo_na_borda": {
+    "min_samples_leaf": "o valor ótimo (5) ficou no LIMITE INFERIOR da faixa exigida (randint(5, 21), decisão do orientador); valores menores não foram explorados por decisão de protocolo. A busca portanto entrega o melhor ponto DENTRO da faixa acordada, não necessariamente o ótimo global do hiperparâmetro.",
+    "min_samples_split": "o valor ótimo (10) é o MAIOR da lista [2, 5, 10]; valores acima de 10 não foram explorados — mesma ressalva, em grau menor (o hiperparâmetro regulariza na mesma direção do min_samples_leaf).",
+    "max_depth": "o valor ótimo (30) é o maior valor FINITO da lista [None, 10, 20, 30], mas None (profundidade ilimitada) estava disponível e NÃO foi escolhido — aqui o ótimo não está censurado pela faixa; a nota vale apenas como registro de que 30 é borda dos valores finitos.",
+    "consequencia": "limitação declarada no texto do TC II; a faixa é decisão de protocolo e NÃO será reaberta."
+  },
   "ambiente": {
     "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
     "maquina": "AMD64",

@@ -90,17 +90,31 @@ leave-one-attack-out) previsto como **análise complementar**, após fechar RF, 
 
 ## Braço principal × braço de referência
 
-A curva de aprendizado no universo eval (`curva_aprendizado_rf_eval.json`) mostra que
-o RF **não satura** antes do treino completo:
+A curva de aprendizado mostra que o RF **não satura** antes do treino completo —
+e isso se mantém depois do lote único e do ajuste de hiperparâmetros
+(`curva_aprendizado_rf_tuned_eval.json`, features congeladas, config ajustada,
+limiar selecionado na validação em cada ponto):
 
-| n treino | f1_macro | EER |
-|---:|---:|---:|
-| 5.000 | 0,4760 | 0,3030 |
-| 10.000 | 0,4801 | 0,2843 |
-| 20.000 | 0,4882 | 0,2512 |
-| 40.000 | 0,5059 | 0,2226 |
-| 80.000 | 0,5356 | 0,1945 |
-| 103.723 | 0,5573 | 0,1818 |
+| n treino | f1_macro | EER | limiar |
+|---:|---:|---:|---:|
+| 5.000 | 0,6764 | 0,2274 | 0,6937 |
+| 10.000 | 0,6953 | 0,2128 | 0,6787 |
+| 20.000 | 0,7156 | 0,2002 | 0,6795 |
+| 30.000 | 0,7255 | 0,1891 | 0,6803 |
+| 40.000 | 0,7365 | 0,1873 | 0,6485 |
+| 80.000 | 0,7602 | 0,1668 | 0,6393 |
+| 103.723 | **0,7723** | **0,1579** | 0,6196 |
+
+O último ponto **reproduz exatamente** `rf_tuned_referencia.json` (0,7723 / 0,1579):
+por construção ele é o braço de referência, e essa coincidência é a checagem embutida
+da curva. O ponto de 30.000 (0,7255 / 0,1891) fica bem próximo do braço principal
+medido sobre a `subamostra_30k.csv` (0,7225 / 0,1930) — evidência de que a subamostra
+não é atípica. **Atenção:** o ponto de 30k da curva é estratificado por
+classe × codec e **não é** a `subamostra_30k.csv` (classe × codec × ataque).
+
+A curva **anterior** (`curva_aprendizado_rf_eval.json`, RF baseline sobre as features
+pré-mascaramento, decisão por argmax) fica preservada como referência "antes":
+f1_macro ia de 0,4760 (5k) a 0,5573 (103.723), EER de 0,3030 a 0,1818.
 
 Logo, a subamostra de 30k **custa desempenho real**. Por isso o experimento tem dois
 braços:
@@ -141,6 +155,8 @@ python -m scripts.diagnostico_limiar               # ROC, PR e varredura de limi
 python -m scripts.diagnostico_por_ataque           # desempenho do RF por ataque A07–A19
 python -m scripts.diagnostico_por_codec            # desempenho do RF por codec (banda estreita × larga)
 python -m scripts.curva_aprendizado_rf             # curva de aprendizado -> evidência do braço duplo
+python -m scripts.curva_aprendizado_rf_tuned       # Bloco 3: curva com config AJUSTADA + features congeladas (artefatos _tuned_eval)
+python -m scripts.ablacao_mfcc1_std                # Bloco 3: ablação da mfcc1_std com bootstrap pareado (rodar após ajustar_rf)
 python -m scripts.diagnostico_padding_features     # correlação das 44 features com prop_fala e n_frames_validos (pós-lote; o "antes" está em *_pre_lote.*)
 python -m scripts.diagnostico_rf_pareado_propfala  # RF com classes pareadas por faixa de prop_fala
 python -m scripts.piloto_mascaramento_padding      # piloto A/B de mascaramento (2.000 áudios, arquivo separado)
