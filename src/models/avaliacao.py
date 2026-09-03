@@ -108,9 +108,18 @@ def calcular_eer(y_true: np.ndarray, scores: np.ndarray) -> tuple[float, float]:
     O QUE É: acurácia/F1 dependem de um limiar fixo (0,5). O EER remove essa
     arbitrariedade — ele varre TODOS os limiares possíveis e encontra o ponto em
     que a taxa de falsos positivos (FPR) iguala a de falsos negativos (FNR). É esse
-    valor comum que se reporta. Menor = melhor. Por ser independente de limiar, é
-    o que permite comparar esse número com o da literatura (Yamagishi et al. 2022
-    reportam EER de 1,32% em LA).
+    valor comum que se reporta. Menor = melhor.
+
+    COMPARABILIDADE COM A LITERATURA — LEIA ANTES DE CITAR ESTE NÚMERO:
+    o EER é a métrica PADRÃO da literatura ASVspoof, então a GRANDEZA reportada
+    aqui é a mesma grandeza que Yamagishi et al. (2022) reportam. Mas os VALORES
+    deste trabalho NÃO são diretamente comparáveis aos deles (EER de 1,32% em LA):
+    o protocolo aqui é um split interno ALEATÓRIO POR UTTERANCE — os mesmos
+    ataques (A07–A19), codecs e locutores aparecem em treino e validação —,
+    enquanto o protocolo oficial do ASVspoof é deliberadamente CROSS-ATTACK.
+    Ser independente de limiar remove a arbitrariedade do 0,5; não remove a
+    diferença de protocolo. Ver "Limitação declarada do split" no README.md e o
+    bloco `split:` do config/config.yaml.
 
     Convenção adotada aqui: classe positiva = spoof (classe_binaria = 1), e `scores`
     é a probabilidade predita de ser spoof. Trocar a classe positiva troca o significado de FPR e FNR.
@@ -156,9 +165,12 @@ def avaliar(y_true, scores, nome: str, limiar: float) -> dict:
         # f1 macro: média não ponderada das duas classes. Com dados desbalanceados, é MUITO mais informativo que a acurácia — não deixa a classe majoritária esconder o fracasso na minoritária.
         "f1_macro": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
     }
-    eer, limiar = calcular_eer(y_true, scores)
+    # Nome distinto de `limiar` (o parâmetro): o limiar NO EER é outro número,
+    # calculado independentemente da regra de decisão. Sombrear o parâmetro aqui
+    # não gerava bug — mas convidava a um, para quem editasse a função depois.
+    eer, limiar_no_eer = calcular_eer(y_true, scores)
     m["eer"] = eer
-    m["limiar_eer"] = limiar
+    m["limiar_eer"] = limiar_no_eer
     return m
 
 
