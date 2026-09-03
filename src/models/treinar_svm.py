@@ -203,7 +203,10 @@ def buscar_e_treinar(cfg: dict, raiz: Path) -> dict:
             "melhor": {"params": params,
                        "eer_cv_medio": round(-float(cv.loc[i_melhor, "mean_test_eer"]), 4),
                        "eer_cv_std": round(float(cv.loc[i_melhor, "std_test_eer"]), 4),
-                       "roc_auc_cv_medio": round(float(cv.loc[i_melhor, "mean_test_roc_auc"]), 4)},
+                       "roc_auc_cv_medio": round(float(cv.loc[i_melhor, "mean_test_roc_auc"]), 4),
+                       # espelha rf_random_search.json: os dois JSONs vão para a
+                       # MESMA tabela, então registram os mesmos campos.
+                       "roc_auc_cv_std": round(float(cv.loc[i_melhor, "std_test_roc_auc"]), 4)},
             "semente": semente,
             "ambiente": ambiente(n_jobs_inferencia=1),
             "hash_md5_subamostra_csv": hashlib.md5(
@@ -244,6 +247,12 @@ def buscar_e_treinar(cfg: dict, raiz: Path) -> dict:
         "Platt scaling; a análise de estabilidade usa bootstrap da validação "
         "(scripts/estabilidade_modelos.py), não sementes.")
     m["tempo_treino_s"] = round(t_treino, 2)
+    # O SVC é single-thread POR NATUREZA (libsvm não paraleliza o fit) — não é
+    # uma escolha de configuração, é o algoritmo. Declarado explicitamente
+    # porque o RF treina com n_jobs=-1: sem esta linha, a tabela final
+    # compararia 6 núcleos contra 1 sem dizer. Ver `tempo_treino_s_n_jobs_1`
+    # em rf_tuned_*.json — é esse o número comparável a este aqui.
+    m["n_jobs_treino"] = 1
 
     cm = confusion_matrix(y_va, (scores >= sel["limiar"]).astype(int),
                           labels=[0, 1])

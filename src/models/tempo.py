@@ -16,6 +16,13 @@ O QUE O PROTOCOLO MANDA (config.yaml -> tempo):
     - descartar as primeiras execuções (aquecimento de cache/alocador);
     - reportar mediana + mínimo + máximo de N execuções, nunca medição única;
     - registrar hardware, versões e n_jobs no JSON de resultados.
+
+O QUE ESTE HELPER **NÃO** MEDE (declarado no JSON, campo protocolo.escopo):
+    só a PREDIÇÃO, a partir do vetor de features já extraído. Carregar o áudio,
+    VAD, padding e extração de features ficam de fora — a chave
+    `incluir_extracao_features` do config.yaml NÃO é lida aqui. O custo do
+    pipeline completo é medido por scripts/tempo_pipeline_completo.py, que
+    reaproveita as MESMAS funções de src/features/extrair_features.py.
 """
 
 import platform
@@ -54,6 +61,20 @@ def medir_tempos(predizer, X: np.ndarray, cfg_tempo: dict) -> dict:
             "repeticoes": reps,
             "descartar_aquecimento": aquec,
             "fonte": "config.yaml -> tempo",
+            # HONESTIDADE DE ESCOPO (R4a): "fonte: config.yaml -> tempo" sozinho
+            # sugeria conformidade com TODO o bloco `tempo`, inclusive a chave
+            # `incluir_extracao_features: true` — que este helper NÃO lê e nunca
+            # leu. Os dois campos abaixo dizem, no próprio artefato, o que ficou
+            # de fora. O custo do pré-processamento é medido em
+            # scripts/tempo_pipeline_completo.py.
+            "escopo": ("somente a predição do modelo (predict_proba / "
+                       "decision_function) a partir do vetor de features JÁ "
+                       "EXTRAÍDO — NÃO inclui carregamento do áudio, VAD, nem "
+                       "extração de features"),
+            "incluir_extracao_features": False,
+            "onde_o_pipeline_completo_e_medido":
+                "results/metricas/tempo_pipeline_completo.json "
+                "(scripts/tempo_pipeline_completo.py)",
         },
     }
     if cfg_tempo.get("medir_latencia", True):

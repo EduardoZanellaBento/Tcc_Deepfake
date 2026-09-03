@@ -235,6 +235,28 @@ def treinar_final(cfg: dict, raiz: Path, params: dict, braco: str) -> dict:
     m["tempo_treino_s"] = round(t_treino, 2)
     m["n_jobs_treino"] = -1
 
+    # ---- Segunda medição de treino, com n_jobs=1 (R2.1) ---------------------
+    # POR QUE DUAS MEDIÇÕES: a tabela final compara MODELOS, não configurações
+    # de paralelismo. O RF acima treina com n_jobs=-1 — é o custo REAL de uso,
+    # e é o que fica em `tempo_treino_s`. Mas o SVC é single-thread por
+    # natureza, então comparar 4,3 s de RF em N núcleos contra 11,2 s de SVM em
+    # 1 núcleo compara hardware, não algoritmo. `tempo_treino_s_n_jobs_1` é o
+    # refit da MESMA configuração e da MESMA semente com n_jobs=1: é o único
+    # número comparável ao do SVM. Os dois ficam no JSON, cada um rotulado.
+    # O modelo refeito aqui é DESCARTADO — o persistido é o de cima.
+    modelo_1t = RandomForestClassifier(**params, random_state=semente, n_jobs=1)
+    t0 = time.perf_counter()
+    modelo_1t.fit(X_tr, y_tr)
+    t_treino_1t = time.perf_counter() - t0
+    del modelo_1t
+    print(f"Refit cronometrado em {t_treino_1t:.1f}s (n_jobs=1, só para a tabela)")
+    m["tempo_treino_s_n_jobs_1"] = round(t_treino_1t, 2)
+    m["nota_tempo_treino"] = (
+        "tempo_treino_s é com n_jobs=-1 (custo real de uso); "
+        "tempo_treino_s_n_jobs_1 é o refit da mesma configuração com n_jobs=1, "
+        "o único número comparável ao SVM, que é single-thread por natureza. "
+        "n_jobs não altera o resultado do RF, só o tempo.")
+
     cm = confusion_matrix(y_va,
                           (scores >= sel["limiar"]).astype(int), labels=[0, 1])
     m["matriz_confusao"] = cm.tolist()
