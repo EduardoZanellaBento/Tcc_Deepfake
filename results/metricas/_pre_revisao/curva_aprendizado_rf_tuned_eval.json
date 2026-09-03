@@ -1,0 +1,107 @@
+{
+  "modelo": "curva_aprendizado_rf_tuned_eval",
+  "conjunto": "validacao (o teste continua lacrado)",
+  "config": "hiperparâmetros AJUSTADOS (rf_random_search.json), features CONGELADAS, limiar selecionado na validação em cada ponto",
+  "hiperparametros": {
+    "class_weight": "balanced",
+    "max_depth": 30,
+    "max_features": "sqrt",
+    "min_samples_leaf": 5,
+    "min_samples_split": 10,
+    "n_estimators": 300
+  },
+  "semente": 42,
+  "estratificacao_dos_pontos": "classe_binaria x codec",
+  "aviso_ponto_30k": "o ponto de 30.000 NÃO é a subamostra_30k do braço principal (estratificada por classe x codec x ataque, arquivo fixo); serve para ler a curva na altura certa. A comparação legítima subamostra × treino completo continua sendo rf_tuned_principal × rf_tuned_referencia.",
+  "tamanhos": [
+    5000,
+    10000,
+    20000,
+    30000,
+    40000,
+    80000,
+    103723
+  ],
+  "resultados": [
+    {
+      "n_treino": 5000,
+      "limiar": 0.6937,
+      "f1_macro": 0.6764,
+      "eer": 0.2274,
+      "tempo_treino_s": 0.62
+    },
+    {
+      "n_treino": 10000,
+      "limiar": 0.6787,
+      "f1_macro": 0.6953,
+      "eer": 0.2128,
+      "tempo_treino_s": 1.24
+    },
+    {
+      "n_treino": 20000,
+      "limiar": 0.6795,
+      "f1_macro": 0.7156,
+      "eer": 0.2002,
+      "tempo_treino_s": 2.63
+    },
+    {
+      "n_treino": 30000,
+      "limiar": 0.6803,
+      "f1_macro": 0.7255,
+      "eer": 0.1891,
+      "tempo_treino_s": 4.27
+    },
+    {
+      "n_treino": 40000,
+      "limiar": 0.6485,
+      "f1_macro": 0.7365,
+      "eer": 0.1873,
+      "tempo_treino_s": 5.97
+    },
+    {
+      "n_treino": 80000,
+      "limiar": 0.6393,
+      "f1_macro": 0.7602,
+      "eer": 0.1668,
+      "tempo_treino_s": 13.68
+    },
+    {
+      "n_treino": 103723,
+      "limiar": 0.6196,
+      "f1_macro": 0.7723,
+      "eer": 0.1579,
+      "tempo_treino_s": 18.21
+    }
+  ],
+  "f1_macro_maximo": 0.7723,
+  "satura_em_n": 103723,
+  "tolerancia_saturacao": 0.005,
+  "checagem_ultimo_ponto": {
+    "o_que_e": "o último ponto (treino inteiro) é, por construção, o braço de referência do Bloco 3 — mesma config, mesma semente, mesmo treino",
+    "curva_f1_macro": 0.7723,
+    "curva_eer": 0.1579,
+    "rf_tuned_referencia_f1_macro": 0.7722680621707658,
+    "rf_tuned_referencia_eer": 0.15794210644819728,
+    "reproduz": true
+  },
+  "curva_anterior_preservada": {
+    "arquivos": [
+      "curva_aprendizado_rf_eval.{csv,json,png}",
+      "curva_aprendizado_rf.{csv,json,png}"
+    ],
+    "o_que_sao": "curvas medidas com o RF baseline; a _eval sobre as features PRÉ-mascaramento, a sem sufixo sobre o universo histórico de 181.566. Referência 'antes'."
+  },
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    }
+  },
+  "hash_md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+  "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402"
+}

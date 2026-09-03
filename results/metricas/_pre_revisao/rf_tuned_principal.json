@@ -34,10 +34,8 @@
   "n_treino": 30000,
   "n_validacao": 22226,
   "semente": 42,
-  "tempo_treino_s": 4.67,
+  "tempo_treino_s": 4.27,
   "n_jobs_treino": -1,
-  "tempo_treino_s_n_jobs_1": 37.71,
-  "nota_tempo_treino": "tempo_treino_s é com n_jobs=-1 (custo real de uso); tempo_treino_s_n_jobs_1 é o refit da mesma configuração com n_jobs=1, o único número comparável ao SVM, que é single-thread por natureza. n_jobs não altera o resultado do RF, só o tempo.",
   "matriz_confusao": [
     [
       1209,
@@ -65,24 +63,21 @@
     "protocolo": {
       "repeticoes": 10,
       "descartar_aquecimento": 3,
-      "fonte": "config.yaml -> tempo",
-      "escopo": "somente a predição do modelo (predict_proba / decision_function) a partir do vetor de features JÁ EXTRAÍDO — NÃO inclui carregamento do áudio, VAD, nem extração de features",
-      "incluir_extracao_features": false,
-      "onde_o_pipeline_completo_e_medido": "results/metricas/tempo_pipeline_completo.json (scripts/tempo_pipeline_completo.py)"
+      "fonte": "config.yaml -> tempo"
     },
     "latencia_ms": {
       "batch": 1,
-      "mediana": 5.6971,
-      "min": 5.0558,
-      "max": 5.9766
+      "mediana": 5.2153,
+      "min": 4.819,
+      "max": 5.9751
     },
     "throughput": {
       "batch": 22226,
-      "total_s_mediana": 0.4924,
-      "total_s_min": 0.4784,
-      "total_s_max": 0.5139,
-      "ms_por_audio_mediana": 0.0222,
-      "audios_por_segundo_mediana": 45133.6
+      "total_s_mediana": 0.4191,
+      "total_s_min": 0.4132,
+      "total_s_max": 0.4382,
+      "ms_por_audio_mediana": 0.0189,
+      "audios_por_segundo_mediana": 53034.9
     }
   },
   "ambiente": {

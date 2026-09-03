@@ -189,8 +189,23 @@ def main() -> None:
               "crédito enquanto isso não for explicado. ***")
 
     # ---- Ponto de saturação -------------------------------------------------
+    # POR QUE MUDOU (R3, revisão de 03/09/2026): a versão anterior fazia
+    #     saturado = res[res["f1_macro"] >= f1_max - TOL].iloc[0]
+    # e publicava `satura_em_n`. Numa curva MONÓTONA CRESCENTE o máximo é o
+    # último ponto, e essa expressão devolve o último ponto sempre que nenhum
+    # anterior esteja a menos de TOL dele — isto é, o campo era
+    # ESTRUTURALMENTE INCAPAZ de distinguir "saturou no fim" de "NÃO saturou".
+    # O JSON e a legenda da figura afirmavam saturação enquanto o próprio dado
+    # mostrava o contrário (o salto 80k -> 103.723 ainda rende mais que o dobro
+    # da tolerância). Agora a saturação é um booleano de definição explícita: o
+    # ganho do ÚLTIMO passo é menor que a tolerância? `satura_em_n` só é
+    # emitido quando a resposta é sim.
     f1_max = res["f1_macro"].max()
-    saturado = res[res["f1_macro"] >= f1_max - TOL_SATURACAO].iloc[0]
+    ganho_ultimo_passo = float(res["f1_macro"].iloc[-1] - res["f1_macro"].iloc[-2])
+    saturou = bool(ganho_ultimo_passo < TOL_SATURACAO)
+    # Só faz sentido perguntar ONDE saturou se de fato saturou.
+    saturado = (res[res["f1_macro"] >= f1_max - TOL_SATURACAO].iloc[0]
+                if saturou else None)
 
     registro = {
         "modelo": NOME,
@@ -211,7 +226,14 @@ def main() -> None:
         "tamanhos": [int(x) for x in res["n_treino"]],
         "resultados": res.to_dict(orient="records"),
         "f1_macro_maximo": float(f1_max),
-        "satura_em_n": int(saturado["n_treino"]),
+        "saturou": saturou,
+        "maior_n_medido": int(res["n_treino"].iloc[-1]),
+        "ganho_ultimo_passo_f1": round(ganho_ultimo_passo, 4),
+        "definicao_saturacao": (
+            "saturou = (f1_macro do maior n) - (f1_macro do n anterior) < "
+            f"{TOL_SATURACAO}. Se saturou for false, a curva AINDA SOBE no maior "
+            "treino disponível e o campo satura_em_n NÃO é emitido: nenhum n "
+            "medido satisfaz a definição."),
         "tolerancia_saturacao": TOL_SATURACAO,
         "checagem_ultimo_ponto": checagem,
         "curva_anterior_preservada": {
@@ -232,6 +254,8 @@ def main() -> None:
         "hash_md5_features_csv": h_feat,
         "hash_md5_split_csv": h_split,
     }
+    if saturou:
+        registro["satura_em_n"] = int(saturado["n_treino"])
     with open(dir_met / f"{NOME}.json", "w", encoding="utf-8") as f:
         json.dump(registro, f, indent=2, ensure_ascii=False)
 
@@ -239,8 +263,19 @@ def main() -> None:
     fig, ax1 = plt.subplots(figsize=(8, 5))
     ax1.plot(res["n_treino"], res["f1_macro"], marker="o", color="#4c72b0",
              label="f1_macro (limiar selecionado)")
-    ax1.axvline(saturado["n_treino"], ls="--", color="gray", lw=1,
-                label=f"saturação ≈ {int(saturado['n_treino'])}")
+    if saturou:
+        ax1.axvline(saturado["n_treino"], ls="--", color="gray", lw=1,
+                    label=f"saturação ≈ {int(saturado['n_treino'])}")
+    else:
+        # Sem linha de saturação: desenhá-la seria afirmar na figura o que o
+        # dado nega. A anotação diz o que de fato se sabe.
+        ax1.annotate(
+            "não satura no maior n disponível\n"
+            f"(último passo: +{ganho_ultimo_passo:.4f} em f1_macro,\n"
+            f"tolerância {TOL_SATURACAO})",
+            xy=(0.97, 0.05), xycoords="axes fraction", ha="right", va="bottom",
+            fontsize=8.5, color="#444444",
+            bbox=dict(boxstyle="round,pad=0.4", fc="#f5f5f5", ec="#bbbbbb"))
     ax1.axvline(30000, ls=":", color="#55a868", lw=1.2,
                 label="30k (altura do braço principal)")
     ax1.set_xscale("log")
@@ -267,20 +302,41 @@ def main() -> None:
     print("\n" + "=" * 70)
     print("CONCLUSÃO")
     print("=" * 70)
+    # As duas ramificações são escritas por extenso e sem hedge: o texto do
+    # TC II vai citar uma delas, e ela precisa ser afirmativa sobre o dado.
+    n_penultimo = int(res["n_treino"].iloc[-2])
+    n_ultimo = int(res["n_treino"].iloc[-1])
+    if saturou:
+        leitura_saturacao = (
+            f"f1_macro máximo = {f1_max:.4f}. A curva SATURA: o último passo "
+            f"({n_penultimo} -> {n_ultimo}) rende apenas "
+            f"+{ganho_ultimo_passo:.4f} em f1_macro, abaixo da tolerância de "
+            f"{TOL_SATURACAO}. Pela definição, a saturação começa em "
+            f"n = {int(saturado['n_treino'])} (f1_macro "
+            f"{saturado['f1_macro']:.4f}, EER {saturado['eer']:.4f}).\n"
+            "CONSEQUÊNCIA: mais dados do mesmo tipo não compram desempenho, e a "
+            "afirmação da NOTA_RF_VS_SVM.md de que o RF está 'com fome de "
+            "dados' precisa ser REESCRITA — é um resultado novo.")
+    else:
+        leitura_saturacao = (
+            f"f1_macro máximo = {f1_max:.4f}. A curva NÃO SATURA no maior treino "
+            f"disponível: o último passo ({n_penultimo} -> {n_ultimo}) ainda "
+            f"rende +{ganho_ultimo_passo:.4f} em f1_macro — "
+            f"{ganho_ultimo_passo / TOL_SATURACAO:.1f}x a tolerância de "
+            f"{TOL_SATURACAO}. Nenhum n medido satisfaz a definição de "
+            "saturação, então satura_em_n NÃO é emitido e a figura não traz "
+            "linha de saturação.\n"
+            "CONSEQUÊNCIA: a subamostra de 30k custa desempenho real ao RF — é "
+            "o que justifica o braço de referência e sustenta a afirmação da "
+            "NOTA_RF_VS_SVM.md de que o RF ainda está com fome de dados no "
+            "ponto em que o SVM já extraiu o que precisava. Quanto faltaria "
+            "para o RF alcançar o SVM é quantificado em "
+            "scripts/extrapolacao_curva_rf.py.")
     print(f"""
-f1_macro máximo = {f1_max:.4f}. Dentro da tolerância de {TOL_SATURACAO}, a curva
-satura em n = {int(saturado['n_treino'])} (f1_macro = {saturado['f1_macro']:.4f},
-EER = {saturado['eer']:.4f}).
+{leitura_saturacao}
 
 Checagem do último ponto contra rf_tuned_referencia.json: \
 {'REPRODUZIU' if bate else 'DIVERGIU — investigar antes de citar a curva'}.
-
-Leitura: se a curva ainda sobe até o treino completo, a subamostra de 30k custa
-desempenho real — é o que justifica o braço de referência e a afirmação da
-NOTA_RF_VS_SVM.md de que o RF ainda está com fome de dados no ponto em que o SVM
-já extraiu o que precisava. Se, com os hiperparâmetros ajustados, a curva
-saturar ANTES do treino completo, essa afirmação precisa ser reescrita: seria um
-resultado novo, e a nota tem de acompanhar.
 
 CSV : {dir_met / (NOME + '.csv')}
 JSON: {dir_met / (NOME + '.json')}

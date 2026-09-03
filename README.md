@@ -85,8 +85,19 @@ em treino E teste. O modelo pode memorizar a assinatura de um vocoder/locutor
 específico, então as métricas são **potencialmente otimistas** e **não comparáveis**
 ao EER de 1,32% de Yamagishi et al. (2022), cujo protocolo é deliberadamente
 cross-attack. Mitigação adotada: métricas por ataque (`diagnostico_por_ataque.py`) e
-por codec (`diagnostico_por_codec.py`). Experimento de robustez (split por ataque /
-leave-one-attack-out) previsto como **análise complementar**, após fechar RF, SVM e CNN.
+por codec (`diagnostico_por_codec.py`).
+
+> **Atualização de 03/09/2026:** essa mitigação passou a ser medida **sobre os
+> modelos ajustados** (RF **e** SVM do braço principal), com o **limiar do
+> protocolo** — e não mais sobre o RF baseline em 0,50. A versão anterior era
+> vazia: em 0,50 o modelo previa "spoof" para quase tudo e o recall dava 1,0 em
+> todos os 13 ataques. Artefatos:
+> `diagnostico_por_ataque_resumo.json` e `diagnostico_por_codec_resumo.json`
+> (campo `leitura_critica`); os arquivos de 13/08 ficam preservados como
+> `*_baseline_2026-08-13.*`.
+
+Experimento de robustez (split por ataque / leave-one-attack-out) previsto como
+**análise complementar**, após fechar RF, SVM e CNN.
 
 ## Braço principal × braço de referência
 
@@ -152,8 +163,8 @@ python -m scripts.gerar_subamostra           # subamostra 30k estratificada do t
 python -m scripts.diagnostico_composicao_dataset   # composição fase/trim/codec do dataset bruto (181k)
 python -m scripts.diagnostico_vazamento_duracao    # prop_fala como atalho de duração (árvore só com prop_fala)
 python -m scripts.diagnostico_limiar               # ROC, PR e varredura de limiar do RF na validação
-python -m scripts.diagnostico_por_ataque           # desempenho do RF por ataque A07–A19
-python -m scripts.diagnostico_por_codec            # desempenho do RF por codec (banda estreita × larga)
+python -m scripts.diagnostico_por_ataque           # Bloco 3: RF **e** SVM AJUSTADOS por ataque A07–A19, com o limiar do protocolo (carrega os .joblib, não re-treina)
+python -m scripts.diagnostico_por_codec            # Bloco 3: RF **e** SVM AJUSTADOS por codec (banda estreita × larga), com o limiar do protocolo
 python -m scripts.curva_aprendizado_rf             # curva de aprendizado -> evidência do braço duplo
 python -m scripts.curva_aprendizado_rf_tuned       # Bloco 3: curva com config AJUSTADA + features congeladas (artefatos _tuned_eval)
 python -m scripts.ablacao_mfcc1_std                # Bloco 3: ablação da mfcc1_std com bootstrap pareado (rodar após ajustar_rf)
@@ -164,6 +175,11 @@ python -m scripts.verificar_mascaramento           # CHECAGEM do bloco 1: A/B co
 python -m scripts.validar_split_pos_lote           # split/subamostra preservados e íntegros após o lote único (hashes + IDs)
 python -m scripts.teste_reproducao_limiar          # TESTE: a avaliar/selecionar_limiar novas reproduzem os 0,5598 e as 25 amostras de nota_divergencia_f1.md
 python -m scripts.estabilidade_modelos             # Bloco 3: 5 sementes no RF + bootstrap da validação em RF e SVM (rodar após ajustar_rf e treinar_svm)
+python -m scripts.estabilidade_subamostra          # Bloco 3: 3 subamostras alternativas (sementes 43-45) — a fonte de variação que domina o braço principal
+python -m scripts.extrapolacao_curva_rf            # Bloco 3: ajuste f1 ~ a·ln(n) + b e n necessário para o RF alcançar o SVM (extrapolação, ver campo `limitacao`)
+python -m scripts.importancia_permutacao_rf        # Bloco 3: permutation_importance na validação × importância por impureza (rodar após ajustar_rf)
+python -m scripts.tempo_pipeline_completo          # Bloco 3: tempo ponta a ponta (carregar → VAD → features → predizer); src/models/tempo.py mede só a última etapa
+python -m scripts.guarda_reproducao                # Bloco 3: re-execução reproduz os JSONs de _pre_revisao/? -> reproducao_bloco3.json
 
 python scripts/verificar_ambiente.py         # sanidade do ambiente (versões, GPU, pastas)
 ```
@@ -188,13 +204,27 @@ Protocolo comum aos modelos (`src/models/avaliacao.py`): decisão por
 os `np.unique(scores)` e apenas **aplicado** em qualquer outro conjunto; busca de
 hiperparâmetros por **EER** (independente de limiar — justificativa em
 `rf_random_search.json`), `StratifiedKFold(5)` só no treino do braço principal.
-Estabilidade (`estabilidade_rf_svm.json`): RF entre 5 sementes varia ±0,0004 de
-f1_macro; bootstrap da validação (1.000 reamostragens, limiar fixo) dá IC95
-[0,712; 0,732] para o RF e [0,790; 0,808] para o SVM. A diferença RF×SVM
-(Δf1 = 0,076, ΔEER = 0,047) é **maior** que qualquer dispersão medida — a
-vantagem do SVM no braço principal é real, não ruído. O SVM com
-`probability=False` é determinístico (não há variância de treino a medir; a
-estabilidade dele é só a de estimativa, por bootstrap).
+Estabilidade (`estabilidade_rf_svm.json`) — **o estatístico que decide é o
+bootstrap pareado**: RF e SVM são avaliados exatamente nas mesmas 22.226
+amostras, então os erros dos dois são correlacionados, e é a diferença
+reamostrada em conjunto (1.000 vezes, um único vetor de índices por
+reamostragem) que responde se a vantagem é real. Resultado:
+Δf1_macro = **+0,0762**, IC95 [0,0663; 0,0856]; ΔEER = **−0,0466**,
+IC95 [−0,0560; −0,0377]. **Nenhum IC contém zero**, e o SVM é melhor em
+**100% das 1.000 reamostragens** nas duas métricas. A vantagem do SVM no braço
+principal é real, não ruído.
+
+*Heurísticas complementares* (úteis para contexto, não são o teste): o RF entre
+5 sementes varia ±0,0004 de f1_macro; o bootstrap individual de cada modelo dá
+IC95 [0,712; 0,732] para o RF e [0,790; 0,808] para o SVM — a diferença RF×SVM
+é maior que qualquer uma dessas dispersões, mas comparar contra a maior
+dispersão *individual* ignora a correlação entre os erros dos dois modelos, e é
+por isso que o próprio `estabilidade_rf_svm.json` a rotula como heurística em
+`leitura_critica.nota_metodo`. O SVM com `probability=False` é determinístico
+(não há variância de treino a medir; a estabilidade dele é só a de estimativa,
+por bootstrap). A fonte de variação que o braço principal de fato tem —
+**qual subamostra de 30k caiu** — é medida em `estabilidade_subamostra.json`
+(`scripts/estabilidade_subamostra.py`).
 
 ### Referência "antes" (baseline argmax, features pré-mascaramento)
 
@@ -209,8 +239,10 @@ Valores medidos sobre o `features.csv` **antigo** (pré-mascaramento), com decis
 por `predict()`/argmax no limiar implícito 0,50 — a referência "antes" da
 comparação (ressalva registrada no cabeçalho das notas técnicas correspondentes).
 
-Métricas por codec e por ataque: `results/metricas/diagnostico_por_codec.csv` e
-`diagnostico_por_ataque.csv`. Diagnóstico do atalho de silêncio:
+Métricas por codec e por ataque **deste baseline** (13/08/2026, limiar 0,50):
+`diagnostico_por_codec_baseline_2026-08-13.csv` e
+`diagnostico_por_ataque_baseline_2026-08-13.csv` — as versões sobre os modelos
+**ajustados** estão na seção acima. Diagnóstico do atalho de silêncio:
 `rf_pareado_propfala.json`, `padding_corr_features_propfala_{pre,pos}_lote.csv` e
 `RECOMENDACAO_MASCARAMENTO.md` (adendos de 26/08 e pós-lote).
 

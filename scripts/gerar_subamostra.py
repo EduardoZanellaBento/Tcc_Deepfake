@@ -94,6 +94,43 @@ def alocar_maior_resto(tamanhos: pd.Series, alvo: int, piso: int) -> pd.Series:
     return aloc
 
 
+def montar_subamostra(treino: pd.DataFrame, colunas_estrato: list[str],
+                      alvo: int, semente: int, piso: int = PISO
+                      ) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    """Monta a subamostra estratificada — A REGRA, isolada da semente.
+
+    Extraída de `main` (revisão de 03/09/2026, tarefa R6.2) para que a análise
+    de estabilidade entre subamostras possa gerar alternativas com OUTRA SEMENTE
+    pela MESMA regra. Se a regra fosse copiada para o outro script, "variar só a
+    semente" deixaria de ser verdade no dia em que uma das cópias mudasse.
+
+    A refatoração é comportamentalmente neutra: com semente 42 a saída continua
+    sendo a de sempre, e scripts/estabilidade_subamostra.py confere isso contra
+    o MD5 do artefato congelado ANTES de gerar qualquer alternativa.
+
+    Args:
+        treino: treino completo, já com a coluna `estrato` montada.
+        colunas_estrato: as colunas que definem o estrato (do config).
+        alvo: tamanho pedido.
+        semente: a ÚNICA coisa que varia entre subamostras alternativas.
+        piso: mínimo por estrato (regra de implementação — ver docstring do módulo).
+
+    Returns:
+        (amostra ordenada por arquivo, alocação por estrato, tamanhos no treino)
+    """
+    tamanhos = treino["estrato"].value_counts().sort_index()
+    aloc = alocar_maior_resto(tamanhos, alvo, piso)
+
+    # Amostragem determinística por estrato (ordem fixa dos estratos + seed).
+    partes = []
+    for estrato in sorted(aloc.index):
+        sub = treino[treino["estrato"] == estrato]
+        partes.append(sub.sample(n=int(aloc[estrato]), random_state=semente))
+    amostra = (pd.concat(partes)[["arquivo", *colunas_estrato]]
+               .sort_values("arquivo").reset_index(drop=True))
+    return amostra, aloc, tamanhos
+
+
 def main() -> None:
     cfg = carregar_config(RAIZ)
     semente = fixar_seeds(cfg["semente"])
@@ -116,21 +153,13 @@ def main() -> None:
 
     # ---- Estratos (config: experimento.estratificacao_subamostra) ------------
     treino["estrato"] = treino[colunas_estrato].astype(str).agg("|".join, axis=1)
-    tamanhos = treino["estrato"].value_counts().sort_index()
+
+    # A regra vive em montar_subamostra (ponto único, compartilhado com
+    # scripts/estabilidade_subamostra.py); aqui só se escolhe a semente oficial.
+    amostra, aloc, tamanhos = montar_subamostra(treino, colunas_estrato, alvo,
+                                                semente)
     print(f"Estratos: {len(tamanhos)} (menor: {tamanhos.min()}, "
           f"maior: {tamanhos.max()})")
-
-    aloc = alocar_maior_resto(tamanhos, alvo, PISO)
-
-    # ---- Amostragem determinística por estrato -------------------------------
-    partes = []
-    for estrato in sorted(aloc.index):
-        sub = treino[treino["estrato"] == estrato]
-        partes.append(sub.sample(n=int(aloc[estrato]), random_state=semente))
-    amostra = pd.concat(partes)
-
-    amostra = amostra[["arquivo", *colunas_estrato]] \
-        .sort_values("arquivo").reset_index(drop=True)
     n_final = len(amostra)
     print(f"n final da subamostra: {n_final} "
           f"({'exato' if n_final == alvo else 'diverge do alvo — registrado'})")

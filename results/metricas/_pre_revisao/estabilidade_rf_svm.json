@@ -1,0 +1,139 @@
+{
+  "modelo": "estabilidade_rf_svm",
+  "conjunto": "validacao (o teste continua lacrado)",
+  "svm_deterministico": "SVC com probability=False é determinístico: não há variância de treino a medir; random_state do SVC é ignorado sem Platt scaling",
+  "rf_sementes": {
+    "o_que_mede": "variância de TREINO (bootstrap das árvores) — o SVM não tem esta fonte",
+    "config": "mesma configuração vencedora de rf_random_search.json; só a semente muda",
+    "execucoes": [
+      {
+        "semente": 42,
+        "limiar": 0.6516,
+        "f1_macro": 0.7225,
+        "eer": 0.193
+      },
+      {
+        "semente": 43,
+        "limiar": 0.6681,
+        "f1_macro": 0.7221,
+        "eer": 0.1918
+      },
+      {
+        "semente": 44,
+        "limiar": 0.653,
+        "f1_macro": 0.7218,
+        "eer": 0.1927
+      },
+      {
+        "semente": 45,
+        "limiar": 0.6656,
+        "f1_macro": 0.7223,
+        "eer": 0.1941
+      },
+      {
+        "semente": 46,
+        "limiar": 0.6463,
+        "f1_macro": 0.7214,
+        "eer": 0.1948
+      }
+    ],
+    "f1_macro": {
+      "media": 0.722,
+      "desvio": 0.0004,
+      "min": 0.7214,
+      "max": 0.7225
+    },
+    "eer": {
+      "media": 0.1933,
+      "desvio": 0.0012,
+      "min": 0.1918,
+      "max": 0.1948
+    },
+    "limiares": [
+      0.6516,
+      0.6681,
+      0.653,
+      0.6656,
+      0.6463
+    ]
+  },
+  "bootstrap_validacao_rf": {
+    "n_reamostragens": 1000,
+    "limiar_fixo": 0.6516,
+    "f1_macro": {
+      "media": 0.7225,
+      "desvio": 0.0048,
+      "ic95": [
+        0.7124,
+        0.7315
+      ]
+    },
+    "eer": {
+      "media": 0.1924,
+      "desvio": 0.0041,
+      "ic95": [
+        0.1845,
+        0.2005
+      ]
+    }
+  },
+  "bootstrap_validacao_svm": {
+    "n_reamostragens": 1000,
+    "limiar_fixo": -0.0329,
+    "f1_macro": {
+      "media": 0.7988,
+      "desvio": 0.0045,
+      "ic95": [
+        0.7902,
+        0.8075
+      ]
+    },
+    "eer": {
+      "media": 0.1459,
+      "desvio": 0.0041,
+      "ic95": [
+        0.1379,
+        0.1537
+      ]
+    }
+  },
+  "bootstrap_pareado_svm_menos_rf": {
+    "n_reamostragens": 1000,
+    "semente": 42,
+    "limiares_fixos": {
+      "rf": 0.6516,
+      "svm": -0.0329
+    },
+    "delta_f1_macro": {
+      "media": 0.0762,
+      "desvio": 0.0051,
+      "ic95": [
+        0.0663,
+        0.0856
+      ]
+    },
+    "delta_eer": {
+      "media": -0.0466,
+      "desvio": 0.0047,
+      "ic95": [
+        -0.056,
+        -0.0377
+      ]
+    },
+    "fracao_reamostragens_svm_melhor_f1": 1.0,
+    "fracao_reamostragens_svm_melhor_eer": 1.0,
+    "leitura": "IC95 da diferença não contém zero => a vantagem do SVM não é ruído de amostragem"
+  },
+  "semente_bootstrap": 42,
+  "leitura_critica": {
+    "evidencia_principal": "bootstrap PAREADO (bootstrap_pareado_svm_menos_rf): IC95 do Δf1_macro [0.0663, 0.0856] e do ΔEER [-0.056, -0.0377] — nenhum contém zero: a vantagem do SVM não é ruído de amostragem",
+    "diferenca_f1_macro_rf_svm": 0.0762,
+    "maior_dispersao_f1_macro": 0.0048,
+    "diferenca_maior_que_dispersao_f1": true,
+    "diferenca_eer_rf_svm": 0.0468,
+    "maior_dispersao_eer": 0.0041,
+    "diferenca_maior_que_dispersao_eer": true,
+    "regra": "se a diferença entre RF e SVM for menor que a dispersão medida, isso é discutido no texto — não escondido atrás de uma tabela de médias",
+    "nota_metodo": "a comparação contra a maior dispersão individual é heurística: ignora a correlação entre os erros dos dois modelos nas mesmas 22.226 amostras; o teste correto é o IC da diferença pareada, acima"
+  }
+}

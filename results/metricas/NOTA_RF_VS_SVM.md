@@ -47,9 +47,21 @@ O(n²)–O(n³) e não roda em 103k, que é a razão de existir a subamostra. É
 exatamente por isso que entra aqui como previsão fundamentada, não como
 resultado.
 
+> **Ressalva de escopo (acrescentada em 03/09/2026, tarefa R4):** os tempos
+> desta tabela cobrem **somente a etapa de predição**, a partir do vetor de 44
+> features **já extraído**. Carregar o `.flac`, VAD, padding e extração de
+> features ficam de fora — e isso agora está declarado no próprio artefato
+> (`tempos_inferencia.protocolo.escopo` nos JSONs de RF e SVM). O custo ponta a
+> ponta está medido em `tempo_pipeline_completo.json`
+> (`scripts/tempo_pipeline_completo.py`), e é lá que se lê que fração do custo
+> real de inferência cabe ao classificador. **A leitura de "quem é mais barato"
+> depende de qual das duas medições se está citando** — diga sempre qual.
+
 O Bloco 4 medirá a CNN **com o mesmo protocolo** (`src/models/tempo.py`, mesmas
-repetições, mesmo descarte de aquecimento, `n_jobs` declarado) — é isso que
-torna a comparação final defensável.
+repetições, mesmo descarte de aquecimento, `n_jobs` declarado; e o pipeline
+completo pelo mesmo `medir_pipeline`, acrescentando as etapas "gerar
+mel-espectrograma" e "forward da CNN") — é isso que torna a comparação final
+defensável.
 
 ## 2. Por que o SVM vence — e por que isso é a discussão do trabalho
 
@@ -110,3 +122,13 @@ Frase de protocolo que fecha a seção: o número honesto de generalização
 continua sendo o do **teste lacrado** (Bloco 5), onde o limiar entra
 **congelado**, sem reajuste. É exatamente para absorver esse desgaste que a
 validação existe.
+
+> **A outra fonte de incerteza, medida em 03/09/2026 (tarefa R6.2).** A
+> estabilidade acima varia a *semente das árvores* e a *amostra de validação*.
+> Faltava variar o que o braço principal realmente tem de arbitrário: **qual
+> subamostra de 30k caiu**. `scripts/estabilidade_subamostra.py` gera três
+> subamostras alternativas (sementes 43, 44, 45) pela **mesma** regra de
+> estratificação e treina RF e SVM em cada uma, com os mesmos hiperparâmetros.
+> O resultado — e a comparação entre as três dispersões (entre subamostras,
+> entre sementes de treino, e a distância RF × SVM) — está em
+> `estabilidade_subamostra.json`, campo `leitura_critica`.
