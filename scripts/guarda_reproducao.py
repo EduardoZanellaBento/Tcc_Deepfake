@@ -30,10 +30,16 @@ O QUE É COMPARADO:
 
 O QUE É IGNORADO, E POR QUÊ:
     tudo que é medida de RELÓGIO (tempos_inferencia, tempo_treino_s,
-    tempo_busca_s, tempo_um_fit_fold_s, tempo_treino_s_n_jobs_1) e o bloco
-    `ambiente`. Tempo VARIA POR DEFINIÇÃO entre execuções — compará-lo aqui
-    geraria alarme falso e treinaria o leitor a ignorar o alarme, que é o pior
-    resultado possível para uma guarda.
+    tempo_busca_s, tempo_um_fit_fold_s, tempo_treino_s_n_jobs_1), o que é
+    DERIVADO de relógio (projecao_horas_antes_da_busca) e o bloco `ambiente`.
+    Tempo VARIA POR DEFINIÇÃO entre execuções — compará-lo aqui geraria alarme
+    falso e treinaria o leitor a ignorar o alarme, que é o pior resultado
+    possível para uma guarda.
+
+    O corte é entre MEDIDA e CONSEQUÊNCIA: a projeção de horas é ignorada, mas
+    o `n_iter_efetivo` que ela decide continua sendo comparado. Se um dia a
+    projeção estourar o orçamento e cortar o n_iter, isso muda o resultado — e
+    a guarda tem de gritar.
 
 Rode a partir da raiz:  python -m scripts.guarda_reproducao
 """
@@ -60,6 +66,13 @@ TOL_FLOAT = 1e-9
 CHAVES_IGNORADAS = {
     "tempo_treino_s", "tempo_treino_s_n_jobs_1", "tempo_busca_s",
     "tempo_um_fit_fold_s", "tempos_inferencia", "ambiente",
+    # DERIVADO de relógio: projecao_horas_antes_da_busca = tempo_um_fit_fold_s
+    # x n_iter x 5 / paralelismo (treinar_svm.py). Varia com o t_fit medido
+    # (4,6 s -> 5,3 s entre execuções) sem que nada de resultado mude. O que NÃO
+    # é ignorado é `n_iter_efetivo` — a DECISÃO que essa projeção alimenta: se a
+    # projeção estourasse o orçamento, o n_iter cairia, e aí o resultado mudaria
+    # de verdade. Ignora-se a medida, compara-se a consequência.
+    "projecao_horas_antes_da_busca",
 }
 
 # Os campos que a ordem de serviço exige conferir explicitamente. Se algum

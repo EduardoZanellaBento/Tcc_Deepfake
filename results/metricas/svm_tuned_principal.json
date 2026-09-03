@@ -36,7 +36,8 @@
   ],
   "semente": 42,
   "treino_deterministico": "SVC com probability=False é DETERMINÍSTICO — random_state só afeta o Platt scaling; a análise de estabilidade usa bootstrap da validação (scripts/estabilidade_modelos.py), não sementes.",
-  "tempo_treino_s": 11.24,
+  "tempo_treino_s": 13.06,
+  "n_jobs_treino": 1,
   "matriz_confusao": [
     [
       1472,
@@ -52,21 +53,24 @@
     "protocolo": {
       "repeticoes": 10,
       "descartar_aquecimento": 3,
-      "fonte": "config.yaml -> tempo"
+      "fonte": "config.yaml -> tempo",
+      "escopo": "somente a predição do modelo (predict_proba / decision_function) a partir do vetor de features JÁ EXTRAÍDO — NÃO inclui carregamento do áudio, VAD, nem extração de features",
+      "incluir_extracao_features": false,
+      "onde_o_pipeline_completo_e_medido": "results/metricas/tempo_pipeline_completo.json (scripts/tempo_pipeline_completo.py)"
     },
     "latencia_ms": {
       "batch": 1,
-      "mediana": 0.5572,
-      "min": 0.506,
-      "max": 0.7632
+      "mediana": 0.6285,
+      "min": 0.5279,
+      "max": 0.8442
     },
     "throughput": {
       "batch": 22226,
-      "total_s_mediana": 7.9579,
-      "total_s_min": 7.8921,
-      "total_s_max": 8.0124,
-      "ms_por_audio_mediana": 0.358,
-      "audios_por_segundo_mediana": 2793.0
+      "total_s_mediana": 8.9471,
+      "total_s_min": 8.8986,
+      "total_s_max": 9.6472,
+      "ms_por_audio_mediana": 0.4025,
+      "audios_por_segundo_mediana": 2484.2
     }
   },
   "ambiente": {

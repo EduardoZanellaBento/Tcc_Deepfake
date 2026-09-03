@@ -95,6 +95,111 @@ def espaco_busca(semente: int) -> dict:
     }
 
 
+def analisar_bordas(espaco: dict, params: dict) -> dict:
+    """Diz, para cada hiperparâmetro, se o ótimo caiu na BORDA do espaço buscado.
+
+    POR QUE ISTO EXISTE E POR QUE É GERADO (achado da revisão de 03/09/2026):
+        esta análise já estava publicada em rf_random_search.json, no bloco
+        `limitacao_otimo_na_borda` — mas tinha sido escrita À MÃO dentro de um
+        artefato GERADO. A re-execução do R2.3 a apagou, e a guarda de
+        reprodução (scripts/guarda_reproducao.py) pegou o sumiço como
+        "regressão de rastreabilidade". O diagnóstico é esse: uma limitação
+        metodológica que vive só num arquivo gerado é destruída por qualquer
+        re-execução, silenciosamente. A correção não é reescrevê-la à mão — é
+        fazer o CÓDIGO produzi-la, o que também impede que ela fique DESATUALIZADA
+        se a busca um dia eleger outra configuração.
+
+    POR QUE A BORDA IMPORTA:
+        se o ótimo é o menor (ou o maior) valor explorado, a busca não mostrou
+        que ele é o ótimo — mostrou que o melhor está NAQUELA DIREÇÃO, e a faixa
+        pode estar censurando o verdadeiro ótimo. É limitação declarável, não
+        defeito: as faixas de `min_samples_leaf` e `class_weight` são decisão de
+        protocolo do orientador e NÃO serão reabertas.
+
+    Distinção que o texto precisa fazer, e que o código faz aqui:
+        `max_depth=30` é o maior valor FINITO da lista [None, 10, 20, 30] — mas
+        None (profundidade ilimitada) estava disponível e NÃO foi escolhido.
+        Logo o ótimo NÃO está censurado nessa dimensão; a borda é só dos valores
+        finitos. Por isso `censurado` é False quando existe alternativa mais
+        extrema no espaço (o None), mesmo o valor sendo o maior número.
+
+    Returns:
+        dict por hiperparâmetro com o valor ótimo, onde ele caiu e se a faixa
+        censura a busca naquela direção — mais um resumo textual para o TC II.
+    """
+    analise = {}
+    for nome, valor in params.items():
+        dominio = espaco.get(nome)
+        if isinstance(dominio, list):
+            numericos = sorted(v for v in dominio if isinstance(v, (int, float))
+                               and not isinstance(v, bool))
+            if not numericos or valor not in numericos:
+                continue          # categórico (class_weight, max_features): sem borda
+            no_minimo = valor == numericos[0]
+            no_maximo = valor == numericos[-1]
+            if not (no_minimo or no_maximo):
+                continue
+            # `None` no domínio = "sem limite": existe alternativa mais extrema
+            # que a busca podia ter escolhido e não escolheu.
+            tem_alternativa_ilimitada = any(v is None for v in dominio)
+            censurado = bool(no_maximo and not tem_alternativa_ilimitada) or no_minimo
+            analise[nome] = {
+                "valor_otimo": valor,
+                "posicao": "menor valor explorado" if no_minimo
+                           else "maior valor FINITO explorado",
+                "dominio": [str(v) for v in dominio],
+                "censurado": censurado,
+                "nota": (
+                    f"o ótimo ({valor}) é o maior valor finito de {dominio}, mas "
+                    "None (sem limite) estava disponível e NÃO foi escolhido — o "
+                    "ótimo NÃO está censurado nesta dimensão; a borda vale apenas "
+                    "como registro"
+                    if no_maximo and tem_alternativa_ilimitada else
+                    f"o ótimo ({valor}) é o "
+                    f"{'MENOR' if no_minimo else 'MAIOR'} valor explorado de "
+                    f"{dominio}: valores "
+                    f"{'menores' if no_minimo else 'maiores'} não foram avaliados, "
+                    "logo a busca entrega o melhor ponto DENTRO da faixa e não "
+                    "necessariamente o ótimo global do hiperparâmetro"),
+            }
+        elif hasattr(dominio, "a") and hasattr(dominio, "b"):
+            # randint(a, b): suporte [a, b-1]. É o caso do min_samples_leaf,
+            # cuja faixa é exigência do orientador.
+            baixo, alto = int(dominio.a), int(dominio.b) - 1
+            if valor not in (baixo, alto):
+                continue
+            analise[nome] = {
+                "valor_otimo": valor,
+                "posicao": ("limite INFERIOR da faixa" if valor == baixo
+                            else "limite SUPERIOR da faixa"),
+                "dominio": f"randint({dominio.a}, {dominio.b}) -> [{baixo}, {alto}]",
+                "censurado": True,
+                "nota": (f"o ótimo ({valor}) ficou no limite "
+                         f"{'inferior' if valor == baixo else 'superior'} da "
+                         "faixa; valores além dele não foram explorados por "
+                         "DECISÃO DE PROTOCOLO (faixa exigida pelo orientador, "
+                         "config.yaml -> tuning)"),
+            }
+
+    censurados = [k for k, v in analise.items() if v["censurado"]]
+    return {
+        "hiperparametros_na_borda": analise,
+        "censurados": censurados,
+        "consequencia": (
+            "limitação declarada no texto do TC II: nas dimensões "
+            f"{censurados or '(nenhuma)'} a busca entrega o melhor ponto DENTRO "
+            "da faixa acordada, não necessariamente o ótimo global. A faixa é "
+            "decisão de protocolo e NÃO será reaberta."
+            if censurados else
+            "nenhum hiperparâmetro ótimo caiu numa borda que censure a busca — "
+            "nada a declarar como limitação nesta dimensão."),
+        "como_este_bloco_e_produzido": (
+            "GERADO por analisar_bordas() a partir do espaço de busca e da "
+            "configuração vencedora. Foi escrito à mão no JSON até 03/09/2026, e "
+            "a re-execução do R2.3 o apagou — ver REVISAO_BLOCO3.md, R2.3."),
+    }
+
+
 def buscar_hiperparametros(cfg: dict, raiz: Path) -> dict:
     """B3.2 — Random Search 5-fold no TREINO do braço principal (30k)."""
     semente = fixar_seeds(cfg["semente"])
@@ -173,6 +278,10 @@ def buscar_hiperparametros(cfg: dict, raiz: Path) -> dict:
             "max_features": ["sqrt", "log2", 0.3],
         },
         "paralelismo": "RandomizedSearchCV(n_jobs=-1) com RandomForestClassifier(n_jobs=1)",
+        # Limitação declarável: o ótimo caiu na borda do espaço? Gerado, nunca
+        # escrito à mão — ver docstring de analisar_bordas.
+        "limitacao_otimo_na_borda": analisar_bordas(espaco_busca(semente),
+                                                    params_melhor),
         "tempo_busca_s": round(t_busca, 1),
         "melhor": melhor,
         "semente": semente,

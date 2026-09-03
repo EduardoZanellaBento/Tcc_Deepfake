@@ -146,10 +146,41 @@ verificação de reprodutibilidade prevista para o B6.1.
 `tempo_um_fit_fold_s` e `ambiente` — medidas de relógio **variam por
 definição**, e compará-las produziria alarme falso.
 
-**Resultado: REPRODUZIU.** A evidência está em
-`results/metricas/reproducao_bloco3.json`, com a lista de campos comparados, os
-campos acrescentados e a data. **É este o arquivo a citar na resposta de banca
-sobre reprodutibilidade.**
+**A guarda pegou duas coisas na primeira passada — e é por isso que ela existe.**
+
+**(1) Achado real: uma limitação metodológica que vivia só num arquivo gerado.**
+O bloco `limitacao_otimo_na_borda` de `rf_random_search.json` — o registro de
+que o `min_samples_leaf` ótimo (5) caiu no **limite inferior** da faixa exigida
+pelo orientador, e o `min_samples_split` (10) no topo da lista — **nunca esteve
+no código**: foi escrito à mão dentro de um artefato **gerado**. A re-execução o
+apagou, e a guarda acusou "regressão de rastreabilidade".
+
+O diagnóstico é o que importa: *uma limitação declarada que mora num arquivo
+gerado é destruída, em silêncio, por qualquer re-execução* — inclusive pelas do
+Bloco 5 e do B6.1. A correção não foi reescrevê-la à mão. Foi criar
+`analisar_bordas()` em `src/models/ajustar_rf.py`, que **deriva** o bloco do
+espaço de busca e da configuração vencedora, e portanto: (a) volta sozinho a
+cada execução; (b) não pode ficar desatualizado se a busca um dia eleger outra
+configuração. A função reproduz as três notas do texto original, inclusive a
+distinção fina que o texto fazia — `max_depth=30` é o maior valor **finito** da
+lista, mas `None` estava disponível e **não** foi escolhido, logo o ótimo **não
+está censurado** nessa dimensão. O campo `censurados` do JSON passa a listar
+exatamente as dimensões em que a faixa limita a conclusão.
+
+**(2) Alarme falso corrigido: `projecao_horas_antes_da_busca` (0,03 → 0,04).**
+Esse campo é `tempo_um_fit_fold_s × n_iter × 5 ÷ paralelismo` — puro derivado de
+relógio (o fit de referência foi 4,6 s antes e 5,3 s agora). Entrou na lista de
+ignorados, **com o corte explícito entre medida e consequência**: a projeção é
+ignorada, mas o `n_iter_efetivo` que ela decide continua sendo comparado — se um
+dia a projeção estourar o orçamento e cortar o `n_iter`, o resultado muda de
+verdade e a guarda tem de gritar.
+
+**Resultado após as duas correções: REPRODUZIU** em todos os artefatos
+comparados. A evidência está em `results/metricas/reproducao_bloco3.json`, com a
+lista de campos comparados, os campos acrescentados e a data. **É este o arquivo
+a citar na resposta de banca sobre reprodutibilidade** — e o achado (1) é, por
+si, uma boa resposta à pergunta "por que vocês fizeram uma guarda de
+reprodução?".
 
 `estabilidade_modelos` e `ablacao_mfcc1_std` dependem dos `.joblib` re-gerados e
 foram re-rodados em seguida, sob a mesma guarda.

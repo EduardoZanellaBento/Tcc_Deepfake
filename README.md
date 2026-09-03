@@ -226,6 +226,24 @@ por bootstrap). A fonte de variação que o braço principal de fato tem —
 **qual subamostra de 30k caiu** — é medida em `estabilidade_subamostra.json`
 (`scripts/estabilidade_subamostra.py`).
 
+### Reprodutibilidade
+
+`python -m scripts.guarda_reproducao` compara, campo a campo, os JSONs de
+resultado contra as cópias em `results/metricas/_pre_revisao/`. Medidas de
+relógio (e o que delas deriva) ficam de fora — variam por definição; o que delas
+decorre, como o `n_iter_efetivo` do SVM, continua sendo comparado. Evidência:
+**`results/metricas/reproducao_bloco3.json`**.
+
+Na primeira passada a guarda pegou um achado que vale registrar: o bloco
+`limitacao_otimo_na_borda` de `rf_random_search.json` — o registro de que o
+`min_samples_leaf` ótimo caiu no limite inferior da faixa exigida pelo
+orientador — **nunca esteve no código**, tinha sido escrito à mão dentro de um
+arquivo gerado, e a re-execução o apagou. Uma limitação metodológica que mora
+num artefato gerado é destruída em silêncio por qualquer re-execução. A correção
+foi `analisar_bordas()` em `src/models/ajustar_rf.py`, que **deriva** o bloco do
+espaço de busca e da configuração vencedora — volta sozinho a cada execução e
+não pode ficar desatualizado. Detalhes em `results/metricas/REVISAO_BLOCO3.md`.
+
 ### Referência "antes" (baseline argmax, features pré-mascaramento)
 
 | Configuração | n treino | f1_macro | EER | Arquivo |
