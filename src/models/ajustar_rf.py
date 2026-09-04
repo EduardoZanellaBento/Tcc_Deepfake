@@ -60,7 +60,7 @@ from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
 from ..utils.seeds import fixar_seeds
 from ..data.split import (carregar_dados_split, colunas_features,
                           filtrar_treino_braco)
-from .avaliacao import avaliar, selecionar_limiar
+from .avaliacao import avaliar, predizer_rf, selecionar_limiar
 from .tempo import ambiente, medir_tempos
 
 
@@ -318,7 +318,10 @@ def treinar_final(cfg: dict, raiz: Path, params: dict, braco: str) -> dict:
     t_treino = time.perf_counter() - t0
     print(f"Treino em {t_treino:.1f}s (n_jobs=-1)")
 
-    scores = modelo.predict_proba(X_va)[:, 1]
+    # predizer_rf força n_jobs=1 na predição: com n_jobs=-1 a soma das árvores
+    # muda de ordem entre execuções e a CONTAGEM de scores distintos deixa de
+    # reproduzir (ver docstring de predizer_rf). O treino acima segue paralelo.
+    scores = predizer_rf(modelo, X_va)
 
     # ---- Limiar: selecionado na validação, registrado com critério e regra ---
     sel = selecionar_limiar(y_va, scores, criterio="f1_macro",
@@ -379,6 +382,8 @@ def treinar_final(cfg: dict, raiz: Path, params: dict, braco: str) -> dict:
     # ---- Tempos (protocolo config.yaml -> tempo; MESMO helper do SVM) --------
     # Inferência cronometrada com n_jobs=1: é o n_jobs fixado para todos os
     # modelos clássicos (o SVM é single-thread por natureza) — comparação justa.
+    # (predizer_rf já deixou o modelo em n_jobs=1; a linha fica explícita porque a
+    # medição de tempo não pode depender do que outra função fez antes.)
     modelo.n_jobs = 1
     m["tempos_inferencia"] = medir_tempos(
         lambda X: modelo.predict_proba(X)[:, 1], X_va, cfg["tempo"])

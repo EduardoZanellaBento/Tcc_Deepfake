@@ -1,0 +1,145 @@
+{
+  "analise": "tempo_pipeline_completo",
+  "data": "2026-09-03",
+  "pergunta": "qual a fração do custo real de inferência que cabe ao classificador, e qual cabe ao pré-processamento?",
+  "conjunto": "validacao",
+  "teste_lacrado": true,
+  "n_amostra": 200,
+  "semente": 42,
+  "escopo": "pipeline COMPLETO por áudio (batch=1): carregar .flac + normalizar -> VAD + padding -> extrair 44 features -> predizer. Complementa src/models/tempo.py, que mede SÓ a última etapa (ver protocolo.escopo nos JSONs de RF e SVM).",
+  "fidelidade_do_pipeline": {
+    "n_arquivos_conferidos": 10,
+    "n_features_por_arquivo": 44,
+    "n_features_divergentes": 0,
+    "precisao_da_comparacao": "float32 — o dtype que extrair_vetor produz e que o CSV grava; comparar em float64 exigiria do CSV uma precisão que ele nunca teve (ver docstring de conferir_fidelidade)",
+    "resultado": "o vetor recalculado é IDÊNTICO ao features.csv congelado, feature a feature, sem tolerância"
+  },
+  "base_compartilhada": {
+    "etapas": {
+      "carregar_audio": {
+        "ms_por_audio_mediana": 0.6385,
+        "ms_por_audio_min": 0.6244,
+        "ms_por_audio_max": 0.6526,
+        "percentual_do_total": 13.54
+      },
+      "vad_e_padding": {
+        "ms_por_audio_mediana": 0.3711,
+        "ms_por_audio_min": 0.3621,
+        "ms_por_audio_max": 0.3903,
+        "percentual_do_total": 7.87
+      },
+      "extrair_features": {
+        "ms_por_audio_mediana": 3.7054,
+        "ms_por_audio_min": 3.6429,
+        "ms_por_audio_max": 3.7791,
+        "percentual_do_total": 78.59
+      }
+    },
+    "total_ms_por_audio": 4.715,
+    "n_audios": 200,
+    "protocolo": {
+      "repeticoes": 10,
+      "descartar_aquecimento": 3,
+      "batch": 1,
+      "fonte": "config.yaml -> tempo"
+    }
+  },
+  "nota_metodo": "a base (carregar + VAD/padding + featurização) é medida UMA vez e somada à predição de cada modelo. Medi-la dentro do laço de cada modelo dava 5,51 ms/áudio no laço do RF contra 3,79 ms no do SVM para código IDÊNTICO (efeito reprodutível entre execuções): a predição do RF, com 300 árvores, despeja o cache da CPU e contamina a etapa vizinha. RF e SVM consomem o MESMO vetor de features, então a base é a mesma por construção e toda a diferença entre eles está na etapa de predição.",
+  "por_modelo": {
+    "rf": {
+      "etapas": {
+        "carregar_audio": {
+          "ms_por_audio_mediana": 0.6385,
+          "ms_por_audio_min": 0.6244,
+          "ms_por_audio_max": 0.6526,
+          "percentual_do_total": 5.74
+        },
+        "vad_e_padding": {
+          "ms_por_audio_mediana": 0.3711,
+          "ms_por_audio_min": 0.3621,
+          "ms_por_audio_max": 0.3903,
+          "percentual_do_total": 3.34
+        },
+        "extrair_features": {
+          "ms_por_audio_mediana": 3.7054,
+          "ms_por_audio_min": 3.6429,
+          "ms_por_audio_max": 3.7791,
+          "percentual_do_total": 33.32
+        },
+        "predizer": {
+          "ms_por_audio_mediana": 6.405,
+          "ms_por_audio_min": 6.2801,
+          "ms_por_audio_max": 6.9173,
+          "percentual_do_total": 57.6
+        }
+      },
+      "total_ms_por_audio": 11.12,
+      "n_audios": 200,
+      "protocolo": {
+        "repeticoes": 10,
+        "descartar_aquecimento": 3,
+        "batch": 1,
+        "fonte": "config.yaml -> tempo"
+      },
+      "modelo": "rf_tuned_principal",
+      "rotulo": "RF ajustado (braço principal)"
+    },
+    "svm": {
+      "etapas": {
+        "carregar_audio": {
+          "ms_por_audio_mediana": 0.6385,
+          "ms_por_audio_min": 0.6244,
+          "ms_por_audio_max": 0.6526,
+          "percentual_do_total": 11.98
+        },
+        "vad_e_padding": {
+          "ms_por_audio_mediana": 0.3711,
+          "ms_por_audio_min": 0.3621,
+          "ms_por_audio_max": 0.3903,
+          "percentual_do_total": 6.96
+        },
+        "extrair_features": {
+          "ms_por_audio_mediana": 3.7054,
+          "ms_por_audio_min": 3.6429,
+          "ms_por_audio_max": 3.7791,
+          "percentual_do_total": 69.54
+        },
+        "predizer": {
+          "ms_por_audio_mediana": 0.6133,
+          "ms_por_audio_min": 0.5971,
+          "ms_por_audio_max": 0.6911,
+          "percentual_do_total": 11.51
+        }
+      },
+      "total_ms_por_audio": 5.3283,
+      "n_audios": 200,
+      "protocolo": {
+        "repeticoes": 10,
+        "descartar_aquecimento": 3,
+        "batch": 1,
+        "fonte": "config.yaml -> tempo"
+      },
+      "modelo": "svm_tuned_principal",
+      "rotulo": "SVM ajustado (braço principal)"
+    }
+  },
+  "leitura_critica": "A predição responde por até 57.60% do custo real de inferência — fração NÃO desprezível. A hipótese registrada no config.yaml (de que o pré-processamento dominaria a ponto de tornar a escolha do classificador irrelevante) NÃO se confirma nesta medição: a diferença entre RF e SVM sobrevive ao pipeline completo (5.79 ms por áudio, razão 2.09x). A comparação de custo entre modelos continua sendo uma comparação com significado prático.",
+  "extensao_bloco4": "medir_pipeline recebe uma lista de etapas nomeadas; a CNN entra acrescentando ['gerar_melspectrograma', 'forward_cnn'] no lugar de ['extrair_features', 'predizer'] — MESMO código, MESMO protocolo, para que os três modelos sejam comparáveis",
+  "hashes_md5": {
+    "features": "51b2f439bf6f1e10237acbc620bb92d9",
+    "split": "9143f0c7b83ec2db4aa144ed5deb3402",
+    "subamostra": "654cb796b738512388b28e15ffb14a9d"
+  },
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1
+  }
+}

@@ -28,53 +28,56 @@
       "limiar": 0.6937,
       "f1_macro": 0.6764,
       "eer": 0.2274,
-      "tempo_treino_s": 0.62
+      "tempo_treino_s": 0.63
     },
     {
       "n_treino": 10000,
       "limiar": 0.6787,
       "f1_macro": 0.6953,
       "eer": 0.2128,
-      "tempo_treino_s": 1.24
+      "tempo_treino_s": 1.37
     },
     {
       "n_treino": 20000,
       "limiar": 0.6795,
       "f1_macro": 0.7156,
       "eer": 0.2002,
-      "tempo_treino_s": 2.63
+      "tempo_treino_s": 2.95
     },
     {
       "n_treino": 30000,
       "limiar": 0.6803,
       "f1_macro": 0.7255,
       "eer": 0.1891,
-      "tempo_treino_s": 4.27
+      "tempo_treino_s": 4.65
     },
     {
       "n_treino": 40000,
       "limiar": 0.6485,
       "f1_macro": 0.7365,
       "eer": 0.1873,
-      "tempo_treino_s": 5.97
+      "tempo_treino_s": 6.66
     },
     {
       "n_treino": 80000,
       "limiar": 0.6393,
       "f1_macro": 0.7602,
       "eer": 0.1668,
-      "tempo_treino_s": 13.68
+      "tempo_treino_s": 17.44
     },
     {
       "n_treino": 103723,
       "limiar": 0.6196,
       "f1_macro": 0.7723,
       "eer": 0.1579,
-      "tempo_treino_s": 18.21
+      "tempo_treino_s": 20.95
     }
   ],
   "f1_macro_maximo": 0.7723,
-  "satura_em_n": 103723,
+  "saturou": false,
+  "maior_n_medido": 103723,
+  "ganho_ultimo_passo_f1": 0.0121,
+  "definicao_saturacao": "saturou = (f1_macro do maior n) - (f1_macro do n anterior) < 0.005. Se saturou for false, a curva AINDA SOBE no maior treino disponível e o campo satura_em_n NÃO é emitido: nenhum n medido satisfaz a definição.",
   "tolerancia_saturacao": 0.005,
   "checagem_ultimo_ponto": {
     "o_que_e": "o último ponto (treino inteiro) é, por construção, o braço de referência do Bloco 3 — mesma config, mesma semente, mesmo treino",

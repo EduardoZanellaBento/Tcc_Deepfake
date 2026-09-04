@@ -55,7 +55,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from src.utils.config import carregar_config
 from src.utils.serializacao import json_seguro
+from src.models.modelos_ajustados import hashes_congelados
 
 RAIZ = Path(__file__).resolve().parents[1]
 DIR_MET = RAIZ / "results" / "metricas"
@@ -173,6 +175,8 @@ def main() -> None:
         "cabe_no_universo_disponivel": cabe_no_universo,
         "leitura": leitura,
         "limitacao": limitacao,
+        "hashes_md5": hashes_congelados(
+            RAIZ, carregar_config(RAIZ)["experimento"]["caminho_subamostra"]),
         "ambiente": {
             "python": platform.python_version(),
             "sistema": f"{platform.system()} {platform.release()}",

@@ -1,0 +1,525 @@
+{
+  "analise": "importancia_permutacao_rf",
+  "data": "2026-09-03",
+  "modelo": "rf_tuned_principal",
+  "conjunto": "validacao",
+  "teste_lacrado": true,
+  "metodo": {
+    "funcao": "sklearn.inspection.permutation_importance",
+    "n_repeats": 10,
+    "scoring": "roc_auc",
+    "por_que_este_scoring": "AUC é independente de limiar: medir a queda de f1 num limiar fixo misturaria 'a feature era importante' com 'o limiar deixou de ser o ótimo'",
+    "semente": 42,
+    "tempo_s": 34.1
+  },
+  "por_que_esta_analise_existe": "a importância do RF publicada nos JSONs (top10_features) é por REDUÇÃO DE IMPUREZA, enviesada a favor de features contínuas de alta cardinalidade — alerta registrado em treinar_rf.py:181-184",
+  "spearman_entre_rankings": {
+    "rho": 0.8516,
+    "p_valor": 2.361841695444377e-13
+  },
+  "top_n": 10,
+  "top10_permutacao": [
+    "mfcc1_media",
+    "mfcc1_std",
+    "mfcc3_std",
+    "mfcc4_std",
+    "mfcc4_media",
+    "mfcc8_media",
+    "mfcc5_std",
+    "mfcc13_media",
+    "mfcc19_std",
+    "mfcc2_media"
+  ],
+  "top10_impureza": [
+    "mfcc1_media",
+    "mfcc1_std",
+    "mfcc4_std",
+    "mfcc3_std",
+    "mfcc4_media",
+    "mfcc19_std",
+    "mfcc2_media",
+    "mfcc5_std",
+    "mfcc8_media",
+    "mfcc16_std"
+  ],
+  "intersecao_topo": [
+    "mfcc1_media",
+    "mfcc1_std",
+    "mfcc3_std",
+    "mfcc4_std",
+    "mfcc4_media",
+    "mfcc8_media",
+    "mfcc5_std",
+    "mfcc19_std",
+    "mfcc2_media"
+  ],
+  "so_no_topo_por_permutacao": [
+    "mfcc13_media"
+  ],
+  "so_no_topo_por_impureza": [
+    "mfcc16_std"
+  ],
+  "maiores_quedas_de_posicao": {
+    "mfcc2_std": -18,
+    "mfcc18_std": -12,
+    "mfcc6_media": -10
+  },
+  "maiores_subidas_de_posicao": {
+    "mfcc9_media": 14,
+    "mfcc18_media": 13,
+    "mfcc17_media": 12
+  },
+  "n_features_nao_significativas": 0,
+  "tabela_completa": [
+    {
+      "feature": "mfcc1_media",
+      "importancia_permutacao": 0.060838,
+      "desvio_permutacao": 0.001761,
+      "importancia_impureza": 0.074185,
+      "posicao_permutacao": 1,
+      "posicao_impureza": 1,
+      "delta_posicao": 0,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc1_std",
+      "importancia_permutacao": 0.041346,
+      "desvio_permutacao": 0.002328,
+      "importancia_impureza": 0.056716,
+      "posicao_permutacao": 2,
+      "posicao_impureza": 2,
+      "delta_posicao": 0,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc3_std",
+      "importancia_permutacao": 0.020057,
+      "desvio_permutacao": 0.00133,
+      "importancia_impureza": 0.041997,
+      "posicao_permutacao": 3,
+      "posicao_impureza": 4,
+      "delta_posicao": 1,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc4_std",
+      "importancia_permutacao": 0.014764,
+      "desvio_permutacao": 0.000913,
+      "importancia_impureza": 0.048146,
+      "posicao_permutacao": 4,
+      "posicao_impureza": 3,
+      "delta_posicao": -1,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc4_media",
+      "importancia_permutacao": 0.0145,
+      "desvio_permutacao": 0.000562,
+      "importancia_impureza": 0.035041,
+      "posicao_permutacao": 5,
+      "posicao_impureza": 5,
+      "delta_posicao": 0,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc8_media",
+      "importancia_permutacao": 0.008667,
+      "desvio_permutacao": 0.000408,
+      "importancia_impureza": 0.027022,
+      "posicao_permutacao": 6,
+      "posicao_impureza": 9,
+      "delta_posicao": 3,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc5_std",
+      "importancia_permutacao": 0.007625,
+      "desvio_permutacao": 0.000525,
+      "importancia_impureza": 0.027327,
+      "posicao_permutacao": 7,
+      "posicao_impureza": 8,
+      "delta_posicao": 1,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc13_media",
+      "importancia_permutacao": 0.006528,
+      "desvio_permutacao": 0.000518,
+      "importancia_impureza": 0.020997,
+      "posicao_permutacao": 8,
+      "posicao_impureza": 14,
+      "delta_posicao": 6,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc19_std",
+      "importancia_permutacao": 0.006495,
+      "desvio_permutacao": 0.000979,
+      "importancia_impureza": 0.030933,
+      "posicao_permutacao": 9,
+      "posicao_impureza": 6,
+      "delta_posicao": -3,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc2_media",
+      "importancia_permutacao": 0.005795,
+      "desvio_permutacao": 0.000426,
+      "importancia_impureza": 0.028663,
+      "posicao_permutacao": 10,
+      "posicao_impureza": 7,
+      "delta_posicao": -3,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc15_media",
+      "importancia_permutacao": 0.005649,
+      "desvio_permutacao": 0.00044,
+      "importancia_impureza": 0.018729,
+      "posicao_permutacao": 11,
+      "posicao_impureza": 22,
+      "delta_posicao": 11,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc13_std",
+      "importancia_permutacao": 0.005011,
+      "desvio_permutacao": 0.000743,
+      "importancia_impureza": 0.020045,
+      "posicao_permutacao": 12,
+      "posicao_impureza": 20,
+      "delta_posicao": 8,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc10_std",
+      "importancia_permutacao": 0.004945,
+      "desvio_permutacao": 0.000336,
+      "importancia_impureza": 0.022963,
+      "posicao_permutacao": 13,
+      "posicao_impureza": 11,
+      "delta_posicao": -2,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc16_media",
+      "importancia_permutacao": 0.004638,
+      "desvio_permutacao": 0.000262,
+      "importancia_impureza": 0.017732,
+      "posicao_permutacao": 14,
+      "posicao_impureza": 25,
+      "delta_posicao": 11,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc18_media",
+      "importancia_permutacao": 0.004562,
+      "desvio_permutacao": 0.000221,
+      "importancia_impureza": 0.017212,
+      "posicao_permutacao": 15,
+      "posicao_impureza": 28,
+      "delta_posicao": 13,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc16_std",
+      "importancia_permutacao": 0.004313,
+      "desvio_permutacao": 0.000417,
+      "importancia_impureza": 0.023143,
+      "posicao_permutacao": 16,
+      "posicao_impureza": 10,
+      "delta_posicao": -6,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc6_std",
+      "importancia_permutacao": 0.00413,
+      "desvio_permutacao": 0.000239,
+      "importancia_impureza": 0.020317,
+      "posicao_permutacao": 17,
+      "posicao_impureza": 17,
+      "delta_posicao": 0,
+      "significativa": true
+    },
+    {
+      "feature": "centroide_std",
+      "importancia_permutacao": 0.004044,
+      "desvio_permutacao": 0.000403,
+      "importancia_impureza": 0.020198,
+      "posicao_permutacao": 18,
+      "posicao_impureza": 19,
+      "delta_posicao": 1,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc14_media",
+      "importancia_permutacao": 0.003876,
+      "desvio_permutacao": 0.000322,
+      "importancia_impureza": 0.019333,
+      "posicao_permutacao": 19,
+      "posicao_impureza": 21,
+      "delta_posicao": 2,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc3_media",
+      "importancia_permutacao": 0.003706,
+      "desvio_permutacao": 0.000349,
+      "importancia_impureza": 0.020618,
+      "posicao_permutacao": 20,
+      "posicao_impureza": 15,
+      "delta_posicao": -5,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc17_std",
+      "importancia_permutacao": 0.003686,
+      "desvio_permutacao": 0.000437,
+      "importancia_impureza": 0.021308,
+      "posicao_permutacao": 21,
+      "posicao_impureza": 12,
+      "delta_posicao": -9,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc9_media",
+      "importancia_permutacao": 0.003175,
+      "desvio_permutacao": 0.000266,
+      "importancia_impureza": 0.016189,
+      "posicao_permutacao": 22,
+      "posicao_impureza": 36,
+      "delta_posicao": 14,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc8_std",
+      "importancia_permutacao": 0.003143,
+      "desvio_permutacao": 0.000392,
+      "importancia_impureza": 0.020201,
+      "posicao_permutacao": 23,
+      "posicao_impureza": 18,
+      "delta_posicao": -5,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc19_media",
+      "importancia_permutacao": 0.002949,
+      "desvio_permutacao": 0.000409,
+      "importancia_impureza": 0.0205,
+      "posicao_permutacao": 24,
+      "posicao_impureza": 16,
+      "delta_posicao": -8,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc18_std",
+      "importancia_permutacao": 0.002944,
+      "desvio_permutacao": 0.000317,
+      "importancia_impureza": 0.021247,
+      "posicao_permutacao": 25,
+      "posicao_impureza": 13,
+      "delta_posicao": -12,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc7_media",
+      "importancia_permutacao": 0.002899,
+      "desvio_permutacao": 0.000218,
+      "importancia_impureza": 0.016614,
+      "posicao_permutacao": 26,
+      "posicao_impureza": 34,
+      "delta_posicao": 8,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc5_media",
+      "importancia_permutacao": 0.002766,
+      "desvio_permutacao": 0.000251,
+      "importancia_impureza": 0.017323,
+      "posicao_permutacao": 27,
+      "posicao_impureza": 27,
+      "delta_posicao": 0,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc17_media",
+      "importancia_permutacao": 0.002762,
+      "desvio_permutacao": 0.000208,
+      "importancia_impureza": 0.015178,
+      "posicao_permutacao": 28,
+      "posicao_impureza": 40,
+      "delta_posicao": 12,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc12_media",
+      "importancia_permutacao": 0.002654,
+      "desvio_permutacao": 0.000206,
+      "importancia_impureza": 0.016042,
+      "posicao_permutacao": 29,
+      "posicao_impureza": 37,
+      "delta_posicao": 8,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc15_std",
+      "importancia_permutacao": 0.002532,
+      "desvio_permutacao": 0.000252,
+      "importancia_impureza": 0.016893,
+      "posicao_permutacao": 30,
+      "posicao_impureza": 31,
+      "delta_posicao": 1,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc12_std",
+      "importancia_permutacao": 0.002447,
+      "desvio_permutacao": 0.000242,
+      "importancia_impureza": 0.01763,
+      "posicao_permutacao": 31,
+      "posicao_impureza": 26,
+      "delta_posicao": -5,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc9_std",
+      "importancia_permutacao": 0.002443,
+      "desvio_permutacao": 0.000335,
+      "importancia_impureza": 0.018369,
+      "posicao_permutacao": 32,
+      "posicao_impureza": 23,
+      "delta_posicao": -9,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc20_media",
+      "importancia_permutacao": 0.00244,
+      "desvio_permutacao": 0.000222,
+      "importancia_impureza": 0.01645,
+      "posicao_permutacao": 33,
+      "posicao_impureza": 35,
+      "delta_posicao": 2,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc10_media",
+      "importancia_permutacao": 0.002412,
+      "desvio_permutacao": 0.000191,
+      "importancia_impureza": 0.014716,
+      "posicao_permutacao": 34,
+      "posicao_impureza": 42,
+      "delta_posicao": 8,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc11_std",
+      "importancia_permutacao": 0.002216,
+      "desvio_permutacao": 0.000343,
+      "importancia_impureza": 0.016861,
+      "posicao_permutacao": 35,
+      "posicao_impureza": 32,
+      "delta_posicao": -3,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc7_std",
+      "importancia_permutacao": 0.001956,
+      "desvio_permutacao": 0.000244,
+      "importancia_impureza": 0.01714,
+      "posicao_permutacao": 36,
+      "posicao_impureza": 29,
+      "delta_posicao": -7,
+      "significativa": true
+    },
+    {
+      "feature": "zcr_std",
+      "importancia_permutacao": 0.001909,
+      "desvio_permutacao": 0.000292,
+      "importancia_impureza": 0.01508,
+      "posicao_permutacao": 37,
+      "posicao_impureza": 41,
+      "delta_posicao": 4,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc11_media",
+      "importancia_permutacao": 0.00179,
+      "desvio_permutacao": 0.000235,
+      "importancia_impureza": 0.015994,
+      "posicao_permutacao": 38,
+      "posicao_impureza": 38,
+      "delta_posicao": 0,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc14_std",
+      "importancia_permutacao": 0.001765,
+      "desvio_permutacao": 0.000244,
+      "importancia_impureza": 0.016841,
+      "posicao_permutacao": 39,
+      "posicao_impureza": 33,
+      "delta_posicao": -6,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc6_media",
+      "importancia_permutacao": 0.001741,
+      "desvio_permutacao": 0.000231,
+      "importancia_impureza": 0.017046,
+      "posicao_permutacao": 40,
+      "posicao_impureza": 30,
+      "delta_posicao": -10,
+      "significativa": true
+    },
+    {
+      "feature": "centroide_media",
+      "importancia_permutacao": 0.001333,
+      "desvio_permutacao": 0.000233,
+      "importancia_impureza": 0.015743,
+      "posicao_permutacao": 41,
+      "posicao_impureza": 39,
+      "delta_posicao": -2,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc2_std",
+      "importancia_permutacao": 0.001328,
+      "desvio_permutacao": 0.000268,
+      "importancia_impureza": 0.017741,
+      "posicao_permutacao": 42,
+      "posicao_impureza": 24,
+      "delta_posicao": -18,
+      "significativa": true
+    },
+    {
+      "feature": "mfcc20_std",
+      "importancia_permutacao": 0.001201,
+      "desvio_permutacao": 0.000125,
+      "importancia_impureza": 0.014074,
+      "posicao_permutacao": 43,
+      "posicao_impureza": 43,
+      "delta_posicao": 0,
+      "significativa": true
+    },
+    {
+      "feature": "zcr_media",
+      "importancia_permutacao": 0.000898,
+      "desvio_permutacao": 0.000149,
+      "importancia_impureza": 0.013501,
+      "posicao_permutacao": 44,
+      "posicao_impureza": 44,
+      "delta_posicao": 0,
+      "significativa": true
+    }
+  ],
+  "leitura_critica": "OS DOIS RANKINGS CONCORDAM (Spearman rho = 0.8516; 9 de 10 features em comum no topo). O `top10_features` já publicado nos JSONs — medido por redução de impureza, e portanto enviesado a favor de features contínuas de alta cardinalidade — é CONFIRMADO por uma métrica que não tem esse viés e que é medida na validação. A leitura acústica feita a partir dele pode ser mantida no texto, agora com respaldo; continua sendo 'o que o modelo usou', não causalidade acústica.",
+  "hashes_md5": {
+    "features": "51b2f439bf6f1e10237acbc620bb92d9",
+    "split": "9143f0c7b83ec2db4aa144ed5deb3402",
+    "subamostra": "654cb796b738512388b28e15ffb14a9d"
+  },
+  "ambiente": {
+    "python": "3.10.11",
+    "sistema": "Windows 10"
+  }
+}

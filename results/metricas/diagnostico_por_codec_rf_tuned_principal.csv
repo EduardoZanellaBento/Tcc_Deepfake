@@ -1,0 +1,8 @@
+codec,banda,n,n_bonafide,f1_macro,recall_bonafide,recall_spoof,eer,limiar,escala_score
+alaw,estreita,2936,306,0.742,0.6013,0.9289,0.1772,0.651568,"probabilidade [0,1] (predict_proba)"
+ulaw,estreita,3523,320,0.7131,0.6125,0.912,0.1876,0.651568,"probabilidade [0,1] (predict_proba)"
+gsm,estreita,3459,323,0.6652,0.3684,0.9461,0.2174,0.651568,"probabilidade [0,1] (predict_proba)"
+pstn,estreita,2966,295,0.6631,0.3593,0.9457,0.2401,0.651568,"probabilidade [0,1] (predict_proba)"
+g722,larga,2905,294,0.7444,0.619,0.9276,0.1684,0.651568,"probabilidade [0,1] (predict_proba)"
+opus,larga,3540,360,0.7501,0.6083,0.9343,0.167,0.651568,"probabilidade [0,1] (predict_proba)"
+none,larga,2897,324,0.7586,0.6265,0.9308,0.1673,0.651568,"probabilidade [0,1] (predict_proba)"

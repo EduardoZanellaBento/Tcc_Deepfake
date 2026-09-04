@@ -1,0 +1,236 @@
+{
+  "analise": "estabilidade_subamostra",
+  "data": "2026-09-03",
+  "pergunta": "quanto do resultado do braço principal depende de QUAL subamostra de 30k caiu?",
+  "conjunto": "validacao",
+  "teste_lacrado": true,
+  "metodo": "3 subamostras alternativas (sementes 43, 44, 45) geradas pela MESMA função montar_subamostra de scripts/gerar_subamostra.py — mesma estratificação classe x codec x ataque, mesma regra de maior resto, mesmo piso. Só a semente varia. RF e SVM treinados com os MESMOS hiperparâmetros vencedores, sem nova busca (um fator por vez). Limiar selecionado na validação em cada ponto, pelo protocolo.",
+  "guarda_semente_42": {
+    "md5_oficial": "654cb796b738512388b28e15ffb14a9d",
+    "md5_regerado": "654cb796b738512388b28e15ffb14a9d",
+    "reproduz": true
+  },
+  "ancora_semente_42": "o ponto de semente 42 é a subamostra OFICIAL e reproduz rf_tuned_principal.json / svm_tuned_principal.json — confira contra eles: se divergir, a comparação entre subamostras não vale",
+  "sementes": [
+    42,
+    43,
+    44,
+    45
+  ],
+  "hiperparametros": {
+    "rf": {
+      "class_weight": "balanced",
+      "max_depth": 30,
+      "max_features": "sqrt",
+      "min_samples_leaf": 5,
+      "min_samples_split": 10,
+      "n_estimators": 300
+    },
+    "svm": {
+      "svc__C": 24.526126311336764,
+      "svc__class_weight": "balanced",
+      "svc__gamma": "scale"
+    }
+  },
+  "subamostras": [
+    {
+      "semente": 42,
+      "oficial": true,
+      "arquivo": "data/processed/subamostra_30k.csv"
+    },
+    {
+      "semente": 43,
+      "oficial": false,
+      "arquivo": "data/processed/subamostras_estabilidade/subamostra_30k_seed43.csv",
+      "md5": "a88552680192cb057dd0cd011cd0b390"
+    },
+    {
+      "semente": 44,
+      "oficial": false,
+      "arquivo": "data/processed/subamostras_estabilidade/subamostra_30k_seed44.csv",
+      "md5": "e569613968c82ccba4bb4eac2c090907"
+    },
+    {
+      "semente": 45,
+      "oficial": false,
+      "arquivo": "data/processed/subamostras_estabilidade/subamostra_30k_seed45.csv",
+      "md5": "5ca1d49f39ff465e8124013fe9f82fca"
+    }
+  ],
+  "pontos": {
+    "rf": [
+      {
+        "n_treino": 30000,
+        "limiar": 0.651568,
+        "f1_macro": 0.7225,
+        "eer": 0.193,
+        "roc_auc": 0.8873,
+        "recall_bonafide": 0.5441,
+        "tempo_treino_s": 5.37,
+        "semente_subamostra": 42,
+        "subamostra_oficial": true
+      },
+      {
+        "n_treino": 30000,
+        "limiar": 0.649759,
+        "f1_macro": 0.7231,
+        "eer": 0.1913,
+        "roc_auc": 0.8886,
+        "recall_bonafide": 0.5351,
+        "tempo_treino_s": 5.3,
+        "semente_subamostra": 43,
+        "subamostra_oficial": false
+      },
+      {
+        "n_treino": 30000,
+        "limiar": 0.644555,
+        "f1_macro": 0.7272,
+        "eer": 0.1881,
+        "roc_auc": 0.8901,
+        "recall_bonafide": 0.532,
+        "tempo_treino_s": 5.3,
+        "semente_subamostra": 44,
+        "subamostra_oficial": false
+      },
+      {
+        "n_treino": 30000,
+        "limiar": 0.642793,
+        "f1_macro": 0.726,
+        "eer": 0.1925,
+        "roc_auc": 0.8874,
+        "recall_bonafide": 0.5423,
+        "tempo_treino_s": 5.91,
+        "semente_subamostra": 45,
+        "subamostra_oficial": false
+      }
+    ],
+    "svm": [
+      {
+        "n_treino": 30000,
+        "limiar": -0.032942,
+        "f1_macro": 0.7987,
+        "eer": 0.1462,
+        "roc_auc": 0.9289,
+        "recall_bonafide": 0.6625,
+        "tempo_treino_s": 23.2,
+        "semente_subamostra": 42,
+        "subamostra_oficial": true
+      },
+      {
+        "n_treino": 30000,
+        "limiar": -0.068138,
+        "f1_macro": 0.7946,
+        "eer": 0.1475,
+        "roc_auc": 0.9266,
+        "recall_bonafide": 0.6485,
+        "tempo_treino_s": 27.11,
+        "semente_subamostra": 43,
+        "subamostra_oficial": false
+      },
+      {
+        "n_treino": 30000,
+        "limiar": 0.054729,
+        "f1_macro": 0.7974,
+        "eer": 0.1416,
+        "roc_auc": 0.9291,
+        "recall_bonafide": 0.6877,
+        "tempo_treino_s": 23.67,
+        "semente_subamostra": 44,
+        "subamostra_oficial": false
+      },
+      {
+        "n_treino": 30000,
+        "limiar": -0.059074,
+        "f1_macro": 0.7965,
+        "eer": 0.148,
+        "roc_auc": 0.9271,
+        "recall_bonafide": 0.6431,
+        "tempo_treino_s": 22.78,
+        "semente_subamostra": 45,
+        "subamostra_oficial": false
+      }
+    ]
+  },
+  "resumo": {
+    "rf": {
+      "f1_macro": {
+        "media": 0.7247,
+        "desvio": 0.0023,
+        "min": 0.7225,
+        "max": 0.7272,
+        "amplitude": 0.0047
+      },
+      "eer": {
+        "media": 0.1912,
+        "desvio": 0.0022,
+        "min": 0.1881,
+        "max": 0.193,
+        "amplitude": 0.0049
+      },
+      "roc_auc": {
+        "media": 0.8883,
+        "desvio": 0.0013,
+        "min": 0.8873,
+        "max": 0.8901,
+        "amplitude": 0.0028
+      },
+      "limiar": {
+        "media": 0.6472,
+        "desvio": 0.0042,
+        "min": 0.6428,
+        "max": 0.6516,
+        "amplitude": 0.0088
+      }
+    },
+    "svm": {
+      "f1_macro": {
+        "media": 0.7968,
+        "desvio": 0.0017,
+        "min": 0.7946,
+        "max": 0.7987,
+        "amplitude": 0.0041
+      },
+      "eer": {
+        "media": 0.1458,
+        "desvio": 0.0029,
+        "min": 0.1416,
+        "max": 0.148,
+        "amplitude": 0.0064
+      },
+      "roc_auc": {
+        "media": 0.9279,
+        "desvio": 0.0013,
+        "min": 0.9266,
+        "max": 0.9291,
+        "amplitude": 0.0025
+      },
+      "limiar": {
+        "media": -0.0264,
+        "desvio": 0.0561,
+        "min": -0.0681,
+        "max": 0.0547,
+        "amplitude": 0.1229
+      }
+    }
+  },
+  "comparacao_de_fontes_de_variacao": {
+    "desvio_entre_subamostras_f1_macro": {
+      "rf": 0.0023,
+      "svm": 0.0017
+    },
+    "desvio_entre_sementes_de_treino_rf_f1_macro": 0.0004,
+    "distancia_rf_svm_f1_macro": 0.0762,
+    "fonte_b_e_c": "results/metricas/estabilidade_rf_svm.json"
+  },
+  "leitura_critica": "A dispersão entre subamostras (0.0023) é 5.8x a dispersão entre sementes de treino (0.0004). RESULTADO A DECLARAR: a semente das árvores era a fonte de variação ERRADA de se olhar; a incerteza real do braço principal vem de qual subamostra de 30k caiu. A análise por sementes continua válida — ela apenas responde a outra pergunta. E a distância RF x SVM (0.0762) CONTINUA MAIOR que a dispersão entre subamostras (0.0023): a vantagem do SVM não é um acidente de qual subamostra caiu. A conclusão do Bloco 3 fica mais forte, não mais fraca.",
+  "regra_do_protocolo": "item 6 do protocolo do orientador: se a diferença entre os modelos for menor que a dispersão medida, isso tem de ser DISCUTIDO no texto, não escondido",
+  "hashes_md5": {
+    "features": "51b2f439bf6f1e10237acbc620bb92d9",
+    "split": "9143f0c7b83ec2db4aa144ed5deb3402",
+    "subamostra_oficial": "654cb796b738512388b28e15ffb14a9d"
+  },
+  "ambiente": {
+    "python": "3.10.11",
+    "sistema": "Windows 10"
+  }
+}

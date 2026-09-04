@@ -1,0 +1,8 @@
+codec,banda,n,n_bonafide,f1_macro,recall_bonafide,recall_spoof,eer,limiar,escala_score
+alaw,estreita,2936,306,0.8102,0.7059,0.9506,0.1473,-0.032942,"decision_function (real, centrado em zero)"
+ulaw,estreita,3523,320,0.8031,0.725,0.9482,0.1373,-0.032942,"decision_function (real, centrado em zero)"
+gsm,estreita,3459,323,0.7514,0.6285,0.9346,0.17,-0.032942,"decision_function (real, centrado em zero)"
+pstn,estreita,2966,295,0.7196,0.5525,0.9277,0.2062,-0.032942,"decision_function (real, centrado em zero)"
+g722,larga,2905,294,0.8495,0.7347,0.9686,0.1124,-0.032942,"decision_function (real, centrado em zero)"
+opus,larga,3540,360,0.812,0.5944,0.9761,0.1414,-0.032942,"decision_function (real, centrado em zero)"
+none,larga,2897,324,0.8575,0.7037,0.9767,0.0984,-0.032942,"decision_function (real, centrado em zero)"

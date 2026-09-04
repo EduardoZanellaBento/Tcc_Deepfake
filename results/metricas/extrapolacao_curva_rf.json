@@ -1,0 +1,73 @@
+{
+  "analise": "extrapolacao_curva_rf",
+  "data": "2026-09-03",
+  "pergunta": "quantos dados de treino o RF ajustado precisaria para alcançar o f1_macro que o SVM atinge com a subamostra de 30k?",
+  "insumos": {
+    "curva": "results/metricas/curva_aprendizado_rf_tuned_eval.csv",
+    "f1_macro_svm": {
+      "valor": 0.7987278595323215,
+      "fonte": "results/metricas/svm_tuned_principal.json"
+    },
+    "n_treino_completo": 103723,
+    "n_universo_eval": 148176
+  },
+  "modelo_de_ajuste": "f1_macro = a * ln(n) + b (mínimos quadrados)",
+  "coeficientes": {
+    "a": 0.0312,
+    "b": 0.4079,
+    "r2": 0.9934
+  },
+  "pontos_usados": [
+    {
+      "n_treino": 5000,
+      "f1_macro": 0.6764
+    },
+    {
+      "n_treino": 10000,
+      "f1_macro": 0.6953
+    },
+    {
+      "n_treino": 20000,
+      "f1_macro": 0.7156
+    },
+    {
+      "n_treino": 30000,
+      "f1_macro": 0.7255
+    },
+    {
+      "n_treino": 40000,
+      "f1_macro": 0.7365
+    },
+    {
+      "n_treino": 80000,
+      "f1_macro": 0.7602
+    },
+    {
+      "n_treino": 103723,
+      "f1_macro": 0.7723
+    }
+  ],
+  "faixa_medida": {
+    "n_min": 5000,
+    "n_max": 103723
+  },
+  "f1_macro_rf_no_treino_completo": 0.7723,
+  "lacuna_f1_rf_para_svm": 0.0264,
+  "n_necessario": 276116.0,
+  "razao_sobre_treino_completo": 2.66,
+  "razao_sobre_universo_eval": 1.86,
+  "cabe_no_universo_disponivel": false,
+  "leitura": "Pela extrapolação log-linear, o RF só alcançaria o f1_macro do SVM com cerca de 276,116 áudios de treino — 2.66x o treino completo (103,723) e 1.86x o UNIVERSO EVAL INTEIRO (148,176), que é tudo o que existe neste conjunto. Isto converte 'o RF não saturou' de fraqueza da análise em achado quantificado: DENTRO DOS DADOS DISPONÍVEIS, o RF não alcança o SVM nem usando tudo. A vantagem do SVM não é um artefato do tamanho do treino do braço principal.",
+  "limitacao": "ESTE NÚMERO É UMA EXTRAPOLAÇÃO, NÃO UMA MEDIÇÃO. O ajuste log-linear foi feito sobre a faixa MEDIDA (5,000 a 103,723 amostras) e a estimativa de n* = 276,116 cai FORA dessa faixa. Curvas de aprendizado tipicamente ACHATAM conforme n cresce, logo a forma log-linear tende a SUPERESTIMAR o ganho por dado adicional na cauda: n* deve ser lido como um LIMITE OTIMISTA para o RF — na prática ele precisaria provavelmente de MAIS que 276,116 áudios, não menos. O R² alto atesta o ajuste DENTRO da faixa medida; não valida a extrapolação fora dela. No texto do TC II este número deve ser apresentado como ordem de grandeza estimada, jamais como medida.",
+  "hashes_md5": {
+    "features": "51b2f439bf6f1e10237acbc620bb92d9",
+    "split": "9143f0c7b83ec2db4aa144ed5deb3402",
+    "subamostra": "654cb796b738512388b28e15ffb14a9d"
+  },
+  "ambiente": {
+    "python": "3.10.11",
+    "sistema": "Windows 10",
+    "numpy": "2.2.6",
+    "pandas": "2.3.3"
+  }
+}

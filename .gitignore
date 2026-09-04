@@ -11,6 +11,11 @@ data/processed/*
 !data/processed/split.csv
 !data/processed/split_181k.csv
 !data/processed/subamostra_30k.csv
+# Subamostras alternativas da análise de estabilidade (R6.2): só listas de IDs,
+# ~760 KB cada. Versionadas para que os MD5 gravados em
+# estabilidade_subamostra.json sejam verificáveis sem re-gerar nada.
+!data/processed/subamostras_estabilidade/
+!data/processed/subamostras_estabilidade/*.csv
 data/features/*.csv
 # meta do piloto e descartavel (regenerado a cada verificar_mascaramento);
 # o features.meta.json OFICIAL (assinatura da definicao congelada) e versionado

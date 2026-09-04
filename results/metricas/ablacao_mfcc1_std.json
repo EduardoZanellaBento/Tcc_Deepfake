@@ -16,7 +16,7 @@
   "n_treino": 30000,
   "n_validacao": 22226,
   "semente": 42,
-  "tempo_treino_s": 5.27,
+  "tempo_treino_s": 4.81,
   "selecao_limiar": {
     "criterio": "f1_macro",
     "regra": "score >= limiar",

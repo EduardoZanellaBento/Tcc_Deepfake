@@ -1,0 +1,109 @@
+{
+  "analise": "diagnostico_por_codec",
+  "data": "2026-09-03",
+  "conjunto": "validacao",
+  "teste_lacrado": true,
+  "regra_decisao": "score >= limiar",
+  "hipotese": "artefatos de síntese vivem acima de 4 kHz; codecs de banda estreita (alaw, ulaw, gsm, pstn) os destroem, logo o desempenho deve ser melhor em banda larga (g722, opus, none)",
+  "observacao_metodo": "nenhum modelo é treinado aqui: os dois são carregados de models/*.joblib e decidem com o limiar selecionado na validação. A versão de 13/08/2026 re-treinava um RF baseline e decidia em 0,50 — ver *_baseline_2026-08-13.csv",
+  "leitura_critica": "HIPÓTESE SUSTENTADA NOS DOIS MODELOS, agora com o limiar do protocolo e não em 0,50: o desempenho é sistematicamente melhor nos codecs de banda larga (f1_macro maior E EER menor). Como o EER é independente de limiar, o contraste NÃO era artefato do limiar 0,50 da versão baseline. A evidência sustenta que os artefatos discriminativos capturados por ZCR/centróide vivem acima de 4 kHz, faixa que os codecs telefônicos removem — e REJEITA um fmax=4000 global, que destruiria os 43% de áudio em banda larga (decisão ratificada pelo orientador; ver o bloco `features` do config.yaml).",
+  "por_modelo": {
+    "rf": {
+      "modelo": "rf_tuned_principal",
+      "rotulo": "RF ajustado (braço principal)",
+      "limiar": 0.6515677318576931,
+      "regra": "score >= limiar",
+      "criterio_limiar": "f1_macro",
+      "origem_limiar": "results/metricas/rf_tuned_principal.json -> selecao_limiar.limiar",
+      "escala_score": "probabilidade [0,1] (predict_proba)",
+      "n_validacao": 22226,
+      "por_banda": {
+        "estreita": {
+          "f1_macro": 0.6958,
+          "recall_bonafide": 0.4854,
+          "eer": 0.2056
+        },
+        "larga": {
+          "f1_macro": 0.751,
+          "recall_bonafide": 0.6179,
+          "eer": 0.1676
+        }
+      },
+      "delta_larga_menos_estreita": {
+        "f1_macro": 0.0552,
+        "recall_bonafide": 0.1325,
+        "eer": -0.038
+      },
+      "hipotese_banda_alta_sustentada": true,
+      "eer_por_codec": {
+        "alaw": 0.1772,
+        "ulaw": 0.1876,
+        "gsm": 0.2174,
+        "pstn": 0.2401,
+        "g722": 0.1684,
+        "opus": 0.167,
+        "none": 0.1673
+      },
+      "codec_melhor_eer": "opus",
+      "codec_pior_eer": "pstn",
+      "amplitude_eer": 0.0731,
+      "csv": "results/metricas/diagnostico_por_codec_rf_tuned_principal.csv",
+      "figura": "results/figuras/diagnostico_por_codec_rf_tuned_principal.png"
+    },
+    "svm": {
+      "modelo": "svm_tuned_principal",
+      "rotulo": "SVM ajustado (braço principal)",
+      "limiar": -0.032941668297628235,
+      "regra": "score >= limiar",
+      "criterio_limiar": "f1_macro",
+      "origem_limiar": "results/metricas/svm_tuned_principal.json -> selecao_limiar.limiar",
+      "escala_score": "decision_function (real, centrado em zero)",
+      "n_validacao": 22226,
+      "por_banda": {
+        "estreita": {
+          "f1_macro": 0.7711,
+          "recall_bonafide": 0.653,
+          "eer": 0.1652
+        },
+        "larga": {
+          "f1_macro": 0.8397,
+          "recall_bonafide": 0.6776,
+          "eer": 0.1174
+        }
+      },
+      "delta_larga_menos_estreita": {
+        "f1_macro": 0.0686,
+        "recall_bonafide": 0.0246,
+        "eer": -0.0478
+      },
+      "hipotese_banda_alta_sustentada": true,
+      "eer_por_codec": {
+        "alaw": 0.1473,
+        "ulaw": 0.1373,
+        "gsm": 0.17,
+        "pstn": 0.2062,
+        "g722": 0.1124,
+        "opus": 0.1414,
+        "none": 0.0984
+      },
+      "codec_melhor_eer": "none",
+      "codec_pior_eer": "pstn",
+      "amplitude_eer": 0.1078,
+      "csv": "results/metricas/diagnostico_por_codec_svm_tuned_principal.csv",
+      "figura": "results/figuras/diagnostico_por_codec_svm_tuned_principal.png"
+    }
+  },
+  "referencia_baseline": {
+    "csv": "results/metricas/diagnostico_por_codec_baseline_2026-08-13.csv",
+    "nota": "RF baseline, treino completo, limiar 0,50, features PRÉ-mascaramento — mantido como referência 'antes'"
+  },
+  "hashes_md5": {
+    "features": "51b2f439bf6f1e10237acbc620bb92d9",
+    "split": "9143f0c7b83ec2db4aa144ed5deb3402",
+    "subamostra": "654cb796b738512388b28e15ffb14a9d"
+  },
+  "ambiente": {
+    "python": "3.10.11",
+    "sistema": "Windows 10"
+  }
+}

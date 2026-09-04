@@ -58,7 +58,8 @@ from sklearn.metrics import f1_score
 from src.utils.config import carregar_config
 from src.data.split import (carregar_dados_split, colunas_features,
                             filtrar_treino_braco)
-from src.models.avaliacao import aplicar_limiar, calcular_eer, selecionar_limiar
+from src.models.avaliacao import (aplicar_limiar, calcular_eer, predizer_rf,
+                                  selecionar_limiar)
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -84,7 +85,7 @@ def sementes_rf(cfg, params, X_tr, y_tr, X_va, y_va) -> dict:
         t0 = time.perf_counter()
         modelo = RandomForestClassifier(**params, random_state=s, n_jobs=-1)
         modelo.fit(X_tr, y_tr)
-        scores = modelo.predict_proba(X_va)[:, 1]
+        scores = predizer_rf(modelo, X_va)   # n_jobs=1: reprodutível bit a bit
         sel = selecionar_limiar(y_va, scores)
         eer, _ = calcular_eer(y_va, scores)
         execucoes.append({"semente": s,
@@ -219,7 +220,7 @@ def main() -> None:
     print("\n=== Bootstrap da validação (variância de estimativa, RF e SVM) ===")
     rng = np.random.default_rng(SEMENTE_BOOTSTRAP)
     rf = joblib.load(RAIZ / "models" / "rf_tuned_principal.joblib")
-    scores_rf = rf.predict_proba(X_va)[:, 1]
+    scores_rf = predizer_rf(rf, X_va)
     boot_rf = bootstrap_validacao(y_va, scores_rf,
                                   rf_json["selecao_limiar"]["limiar"], rng)
     print(f"  RF : f1_macro {boot_rf['f1_macro']['media']:.4f} "
@@ -291,6 +292,16 @@ def main() -> None:
         "bootstrap_validacao_svm": boot_svm,
         "bootstrap_pareado_svm_menos_rf": pareado,
         "semente_bootstrap": SEMENTE_BOOTSTRAP,
+        # Os hashes já eram CONFERIDOS (_conferir_hashes_congelados) mas não
+        # ficavam REGISTRADOS: quem lesse o artefato não sabia sobre quais
+        # dados ele foi medido. Rastreabilidade que não sai no arquivo não
+        # existe para quem audita.
+        "hash_md5_features_csv": hashlib.md5(
+            (RAIZ / "data" / "features" / "features.csv").read_bytes()).hexdigest(),
+        "hash_md5_split_csv": hashlib.md5(
+            (RAIZ / "data" / "processed" / "split.csv").read_bytes()).hexdigest(),
+        "hash_md5_subamostra_csv": hashlib.md5(
+            (RAIZ / cfg["experimento"]["caminho_subamostra"]).read_bytes()).hexdigest(),
         "leitura_critica": leitura,
     }
     with open(dir_met / "estabilidade_rf_svm.json", "w", encoding="utf-8") as f:

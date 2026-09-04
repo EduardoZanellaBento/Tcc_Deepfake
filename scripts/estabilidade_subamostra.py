@@ -72,7 +72,7 @@ from src.utils.config import carregar_config
 from src.utils.serializacao import json_seguro
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split, colunas_features
-from src.models.avaliacao import avaliar, selecionar_limiar
+from src.models.avaliacao import avaliar, predizer_rf, selecionar_limiar
 from src.models.treinar_svm import montar_pipeline
 from scripts.gerar_subamostra import montar_subamostra
 
@@ -87,18 +87,43 @@ FONTE_ESTABILIDADE = DIR_MET / "estabilidade_rf_svm.json"
 
 
 def preparar_treino_e_validacao(cfg: dict):
-    """Treino completo (com coluna `estrato`) e validação, prontos para uso."""
+    """Monta as DUAS tabelas que este script precisa — que não são a mesma.
+
+    1. `treino_ids`: split.csv + labels.csv, com a coluna `estrato`. É a tabela
+       que vai para `montar_subamostra`.
+
+       ATENÇÃO — ISTO NÃO É DETALHE (a guarda de semente 42 pegou o erro):
+       `DataFrame.sample(random_state=...)` sorteia POR POSIÇÃO. Duas tabelas
+       com as MESMAS linhas em ORDEM diferente produzem subamostras diferentes
+       com a mesma semente. Se esta tabela fosse montada a partir do
+       features.csv (que vem em outra ordem), a "subamostra de semente 42"
+       gerada aqui teria só 8.611 dos 30.000 IDs da oficial — e as três
+       alternativas não seriam mais "a mesma regra com outra semente". Por isso
+       a tabela é montada EXATAMENTE como em scripts/gerar_subamostra.py:
+       split.csv primeiro, merge com labels.csv depois.
+
+    2. `df`: features + split, usado só para MONTAR O X, selecionando por
+       `arquivo`. A ordem dele não influencia sorteio nenhum.
+    """
     colunas_estrato = list(cfg["experimento"]["estratificacao_subamostra"])
+
+    # (1) mesma origem e mesma ordem de gerar_subamostra.py
+    split = pd.read_csv(RAIZ / "data" / "processed" / "split.csv")
+    labels = pd.read_csv(RAIZ / "data" / "processed" / "labels.csv",
+                         usecols=["arquivo", "fase", *colunas_estrato])
+    treino_ids = split[split["conjunto"] == "treino"].merge(
+        labels, on="arquivo", how="inner")
+    if len(treino_ids) != int((split["conjunto"] == "treino").sum()):
+        raise SystemExit("FALHA: merge treino x labels perdeu linhas — investigar.")
+    treino_ids["estrato"] = (treino_ids[colunas_estrato].astype(str)
+                             .agg("|".join, axis=1))
+
+    # (2) features, para o X
     df = carregar_dados_split(RAIZ)
     cols = colunas_features(df)
-
-    labels = pd.read_csv(RAIZ / "data" / "processed" / "labels.csv",
-                         usecols=["arquivo", *colunas_estrato])
-    treino = df[df["conjunto"] == "treino"].merge(labels, on="arquivo",
-                                                  how="inner")
-    treino["estrato"] = treino[colunas_estrato].astype(str).agg("|".join, axis=1)
+    treino_features = df[df["conjunto"] == "treino"].set_index("arquivo")
     validacao = df[df["conjunto"] == "validacao"]   # NUNCA 'teste'
-    return treino, validacao, cols, colunas_estrato
+    return treino_ids, treino_features, validacao, cols, colunas_estrato
 
 
 def guarda_semente_42(treino, colunas_estrato, alvo, cfg) -> dict:
@@ -127,10 +152,17 @@ def guarda_semente_42(treino, colunas_estrato, alvo, cfg) -> dict:
 
 
 def treinar_e_avaliar(chave: str, params: dict, ids: pd.Series,
-                      treino: pd.DataFrame, validacao: pd.DataFrame,
+                      treino_features: pd.DataFrame, validacao: pd.DataFrame,
                       cols: list[str], semente_treino: int) -> dict:
     """Treina UM modelo numa subamostra e mede na validação, pelo protocolo."""
-    sub = treino[treino["arquivo"].isin(set(ids))]
+    # Seleção por ID PRESERVANDO A ORDEM DA TABELA DE FEATURES — que é o que
+    # `filtrar_treino_braco` faz (merge do treino com os IDs, src/data/split.py).
+    # A ordem das linhas do X importa: o bootstrap do Random Forest amostra por
+    # posição, então reordenar o treino muda o modelo em ~0,001 de f1_macro.
+    # Com esta linha, o ponto de semente 42 sai IDÊNTICO ao publicado em
+    # rf_tuned_principal.json — o que o torna uma âncora verificável, e não
+    # apenas "mais um ponto".
+    sub = treino_features[treino_features.index.isin(set(ids))]
     X_tr, y_tr = sub[cols].values, sub["classe_binaria"].values
     X_va, y_va = validacao[cols].values, validacao["classe_binaria"].values
 
@@ -139,7 +171,7 @@ def treinar_e_avaliar(chave: str, params: dict, ids: pd.Series,
         modelo = RandomForestClassifier(**params, random_state=semente_treino,
                                         n_jobs=-1)
         modelo.fit(X_tr, y_tr)
-        scores = modelo.predict_proba(X_va)[:, 1]
+        scores = predizer_rf(modelo, X_va)   # n_jobs=1: reprodutível bit a bit
     else:
         modelo = montar_pipeline(semente_treino)
         modelo.set_params(**params)
@@ -176,11 +208,12 @@ def main() -> None:
     semente_treino = fixar_seeds(cfg["semente"])
     alvo = int(cfg["experimento"]["tamanho_subamostra"])
 
-    treino, validacao, cols, colunas_estrato = preparar_treino_e_validacao(cfg)
-    print(f"treino completo {treino.shape} | validação {validacao.shape} | "
+    (treino_ids, treino_features, validacao, cols,
+     colunas_estrato) = preparar_treino_e_validacao(cfg)
+    print(f"treino completo {treino_ids.shape} | validação {validacao.shape} | "
           f"{len(cols)} features")
 
-    guarda = guarda_semente_42(treino, colunas_estrato, alvo, cfg)
+    guarda = guarda_semente_42(treino_ids, colunas_estrato, alvo, cfg)
 
     # ---- Hiperparâmetros vencedores: LIDOS, nunca rebuscados ----------------
     with open(DIR_MET / "rf_random_search.json", encoding="utf-8") as f:
@@ -199,7 +232,7 @@ def main() -> None:
     # ---- Alternativas: só a semente muda ------------------------------------
     DIR_ALT.mkdir(parents=True, exist_ok=True)
     for s in SEMENTES_ALTERNATIVAS:
-        amostra, _, _ = montar_subamostra(treino, colunas_estrato, alvo,
+        amostra, _, _ = montar_subamostra(treino_ids, colunas_estrato, alvo,
                                           semente=s)
         destino = DIR_ALT / f"subamostra_30k_seed{s}.csv"
         amostra.to_csv(destino, index=False)
@@ -217,8 +250,8 @@ def main() -> None:
         print(f"\n--- subamostra semente {s['semente']}"
               f"{' (OFICIAL)' if s['oficial'] else ''} ---")
         for chave, params in (("rf", params_rf), ("svm", params_svm)):
-            r = treinar_e_avaliar(chave, params, s["ids"], treino, validacao,
-                                  cols, semente_treino)
+            r = treinar_e_avaliar(chave, params, s["ids"], treino_features,
+                                  validacao, cols, semente_treino)
             r["semente_subamostra"] = s["semente"]
             r["subamostra_oficial"] = s["oficial"]
             pontos[chave].append(r)
@@ -308,6 +341,10 @@ def main() -> None:
             "hiperparâmetros vencedores, sem nova busca (um fator por vez). "
             "Limiar selecionado na validação em cada ponto, pelo protocolo."),
         "guarda_semente_42": guarda,
+        "ancora_semente_42": (
+            "o ponto de semente 42 é a subamostra OFICIAL e reproduz "
+            "rf_tuned_principal.json / svm_tuned_principal.json — confira contra "
+            "eles: se divergir, a comparação entre subamostras não vale"),
         "sementes": [cfg["semente"], *SEMENTES_ALTERNATIVAS],
         "hiperparametros": {"rf": params_rf, "svm": params_svm},
         "subamostras": [{k: v for k, v in s.items() if k != "ids"}

@@ -98,12 +98,22 @@ depois) não possam divergir silenciosamente.
 congelados e ambiente. Os arquivos de 13/08 foram **renomeados** para
 `*_baseline_2026-08-13.*` e continuam citáveis como referência "antes".
 
-**Leitura crítica exigida.** Os dois scripts imprimem e gravam a conclusão:
-amplitude do EER entre o ataque mais fácil e o mais difícil (RF e SVM) — e, no
-codec, se a hipótese da banda alta se sustenta com o modelo ajustado ou era
-artefato do limiar 0,50. Os números estão em
-`diagnostico_por_ataque_resumo.json` e `diagnostico_por_codec_resumo.json`; a
-leitura, no campo `leitura_critica` de cada um.
+**Leitura crítica — os números medidos.**
+
+*Por ataque:* o EER vai de **0,0628 (A13) a 0,3548 (A16)** no RF — amplitude
+**0,2920**, razão 5,7× — e de **0,0617 (A09) a 0,2598 (A16)** no SVM, amplitude
+0,1981. O recall deixou de saturar: no RF vai de 0,7266 a 0,9987, contra 1,0 em
+todos os 13 ataques na versão baseline. **A amplitude entre sistemas de síntese
+(até 0,29) é ~6× a distância entre os dois modelos (ΔEER 0,0466)** — evidência
+**a favor** do risco declarado: o número agregado depende de quais ataques
+compõem o conjunto, e o split por utterance deixa o modelo ver a assinatura de
+cada vocoder já no treino. O experimento cross-attack segue necessário.
+
+*Por codec:* a hipótese da banda alta **se sustenta nos dois modelos**. RF —
+banda estreita f1 0,6958 / EER 0,2056 contra banda larga f1 0,7510 / EER 0,1676.
+SVM — 0,7711 / 0,1652 contra 0,8397 / 0,1174. Como o **EER é independente de
+limiar**, o contraste **não** era artefato do limiar 0,50: é propriedade das
+features, e reforça a rejeição de um `fmax=4000` global.
 
 ---
 
@@ -175,7 +185,50 @@ ignorada, mas o `n_iter_efetivo` que ela decide continua sendo comparado — se 
 dia a projeção estourar o orçamento e cortar o `n_iter`, o resultado muda de
 verdade e a guarda tem de gritar.
 
-**Resultado após as duas correções: REPRODUZIU** em todos os artefatos
+**(3) Segundo achado real: `predict_proba` do RF não é reprodutível bit a bit
+com `n_jobs=-1`.** Na segunda passada a guarda pegou
+`selecao_limiar.n_candidatos` do braço de referência mudando de **22.103 para
+22.104** — um campo de resultado, num pipeline declarado determinístico.
+
+A hipótese foi testada, não suposta. Carregando o **mesmo** `.joblib` e
+predizendo quatro vezes sobre a **mesma** validação:
+
+| `n_jobs` | `n_candidatos` nas 4 execuções | vetores idênticos bit a bit? |
+|---|---|---|
+| −1 | 22.104 / 22.102 / 22.104 / 22.103 | **não** |
+| 1 | 22.104 / 22.104 / 22.104 / 22.104 | **sim** |
+
+Maior diferença absoluta entre os dois vetores de score: **4,4 × 10⁻¹⁶**.
+`f1_macro` e `EER` batem **até a décima casa decimal**.
+
+**Causa.** `RandomForestClassifier.predict_proba` com `n_jobs != 1` acumula a
+contribuição das 300 árvores num array compartilhado, em paralelo. A **ordem da
+soma** varia entre execuções, e soma de ponto flutuante não é associativa —
+então os últimos bits do score mudam. Nenhuma métrica sente isso; `n_candidatos`
+sente, porque é uma **contagem de valores distintos** e portanto enxerga o
+último bit.
+
+**Por que corrigir, se nenhuma métrica muda.** Porque `n_candidatos` é um número
+**publicado** — é ele que prova, na `NOTA_LIMIAR.md`, que o score do RF deixou de
+ser degrau (22.207 valores distintos em 22.226 amostras) — e porque um artefato
+que não reproduz byte a byte obriga quem confere a decidir, no calor da hora, se
+a diferença importa. Uma guarda que às vezes grita à toa deixa de ser guarda.
+
+**Correção.** `predizer_rf()` em `src/models/avaliacao.py` força `n_jobs=1` na
+**predição** (o treino segue paralelo — lá o paralelismo não afeta o resultado,
+só o tempo). Todos os pontos que predizem com RF passaram a usá-la:
+`ajustar_rf`, `treinar_rf`, `modelos_ajustados.scores_de` (logo os dois
+diagnósticos do R1), `curva_aprendizado_rf_tuned`, `ablacao_mfcc1_std`,
+`estabilidade_modelos` e `estabilidade_subamostra`. Custo: cerca de 1 s a mais
+por predição de lote.
+
+**Consequência para o Bloco 5:** o limiar — que é o que atravessa do protocolo
+para o teste lacrado — sempre reproduziu (0,6516 no principal, 0,6196 na
+referência). O risco era de rastreabilidade, não de contaminação do teste. Mas a
+avaliação final agora roda sobre um caminho de predição determinístico, que é
+como tinha de ser.
+
+**Resultado após as três correções: REPRODUZIU** em todos os artefatos
 comparados. A evidência está em `results/metricas/reproducao_bloco3.json`, com a
 lista de campos comparados, os campos acrescentados e a data. **É este o arquivo
 a citar na resposta de banca sobre reprodutibilidade** — e o achado (1) é, por
@@ -250,13 +303,22 @@ vetor recalculado é comparado feature a feature contra o `features.csv`
 congelado, e o script aborta se divergir — porque então o que se estaria
 cronometrando não é o caminho que gerou os dados do trabalho.
 
-**Por que importa mais do que parece.** A tabela atual diz que o RF prediz em
-0,019 ms por áudio. Os percentuais medidos estão em
-`results/metricas/tempo_pipeline_completo.json`, campo `leitura_critica` — e é
-esse campo que determina se a conclusão do TC II sobre custo computacional é
-"o RF é mais barato que o SVM" ou "**a escolha do classificador é praticamente
-irrelevante para o custo; o que domina é o pré-processamento**". É um achado de
-engenharia, não um detalhe de instrumentação.
+**Resultado — e a hipótese do `config.yaml` NÃO se confirmou.** Por áudio
+(batch = 1): carregar 0,639 ms + VAD/padding 0,371 ms + features 3,705 ms, mais
+a predição — **RF 6,405 ms** (total 11,12 ms) contra **SVM 0,613 ms** (total
+5,33 ms). A predição é **57,6%** do custo real no RF: longe de irrelevante. E a
+leitura inverte a intuição da tabela de throughput: **por áudio, o pipeline do
+SVM é ~2,1× mais barato que o do RF**, pelo mesmo mecanismo da linha de
+*latência* (300 árvores custam caro por chamada unitária; 7.605 vetores de
+suporte, não). Em lote o RF continua ~19× melhor. Conclusão para o texto: **não
+existe "o modelo mais barato" sem dizer o regime** — e a featurização (4,7
+ms/áudio) é custo comum aos dois, que não desempata nada.
+
+*Nota de método que a própria medição exigiu:* a base compartilhada é medida
+**uma vez** e somada à predição de cada modelo. Medi-la dentro do laço de cada
+modelo dava 5,51 ms/áudio no laço do RF contra 3,79 ms no do SVM — para código
+idêntico, e de forma reprodutível entre execuções: a predição do RF despeja o
+cache da CPU e contamina a etapa vizinha.
 
 **Amarra para o Bloco 4:** `medir_pipeline` recebe uma **lista de etapas
 nomeadas**. A CNN entra acrescentando `gerar mel-espectrograma` e
@@ -318,7 +380,10 @@ precisaria para alcançar o SVM. Coeficientes, R², `n_necessario` e as razões
 sobre o treino completo (103.723) e sobre o universo eval inteiro (148.176) estão
 em `results/metricas/extrapolacao_curva_rf.json`.
 
-Isso converte "o RF não saturou" de fraqueza da análise em **achado
+**Resultado:** a = 0,0312, b = 0,4079, **R² = 0,9934**; n* ≈ **276.116** áudios
+— **2,66× o treino completo** (103.723) e **1,86× o universo eval inteiro**
+(148.176). Isto é: **dentro dos dados disponíveis, o RF não alcança o SVM nem
+usando tudo.** Converte "o RF não saturou" de fraqueza da análise em **achado
 quantificado**.
 
 **Ressalva obrigatória, gravada no campo `limitacao` do próprio JSON:** é uma
@@ -354,9 +419,30 @@ script re-gera a subamostra com semente 42 pela função compartilhada e confere
 **Leitura crítica gravada no JSON:** compara, na mesma unidade (f1_macro), o
 desvio **entre subamostras** (medido aqui), o desvio **entre sementes de treino**
 (±0,0004, `estabilidade_rf_svm.json`) e a **distância RF × SVM** (Δf1 ≈ 0,0762,
-bootstrap pareado). Se a distância RF × SVM ficar **menor** que a dispersão entre
-subamostras, isso **tem de ser dito no texto** — é a regra do item 6 do protocolo
-do orientador. Os números estão em `results/metricas/estabilidade_subamostra.json`.
+bootstrap pareado). Se a distância RF × SVM ficasse **menor** que a dispersão entre
+subamostras, isso **teria de ser dito no texto** — é a regra do item 6 do
+protocolo do orientador. **Não é o caso.**
+
+| fonte de variação | desvio em f1_macro |
+|---|---:|
+| semente das árvores (RF, 5 sementes) | 0,0004 |
+| **qual subamostra de 30k caiu** (4 subamostras) | **RF 0,0023 · SVM 0,0017** |
+| distância RF × SVM (bootstrap pareado) | **0,0762** |
+
+Duas leituras: (a) a dispersão entre subamostras é **5,8×** a dispersão entre
+sementes — *a semente das árvores era a fonte de variação errada de se olhar*;
+(b) a distância RF × SVM é **33×** a maior dispersão entre subamostras — *a
+conclusão do Bloco 3 sai mais forte, não mais fraca*.
+
+O ponto de semente 42 é a subamostra oficial e reproduz **exatamente**
+`rf_tuned_principal.json` (0,7225 / 0,1930 / limiar 0,6516) e
+`svm_tuned_principal.json` (0,7987 / 0,1462 / limiar −0,0329) — é uma âncora
+verificável, não "mais um ponto". Chegar a isso exigiu duas correções que a
+guarda do próprio script pegou: a tabela que alimenta `montar_subamostra` tem de
+vir de `split.csv` (o `sample` sorteia **por posição**, então a ordem das linhas
+muda o sorteio — pelo features.csv, a "semente 42" batia em só 8.611 dos 30.000
+IDs oficiais), e a seleção do X tem de preservar a ordem da tabela de features,
+como `filtrar_treino_braco` faz.
 
 ### R6.3 — `permutation_importance` no RF ajustado
 
@@ -370,10 +456,15 @@ confirmação.
 
 **Decisão.** `scripts/importancia_permutacao_rf.py` roda `permutation_importance`
 sobre `rf_tuned_principal.joblib`, **na validação**, `n_repeats=10`, semente 42,
-scoring por **AUC** (independente de limiar). Saída:
-`results/metricas/importancia_permutacao_rf.json` + figura comparando os dois
-rankings. Discordância grande entre eles é achado, e o JSON traz a correlação de
-Spearman e a lista de features que trocam de posição.
+scoring por **AUC** (independente de limiar).
+
+**Resultado: os dois rankings CONCORDAM** — Spearman ρ = **0,8516**
+(p = 2,4×10⁻¹³), **9 das 10** features do topo em comum, com `mfcc1_media` e
+`mfcc1_std` em 1º e 2º lugar nos dois. Todas as 44 features têm importância
+significativa (média − desvio > 0). O `top10_features` publicado nos JSONs, que é
+a métrica enviesada, fica **confirmado** por uma que não tem esse viés — a
+leitura acústica do texto pode ser mantida, ainda como "o que o modelo usou" e
+não causalidade.
 
 ---
 

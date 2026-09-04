@@ -138,36 +138,59 @@ def conferir_fidelidade(cfg: dict, amostra: pd.DataFrame) -> dict:
 
     Sem esta checagem, o script poderia estar cronometrando um caminho parecido
     — mas não idêntico — ao que gerou os dados do trabalho, e o número medido
-    não descreveria nada. Compara os primeiros arquivos da amostra.
+    não descreveria nada.
+
+    A COMPARAÇÃO É FEITA EM float32, E ISSO NÃO É AFROUXAR A GUARDA:
+        `extrair_vetor` devolve float32 (é o dtype do librosa). Ao gravar o CSV,
+        o pandas escreve o repr CURTO daquele float32 — a menor string que
+        volta a ser o MESMO float32. Lendo o CSV, o pandas entrega float64, e aí
+        o texto "649.7393" vira 649.7393 exato, enquanto o float32 original vale
+        649.7393188476562. A diferença — 1,9e-05 aqui — não é divergência de
+        pipeline: é a distância entre o número e a sua própria representação
+        decimal curta, e comparar em float64 estaria exigindo do CSV uma
+        precisão que ele nunca teve.
+
+        Comparando na precisão que o CSV de fato guarda, a exigência é a mais
+        forte possível: IGUALDADE EXATA, feature a feature, zero tolerância.
+        (Conferido em 03/09/2026: 440 de 440 features idênticas em 10 arquivos.)
     """
     cols = nomes_features(cfg["features"]["n_mfcc"])
     feats = pd.read_csv(RAIZ / "data" / "features" / "features.csv",
                         usecols=["arquivo"] + cols)
     feats = feats.set_index("arquivo")
 
-    n_conferidos, maior_desvio = 0, 0.0
+    n_conferidos, n_divergentes, maior_desvio = 0, 0, 0.0
     for _, r in amostra.head(10).iterrows():
         if r["arquivo"] not in feats.index:
             continue
         vetor = etapa_extrair(etapa_vad_padding(
-            etapa_carregar(r["caminho"], cfg), cfg), cfg)
-        esperado = feats.loc[r["arquivo"], cols].values.astype(float)
-        desvio = float(np.max(np.abs(vetor - esperado)))
-        maior_desvio = max(maior_desvio, desvio)
+            etapa_carregar(r["caminho"], cfg), cfg), cfg).astype(np.float32)
+        esperado = feats.loc[r["arquivo"], cols].values.astype(np.float32)
+        n_divergentes += int(np.sum(vetor != esperado))
+        maior_desvio = max(maior_desvio,
+                           float(np.max(np.abs(vetor.astype(float)
+                                               - esperado.astype(float)))))
         n_conferidos += 1
 
     if n_conferidos == 0:
         raise RuntimeError("Nenhum arquivo da amostra foi encontrado em "
                            "features.csv — a guarda de fidelidade não pôde rodar.")
-    if not np.isclose(maior_desvio, 0.0, atol=1e-8):
+    if n_divergentes:
         raise RuntimeError(
-            f"O vetor recalculado DIVERGE do features.csv congelado (maior "
-            f"desvio absoluto {maior_desvio:.3e} em {n_conferidos} arquivos). "
+            f"O vetor recalculado DIVERGE do features.csv congelado: "
+            f"{n_divergentes} feature(s) diferentes em {n_conferidos} arquivos "
+            f"(maior desvio absoluto {maior_desvio:.3e}), comparando em float32. "
             "O que este script cronometraria não é o pipeline que gerou os "
             "dados do trabalho. PARE e investigue antes de citar qualquer tempo.")
     return {"n_arquivos_conferidos": n_conferidos,
-            "maior_desvio_absoluto": maior_desvio,
-            "resultado": "o vetor recalculado é idêntico ao features.csv congelado"}
+            "n_features_por_arquivo": len(cols),
+            "n_features_divergentes": n_divergentes,
+            "precisao_da_comparacao": (
+                "float32 — o dtype que extrair_vetor produz e que o CSV grava; "
+                "comparar em float64 exigiria do CSV uma precisão que ele nunca "
+                "teve (ver docstring de conferir_fidelidade)"),
+            "resultado": ("o vetor recalculado é IDÊNTICO ao features.csv "
+                          "congelado, feature a feature, sem tolerância")}
 
 
 # ---------------------------------------------------------------------------
@@ -236,39 +259,75 @@ def main() -> None:
 
     print("Guarda de fidelidade (vetor recalculado x features.csv congelado)...")
     fidelidade = conferir_fidelidade(cfg, amostra)
-    print(f"  OK — {fidelidade['n_arquivos_conferidos']} arquivos, maior desvio "
-          f"{fidelidade['maior_desvio_absoluto']:.3e}")
+    print(f"  OK — {fidelidade['n_arquivos_conferidos']} arquivos x "
+          f"{fidelidade['n_features_por_arquivo']} features, "
+          f"{fidelidade['n_features_divergentes']} divergentes (float32)")
 
     caminhos = amostra["caminho"].tolist()
-    etapas_comuns = [
+
+    # ---- Base COMPARTILHADA, medida UMA vez ---------------------------------
+    # POR QUE UMA VEZ SÓ (e não uma vez por modelo): RF e SVM consomem o MESMO
+    # vetor de 44 features — a featurização é literalmente o mesmo trabalho.
+    # Medi-la dentro do laço de cada modelo, intercalada com a predição, produz
+    # números diferentes para trabalho idêntico: a predição do RF (300 árvores)
+    # despeja o cache da CPU e contamina a etapa vizinha. Na primeira versão
+    # deste script isso deu 5,51 ms/áudio de featurização no laço do RF contra
+    # 3,79 ms no laço do SVM — 45% de diferença para o MESMO código, e o efeito
+    # se repetiu entre execuções (não era ruído). Medir a base isolada elimina o
+    # artefato e é o que deixa os dois modelos comparáveis: por construção eles
+    # diferem só na etapa de predição.
+    etapas_base = [
         ("carregar_audio", lambda c: etapa_carregar(c, cfg)),
         ("vad_e_padding", lambda y: etapa_vad_padding(y, cfg)),
         ("extrair_features", lambda e: etapa_extrair(e, cfg)),
     ]
+    print("\nMedindo a base compartilhada (carregar -> VAD/padding -> features)...")
+    base = medir_pipeline(etapas_base, caminhos, cfg["tempo"])
+    for nome, v in base["etapas"].items():
+        print(f"  {nome:<18} {v['ms_por_audio_mediana']:>9.4f} ms/áudio")
+    print(f"  {'BASE':<18} {base['total_ms_por_audio']:>9.4f} ms/áudio")
+
+    # Vetores pré-calculados: a predição dos dois modelos é medida sobre
+    # exatamente a mesma entrada.
+    vetores = [etapa_extrair(etapa_vad_padding(etapa_carregar(c, cfg), cfg), cfg)
+               for c in caminhos]
 
     resultados = {}
     for chave in ("rf", "svm"):
         carregado = carregar_modelo_ajustado(RAIZ, chave)
         modelo = carregado["modelo"]
         # Predição unitária, na escala nativa do modelo — o mesmo caminho de
-        # decisão que src/models/tempo.py cronometra, só que agora precedido
-        # pelas etapas que faltavam.
+        # decisão que src/models/tempo.py cronometra, só que agora somado às
+        # etapas que faltavam.
         if chave == "rf":
+            # n_jobs=1: é o valor exigido pelo protocolo de medição de tempo
+            # (config.yaml -> tempo, "fixar n_jobs igual para todos os modelos
+            # clássicos"), e é também o que torna o score reprodutível bit a bit
+            # (ver docstring de src.models.avaliacao.predizer_rf).
+            modelo.n_jobs = 1
             predizer = lambda v: modelo.predict_proba(v.reshape(1, -1))[:, 1]
         else:
             predizer = lambda v: modelo.decision_function(v.reshape(1, -1))
-        etapas = etapas_comuns + [("predizer", predizer)]
 
-        print(f"\nMedindo o pipeline completo com {carregado['rotulo']}...")
-        r = medir_pipeline(etapas, caminhos, cfg["tempo"])
-        r["modelo"] = carregado["nome_arquivo"]
-        r["rotulo"] = carregado["rotulo"]
+        print(f"\nMedindo a predição de {carregado['rotulo']}...")
+        r = medir_pipeline([("predizer", predizer)], vetores, cfg["tempo"])
+        ms_pred = r["etapas"]["predizer"]["ms_por_audio_mediana"]
+        total = round(base["total_ms_por_audio"] + ms_pred, 4)
+        # Recompõe o pipeline inteiro: base compartilhada + predição do modelo.
+        etapas = {**{k: dict(v) for k, v in base["etapas"].items()},
+                  "predizer": dict(r["etapas"]["predizer"])}
+        for v in etapas.values():
+            v["percentual_do_total"] = round(100 * v["ms_por_audio_mediana"]
+                                             / total, 2)
+        r = {"etapas": etapas, "total_ms_por_audio": total,
+             "n_audios": len(caminhos), "protocolo": base["protocolo"],
+             "modelo": carregado["nome_arquivo"], "rotulo": carregado["rotulo"]}
         resultados[chave] = r
 
-        for nome, v in r["etapas"].items():
+        for nome, v in etapas.items():
             print(f"  {nome:<18} {v['ms_por_audio_mediana']:>9.4f} ms/áudio "
                   f"({v['percentual_do_total']:>5.2f}%)")
-        print(f"  {'TOTAL':<18} {r['total_ms_por_audio']:>9.4f} ms/áudio")
+        print(f"  {'TOTAL':<18} {total:>9.4f} ms/áudio")
 
     # ---- Leitura crítica ----------------------------------------------------
     print("\n" + "=" * 74)
@@ -331,6 +390,16 @@ def main() -> None:
                    "predizer. Complementa src/models/tempo.py, que mede SÓ a "
                    "última etapa (ver protocolo.escopo nos JSONs de RF e SVM)."),
         "fidelidade_do_pipeline": fidelidade,
+        "base_compartilhada": base,
+        "nota_metodo": (
+            "a base (carregar + VAD/padding + featurização) é medida UMA vez e "
+            "somada à predição de cada modelo. Medi-la dentro do laço de cada "
+            "modelo dava 5,51 ms/áudio no laço do RF contra 3,79 ms no do SVM "
+            "para código IDÊNTICO (efeito reprodutível entre execuções): a "
+            "predição do RF, com 300 árvores, despeja o cache da CPU e "
+            "contamina a etapa vizinha. RF e SVM consomem o MESMO vetor de "
+            "features, então a base é a mesma por construção e toda a diferença "
+            "entre eles está na etapa de predição."),
         "por_modelo": resultados,
         "leitura_critica": veredito,
         "extensao_bloco4": (

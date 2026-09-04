@@ -127,6 +127,21 @@ A curva **anterior** (`curva_aprendizado_rf_eval.json`, RF baseline sobre as fea
 pré-mascaramento, decisão por argmax) fica preservada como referência "antes":
 f1_macro ia de 0,4760 (5k) a 0,5573 (103.723), EER de 0,3030 a 0,1818.
 
+A curva **não satura**: o último passo (80.000 → 103.723) ainda rende
+**+0,0121** em f1_macro, **2,4× a tolerância** de 0,005 — por isso o JSON traz
+`saturou: false` e **não** emite `satura_em_n` (o campo antigo era
+estruturalmente incapaz de distinguir "saturou no fim" de "nunca saturou"; ver
+`REVISAO_BLOCO3.md`, R3).
+
+**Quanto faltaria?** Ajustando `f1_macro ~ a·ln(n) + b` sobre os sete pontos
+(`extrapolacao_curva_rf.json`): a = 0,0312, b = 0,4079, **R² = 0,9934**. Para
+alcançar o f1_macro do SVM (0,7987), o RF precisaria de ~**276.116** áudios de
+treino — **2,66× o treino completo** e **1,86× o universo eval inteiro**
+(148.176). Isto é: **dentro dos dados disponíveis, o RF não alcança o SVM nem
+usando tudo.** *Ressalva obrigatória, gravada no campo `limitacao` do JSON:* é
+extrapolação log-linear **fora da faixa medida**, não medição; curvas de
+aprendizado costumam achatar, então o número é um **limite otimista para o RF**.
+
 Logo, a subamostra de 30k **custa desempenho real**. Por isso o experimento tem dois
 braços:
 
@@ -226,6 +241,58 @@ por bootstrap). A fonte de variação que o braço principal de fato tem —
 **qual subamostra de 30k caiu** — é medida em `estabilidade_subamostra.json`
 (`scripts/estabilidade_subamostra.py`).
 
+### Diagnóstico por ataque e por codec (modelos ajustados, limiar do protocolo)
+
+Medidos com `python -m scripts.diagnostico_por_ataque` e
+`... .diagnostico_por_codec`, que **carregam** `rf_tuned_principal.joblib` e
+`svm_tuned_principal.joblib` e decidem com o limiar lido do JSON companheiro —
+nada é re-treinado, nada decide em 0,50.
+
+**Por ataque** (`diagnostico_por_ataque_resumo.json`): o EER varia de **0,0628
+(A13, mais fácil) a 0,3548 (A16, mais difícil)** no RF — amplitude **0,2920**,
+razão 5,7× — e de **0,0617 (A09) a 0,2598 (A16)** no SVM, amplitude 0,1981. O
+recall deixou de saturar: no RF vai de 0,7266 (A16) a 0,9987 (A08/A13), contra
+1,0 em todos os ataques na versão baseline. **Leitura:** a dificuldade varia
+muito mais entre sistemas de síntese (até 0,29 de EER) do que entre os dois
+modelos (ΔEER 0,0466) — evidência **a favor** do risco declarado em "Limitação
+declarada do split", e razão para manter o experimento cross-attack como análise
+complementar.
+
+**Por codec** (`diagnostico_por_codec_resumo.json`): a hipótese da banda alta
+**se sustenta nos dois modelos**, agora com o limiar do protocolo.
+
+| | f1_macro | recall bonafide | EER |
+|---|---:|---:|---:|
+| RF — banda estreita (alaw, ulaw, gsm, pstn) | 0,6958 | 0,4854 | 0,2056 |
+| RF — banda larga (g722, opus, none) | **0,7510** | **0,6179** | **0,1676** |
+| SVM — banda estreita | 0,7711 | 0,6530 | 0,1652 |
+| SVM — banda larga | **0,8397** | **0,6776** | **0,1174** |
+
+Como o **EER é independente de limiar**, o contraste **não** era artefato do
+limiar 0,50 da versão baseline. Isso sustenta que os artefatos discriminativos
+capturados por ZCR/centróide vivem acima de 4 kHz — e reforça a rejeição de um
+`fmax=4000` global.
+
+### Custo de inferência ponta a ponta
+
+`tempo_pipeline_completo.json` mede o pipeline real por áudio (batch = 1,
+200 áudios da validação, mesmas funções do pipeline de produção): carregar 0,639
+ms + VAD/padding 0,371 ms + features 3,705 ms, mais a predição — **RF 6,405 ms**
+(total 11,12) contra **SVM 0,613 ms** (total 5,33). A hipótese registrada no
+`config.yaml` de que o pré-processamento dominaria **não se confirmou**: a
+predição é 57,6% do custo no RF. Por áudio o SVM é ~2,1× mais barato; em lote o
+RF continua ~19× melhor. **Não existe "o modelo mais barato" sem dizer o
+regime** — leitura completa em `NOTA_RF_VS_SVM.md` §1.1.
+
+### Importância das features: impureza × permutação
+
+`importancia_permutacao_rf.json` (validação, `n_repeats=10`, scoring por AUC):
+os dois rankings **concordam** — Spearman ρ = 0,8516, 9 das 10 features do topo
+em comum, `mfcc1_media` e `mfcc1_std` em 1º e 2º nos dois. O `top10_features`
+publicado nos JSONs, que é medido por redução de impureza (enviesada a favor de
+alta cardinalidade), fica assim **confirmado** por uma métrica sem esse viés.
+Continua sendo "o que o modelo usou", não causalidade acústica.
+
 ### Reprodutibilidade
 
 `python -m scripts.guarda_reproducao` compara, campo a campo, os JSONs de
@@ -242,7 +309,21 @@ arquivo gerado, e a re-execução o apagou. Uma limitação metodológica que mo
 num artefato gerado é destruída em silêncio por qualquer re-execução. A correção
 foi `analisar_bordas()` em `src/models/ajustar_rf.py`, que **deriva** o bloco do
 espaço de busca e da configuração vencedora — volta sozinho a cada execução e
-não pode ficar desatualizado. Detalhes em `results/metricas/REVISAO_BLOCO3.md`.
+não pode ficar desatualizado.
+
+Na segunda passada a guarda pegou um achado técnico: `predict_proba` do
+`RandomForestClassifier` com `n_jobs=-1` **não é reprodutível bit a bit** — a
+soma das 300 árvores num array compartilhado muda de ordem entre execuções, e
+soma de ponto flutuante não é associativa. Quatro predições do mesmo `.joblib`
+sobre a mesma validação deram 22.104 / 22.102 / 22.104 / 22.103 scores
+distintos; com `n_jobs=1`, 22.104 nas quatro, idênticas bit a bit. A maior
+diferença de score foi 4,4×10⁻¹⁶ e **nenhuma métrica muda** (f1_macro e EER
+batem até a décima casa) — mas `selecao_limiar.n_candidatos` é uma contagem de
+valores distintos e enxerga o último bit. Correção: `predizer_rf()` em
+`src/models/avaliacao.py` força `n_jobs=1` na predição, e todos os pontos que
+predizem com RF passaram a usá-la; o treino segue paralelo.
+
+Detalhes dos dois achados em `results/metricas/REVISAO_BLOCO3.md`.
 
 ### Referência "antes" (baseline argmax, features pré-mascaramento)
 

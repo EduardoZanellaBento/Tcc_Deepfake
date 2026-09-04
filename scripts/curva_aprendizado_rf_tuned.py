@@ -72,7 +72,7 @@ from sklearn.model_selection import train_test_split
 from src.utils.config import carregar_config
 from src.utils.seeds import fixar_seeds
 from src.data.split import carregar_dados_split, colunas_features
-from src.models.avaliacao import calcular_eer, selecionar_limiar
+from src.models.avaliacao import calcular_eer, predizer_rf, selecionar_limiar
 
 RAIZ = Path(__file__).resolve().parents[1]
 NOME = "curva_aprendizado_rf_tuned_eval"
@@ -147,7 +147,7 @@ def main() -> None:
         modelo.fit(X_tr, y_tr)
         t_treino = time.perf_counter() - t0
 
-        scores = modelo.predict_proba(X_va)[:, 1]
+        scores = predizer_rf(modelo, X_va)   # n_jobs=1: reprodutível bit a bit
         # Protocolo do Bloco 3: limiar selecionado NA VALIDAÇÃO, regra `>=`.
         sel = selecionar_limiar(y_va, scores, criterio="f1_macro",
                                 conjunto="validacao")

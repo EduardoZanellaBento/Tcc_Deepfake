@@ -11,14 +11,14 @@
   "f1_bonafide": 0.5908386811241425,
   "f1_macro": 0.7722680621707658,
   "eer": 0.15794210644819728,
-  "limiar_eer": 0.7547563704041443,
+  "limiar_eer": 0.7547563704041442,
   "selecao_limiar": {
     "criterio": "f1_macro",
     "regra": "score >= limiar",
     "conjunto": "validacao",
     "limiar": 0.6195519477166891,
     "f1_macro": 0.7722680621707658,
-    "n_candidatos": 22103,
+    "n_candidatos": 22104,
     "n_empates_no_maximo": 1
   },
   "braco": "referencia",
@@ -34,9 +34,9 @@
   "n_treino": 103723,
   "n_validacao": 22226,
   "semente": 42,
-  "tempo_treino_s": 21.37,
+  "tempo_treino_s": 21.29,
   "n_jobs_treino": -1,
-  "tempo_treino_s_n_jobs_1": 169.43,
+  "tempo_treino_s_n_jobs_1": 168.33,
   "nota_tempo_treino": "tempo_treino_s é com n_jobs=-1 (custo real de uso); tempo_treino_s_n_jobs_1 é o refit da mesma configuração com n_jobs=1, o único número comparável ao SVM, que é single-thread por natureza. n_jobs não altera o resultado do RF, só o tempo.",
   "matriz_confusao": [
     [
@@ -72,17 +72,17 @@
     },
     "latencia_ms": {
       "batch": 1,
-      "mediana": 5.7129,
-      "min": 5.2169,
-      "max": 6.2146
+      "mediana": 7.8572,
+      "min": 5.8438,
+      "max": 9.6694
     },
     "throughput": {
       "batch": 22226,
-      "total_s_mediana": 0.6586,
-      "total_s_min": 0.638,
-      "total_s_max": 0.7436,
-      "ms_por_audio_mediana": 0.0296,
-      "audios_por_segundo_mediana": 33748.4
+      "total_s_mediana": 0.6438,
+      "total_s_min": 0.6116,
+      "total_s_max": 0.6646,
+      "ms_por_audio_mediana": 0.029,
+      "audios_por_segundo_mediana": 34521.6
     }
   },
   "ambiente": {

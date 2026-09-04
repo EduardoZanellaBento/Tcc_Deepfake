@@ -56,7 +56,7 @@ from sklearn.metrics import f1_score, roc_auc_score
 from src.utils.config import carregar_config
 from src.data.split import (carregar_dados_split, colunas_features,
                             filtrar_treino_braco)
-from src.models.avaliacao import (aplicar_limiar, calcular_eer,
+from src.models.avaliacao import (aplicar_limiar, calcular_eer, predizer_rf,
                                   selecionar_limiar)
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -141,7 +141,7 @@ def _treinar(params, semente, X_tr, y_tr, X_va):
     t0 = time.perf_counter()
     modelo.fit(X_tr, y_tr)
     t = time.perf_counter() - t0
-    return modelo.predict_proba(X_va)[:, 1], t
+    return predizer_rf(modelo, X_va), t   # n_jobs=1: reprodutível bit a bit
 
 
 def main() -> None:

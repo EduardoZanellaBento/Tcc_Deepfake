@@ -125,6 +125,9 @@
     "leitura": "IC95 da diferença não contém zero => a vantagem do SVM não é ruído de amostragem"
   },
   "semente_bootstrap": 42,
+  "hash_md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+  "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d",
   "leitura_critica": {
     "evidencia_principal": "bootstrap PAREADO (bootstrap_pareado_svm_menos_rf): IC95 do Δf1_macro [0.0663, 0.0856] e do ΔEER [-0.056, -0.0377] — nenhum contém zero: a vantagem do SVM não é ruído de amostragem",
     "diferenca_f1_macro_rf_svm": 0.0762,

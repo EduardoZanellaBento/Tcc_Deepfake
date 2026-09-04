@@ -34,7 +34,47 @@
     ]
   },
   "paralelismo": "RandomizedSearchCV(n_jobs=-1) com RandomForestClassifier(n_jobs=1)",
-  "tempo_busca_s": 645.5,
+  "limitacao_otimo_na_borda": {
+    "hiperparametros_na_borda": {
+      "max_depth": {
+        "valor_otimo": 30,
+        "posicao": "maior valor FINITO explorado",
+        "dominio": [
+          "None",
+          "10",
+          "20",
+          "30"
+        ],
+        "censurado": false,
+        "nota": "o ótimo (30) é o maior valor finito de [None, 10, 20, 30], mas None (sem limite) estava disponível e NÃO foi escolhido — o ótimo NÃO está censurado nesta dimensão; a borda vale apenas como registro"
+      },
+      "min_samples_leaf": {
+        "valor_otimo": 5,
+        "posicao": "limite INFERIOR da faixa",
+        "dominio": "randint(5, 20) -> [5, 19]",
+        "censurado": true,
+        "nota": "o ótimo (5) ficou no limite inferior da faixa; valores além dele não foram explorados por DECISÃO DE PROTOCOLO (faixa exigida pelo orientador, config.yaml -> tuning)"
+      },
+      "min_samples_split": {
+        "valor_otimo": 10,
+        "posicao": "maior valor FINITO explorado",
+        "dominio": [
+          "2",
+          "5",
+          "10"
+        ],
+        "censurado": true,
+        "nota": "o ótimo (10) é o MAIOR valor explorado de [2, 5, 10]: valores maiores não foram avaliados, logo a busca entrega o melhor ponto DENTRO da faixa e não necessariamente o ótimo global do hiperparâmetro"
+      }
+    },
+    "censurados": [
+      "min_samples_leaf",
+      "min_samples_split"
+    ],
+    "consequencia": "limitação declarada no texto do TC II: nas dimensões ['min_samples_leaf', 'min_samples_split'] a busca entrega o melhor ponto DENTRO da faixa acordada, não necessariamente o ótimo global. A faixa é decisão de protocolo e NÃO será reaberta.",
+    "como_este_bloco_e_produzido": "GERADO por analisar_bordas() a partir do espaço de busca e da configuração vencedora. Foi escrito à mão no JSON até 03/09/2026, e a re-execução do R2.3 o apagou — ver REVISAO_BLOCO3.md, R2.3."
+  },
+  "tempo_busca_s": 648.6,
   "melhor": {
     "params": {
       "class_weight": "balanced",

@@ -57,7 +57,7 @@ from ..data.split import (carregar_dados_split, colunas_features,
                           filtrar_treino_braco, resumo_split)
 # calcular_eer é re-exportado aqui por compatibilidade: consumidores antigos
 # importavam de src.models.treinar_rf. O lugar canônico é src.models.avaliacao.
-from .avaliacao import (aplicar_limiar, avaliar, calcular_eer,
+from .avaliacao import (aplicar_limiar, avaliar, calcular_eer, predizer_rf,
                         plotar_matriz_confusao)
 
 
@@ -131,7 +131,8 @@ def treinar(cfg: dict, raiz: Path, nome: str | None = None,
     t0 = time.perf_counter()
     y_pred_argmax = modelo.predict(X_va)        # só para o tempo; ver abaixo
     t_inf = time.perf_counter() - t0
-    scores = modelo.predict_proba(X_va)[:, 1]   # P(spoof) — coluna da classe 1
+    # predizer_rf: n_jobs=1 na predição, para o vetor reproduzir bit a bit
+    scores = predizer_rf(modelo, X_va)            # P(spoof) — coluna da classe 1
 
     # ---- Métricas ------------------------------------------------------------
     # Regra única do protocolo (Bloco 3): score >= limiar, com o y_pred derivado

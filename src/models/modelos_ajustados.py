@@ -35,6 +35,8 @@ from pathlib import Path
 import joblib
 import numpy as np
 
+from .avaliacao import predizer_rf
+
 # Chave curta -> (artefato do modelo, JSON de métricas, rótulo para figura/texto).
 # O par joblib/json é fixo: o limiar de um modelo só vale para AQUELE modelo.
 MODELOS_PRINCIPAIS = {
@@ -117,7 +119,12 @@ def scores_de(carregado: dict, X: np.ndarray) -> np.ndarray:
     """
     modelo = carregado["modelo"]
     if carregado["chave"] == "rf":
-        return modelo.predict_proba(X)[:, 1]
+        # predizer_rf força n_jobs=1: com n_jobs=-1 a soma das árvores muda de
+        # ordem entre execuções e o vetor não reproduz bit a bit (ver docstring
+        # de predizer_rf). Num script de diagnóstico isso significaria uma
+        # tabela que muda de casa decimal sem nada ter mudado.
+        return predizer_rf(modelo, X)
+    # decision_function do SVC é single-thread e determinístico.
     return modelo.decision_function(X)
 
 

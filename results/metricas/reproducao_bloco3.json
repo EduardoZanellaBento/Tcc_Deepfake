@@ -1,0 +1,274 @@
+{
+  "verificacao": "reproducao_bloco3",
+  "data": "2026-09-03",
+  "resultado": "REPRODUZIU",
+  "pergunta": "a re-execução de src.models.ajustar_rf e src.models.treinar_svm, forçada pelas mudanças de esquema R2.1/R2.2/R4a, reproduz os resultados publicados antes da revisão de 03/09/2026?",
+  "por_que_tem_de_reproduzir": "os dois pipelines são determinísticos: semente 42 fixada, RandomizedSearchCV com random_state=42, SVC com probability=False (determinístico), e o n_jobs do RF altera o tempo, não o resultado",
+  "referencia": "results/metricas/_pre_revisao/ (cópia dos JSONs pré-revisão)",
+  "campos_exigidos": [
+    "acuracia",
+    "f1_macro",
+    "eer",
+    "limiar",
+    "roc_auc_validacao",
+    "matriz_confusao",
+    "hiperparametros",
+    "n_vetores_suporte",
+    "selecao_limiar.limiar",
+    "melhor.params"
+  ],
+  "reestruturacoes_declaradas": {
+    "rf_random_search.json": {
+      "prefixo_antigo": "limitacao_otimo_na_borda.",
+      "prefixo_novo": "limitacao_otimo_na_borda.hiperparametros_na_borda.",
+      "motivo": "o bloco limitacao_otimo_na_borda era escrito À MÃO dentro de um artefato GERADO e sumiu na re-execução (achado da própria guarda, 03/09/2026). Agora é produzido por analisar_bordas() em src/models/ajustar_rf.py, a partir do espaço de busca e da configuração vencedora: as notas em prosa viraram campos estruturados por hiperparâmetro, mais `censurados` e `consequencia`. A informação foi PRESERVADA e passou a ser verificável — ver REVISAO_BLOCO3.md, R2.3."
+    }
+  },
+  "divergencias_explicadas_declaradas": {
+    "rf_tuned_referencia.json": {
+      "selecao_limiar.n_candidatos": {
+        "antes": 22103,
+        "depois": 22104,
+        "explicacao": "o valor ANTIGO foi medido com predict_proba(n_jobs=-1), que NÃO é reprodutível bit a bit: a soma das 300 árvores num array compartilhado muda de ordem entre execuções e soma de ponto flutuante não é associativa. Quatro predições do MESMO .joblib sobre a MESMA validação deram 22104/22102/22104/22103 com n_jobs=-1, e 22104 nas quatro (idênticas bit a bit) com n_jobs=1. Maior diferença de score: 4,4e-16; f1_macro e EER batem até a décima casa decimal. O valor NOVO é o determinístico — a correção de uma medição instável, não uma mudança de resultado. Ver predizer_rf em src/models/avaliacao.py e REVISAO_BLOCO3.md, R2.3, achado (3)."
+      }
+    }
+  },
+  "remocoes_declaradas": {
+    "curva_aprendizado_rf_tuned_eval.json": {
+      "satura_em_n": {
+        "exige": [
+          "saturou",
+          "maior_n_medido",
+          "ganho_ultimo_passo_f1",
+          "definicao_saturacao"
+        ],
+        "motivo": "R3: `satura_em_n` era estruturalmente incapaz de distinguir 'saturou no fim' de 'nunca saturou' — numa curva monótona crescente a expressão devolvia sempre o último ponto. O campo passou a ser emitido SOMENTE quando `saturou` é verdadeiro, e a curva ajustada NÃO satura (o último passo ainda rende +0,0121, 2,4x a tolerância). A ausência do campo é, portanto, a informação — e ela agora vem explícita em `saturou`, `ganho_ultimo_passo_f1` e `definicao_saturacao`."
+      }
+    }
+  },
+  "chaves_ignoradas": [
+    "ambiente",
+    "projecao_horas_antes_da_busca",
+    "tempo_busca_s",
+    "tempo_treino_s",
+    "tempo_treino_s_n_jobs_1",
+    "tempo_um_fit_fold_s",
+    "tempos_inferencia"
+  ],
+  "por_que_ignorar_tempo": "medidas de relógio variam por definição entre execuções; compará-las produziria alarme falso e desmoralizaria a guarda",
+  "tolerancia_float": 1e-09,
+  "arquivos": [
+    {
+      "arquivo": "rf_random_search.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 28,
+      "campos_exigidos_conferidos": [
+        "melhor.params"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [
+        "limitacao_otimo_na_borda.censurados",
+        "limitacao_otimo_na_borda.como_este_bloco_e_produzido",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.max_depth.censurado",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.max_depth.dominio",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.max_depth.nota",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.max_depth.posicao",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.max_depth.valor_otimo",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_leaf.censurado",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_leaf.dominio",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_leaf.nota",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_leaf.posicao",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_leaf.valor_otimo",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_split.censurado",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_split.dominio",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_split.nota",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_split.posicao",
+        "limitacao_otimo_na_borda.hiperparametros_na_borda.min_samples_split.valor_otimo"
+      ],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": {
+        "campos_absorvidos": [
+          "limitacao_otimo_na_borda.max_depth",
+          "limitacao_otimo_na_borda.min_samples_leaf",
+          "limitacao_otimo_na_borda.min_samples_split"
+        ],
+        "campos_reescritos": [
+          "limitacao_otimo_na_borda.consequencia"
+        ],
+        "prefixo_novo": "limitacao_otimo_na_borda.hiperparametros_na_borda.",
+        "motivo": "o bloco limitacao_otimo_na_borda era escrito À MÃO dentro de um artefato GERADO e sumiu na re-execução (achado da própria guarda, 03/09/2026). Agora é produzido por analisar_bordas() em src/models/ajustar_rf.py, a partir do espaço de busca e da configuração vencedora: as notas em prosa viraram campos estruturados por hiperparâmetro, mais `censurados` e `consequencia`. A informação foi PRESERVADA e passou a ser verificável — ver REVISAO_BLOCO3.md, R2.3."
+      }
+    },
+    {
+      "arquivo": "rf_tuned_principal.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 47,
+      "campos_exigidos_conferidos": [
+        "acuracia",
+        "f1_macro",
+        "eer",
+        "limiar",
+        "roc_auc_validacao",
+        "matriz_confusao",
+        "hiperparametros",
+        "selecao_limiar.limiar"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [
+        "nota_tempo_treino"
+      ],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "rf_tuned_referencia.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 47,
+      "campos_exigidos_conferidos": [
+        "acuracia",
+        "f1_macro",
+        "eer",
+        "limiar",
+        "roc_auc_validacao",
+        "matriz_confusao",
+        "hiperparametros",
+        "selecao_limiar.limiar"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [
+        "nota_tempo_treino"
+      ],
+      "divergencias_explicadas": [
+        {
+          "campo": "selecao_limiar.n_candidatos",
+          "antes": 22103,
+          "depois": 22104,
+          "explicacao": "o valor ANTIGO foi medido com predict_proba(n_jobs=-1), que NÃO é reprodutível bit a bit: a soma das 300 árvores num array compartilhado muda de ordem entre execuções e soma de ponto flutuante não é associativa. Quatro predições do MESMO .joblib sobre a MESMA validação deram 22104/22102/22104/22103 com n_jobs=-1, e 22104 nas quatro (idênticas bit a bit) com n_jobs=1. Maior diferença de score: 4,4e-16; f1_macro e EER batem até a décima casa decimal. O valor NOVO é o determinístico — a correção de uma medição instável, não uma mudança de resultado. Ver predizer_rf em src/models/avaliacao.py e REVISAO_BLOCO3.md, R2.3, achado (3)."
+        }
+      ],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "svm_random_search.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 23,
+      "campos_exigidos_conferidos": [
+        "melhor.params"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [
+        "melhor.roc_auc_cv_std"
+      ],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "svm_tuned_principal.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 35,
+      "campos_exigidos_conferidos": [
+        "acuracia",
+        "f1_macro",
+        "eer",
+        "limiar",
+        "roc_auc_validacao",
+        "matriz_confusao",
+        "hiperparametros",
+        "n_vetores_suporte",
+        "selecao_limiar.limiar"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [
+        "n_jobs_treino"
+      ],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "estabilidade_rf_svm.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 73,
+      "campos_exigidos_conferidos": [],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [
+        "hash_md5_features_csv",
+        "hash_md5_split_csv",
+        "hash_md5_subamostra_csv"
+      ],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "ablacao_mfcc1_std.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 66,
+      "campos_exigidos_conferidos": [
+        "f1_macro",
+        "eer",
+        "roc_auc_validacao",
+        "hiperparametros",
+        "selecao_limiar.limiar"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "curva_aprendizado_rf_tuned_eval.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 53,
+      "campos_exigidos_conferidos": [
+        "hiperparametros"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [
+        "definicao_saturacao",
+        "ganho_ultimo_passo_f1",
+        "maior_n_medido",
+        "saturou"
+      ],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [
+        {
+          "campo": "satura_em_n",
+          "substituido_por": [
+            "saturou",
+            "maior_n_medido",
+            "ganho_ultimo_passo_f1",
+            "definicao_saturacao"
+          ],
+          "motivo": "R3: `satura_em_n` era estruturalmente incapaz de distinguir 'saturou no fim' de 'nunca saturou' — numa curva monótona crescente a expressão devolvia sempre o último ponto. O campo passou a ser emitido SOMENTE quando `saturou` é verdadeiro, e a curva ajustada NÃO satura (o último passo ainda rende +0,0121, 2,4x a tolerância). A ausência do campo é, portanto, a informação — e ela agora vem explícita em `saturou`, `ganho_ultimo_passo_f1` e `definicao_saturacao`."
+        }
+      ],
+      "reestruturacao_declarada": []
+    }
+  ],
+  "ambiente": {
+    "python": "3.10.11",
+    "sistema": "Windows 10"
+  }
+}

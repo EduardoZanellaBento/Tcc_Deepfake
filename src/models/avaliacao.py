@@ -51,6 +51,44 @@ def aplicar_limiar(scores: np.ndarray, limiar: float) -> np.ndarray:
     return (np.asarray(scores) >= limiar).astype(int)
 
 
+def predizer_rf(modelo, X: np.ndarray) -> np.ndarray:
+    """P(spoof) de um Random Forest, de forma REPRODUTÍVEL BIT A BIT.
+
+    POR QUE ESTA FUNÇÃO EXISTE (achado da guarda de reprodução, 03/09/2026):
+        `RandomForestClassifier.predict_proba` com `n_jobs != 1` acumula a
+        contribuição das árvores num array compartilhado, em paralelo. A ORDEM
+        da soma varia entre execuções, e ponto flutuante não é associativo —
+        então os últimos bits do score mudam de uma execução para outra.
+
+        Medido no braço de referência (300 árvores, 103.723 de treino, validação
+        de 22.226): com `n_jobs=-1`, quatro execuções do MESMO modelo carregado
+        do MESMO .joblib deram 22.104 / 22.102 / 22.104 / 22.103 scores
+        distintos, e os vetores não eram idênticos bit a bit. Com `n_jobs=1`,
+        as quatro deram 22.104 e foram idênticas. A maior diferença absoluta
+        entre os dois vetores foi 4,4e-16 — f1_macro e EER batem até a décima
+        casa decimal.
+
+        Ou seja: NENHUMA MÉTRICA muda. O que muda é `selecao_limiar.n_candidatos`,
+        que é uma CONTAGEM DE VALORES DISTINTOS e por isso enxerga o último bit.
+        Foi exatamente ela que a guarda de reprodução pegou (22.103 -> 22.104).
+
+    POR QUE CORRIGIR, JÁ QUE NENHUMA MÉTRICA MUDA:
+        porque `n_candidatos` é um número publicado (é ele que prova, na
+        NOTA_LIMIAR.md, que o score deixou de ser degrau: 22.207 valores
+        distintos em 22.226 amostras), e porque um artefato que não reproduz
+        byte a byte obriga quem confere a decidir, no calor da hora, se a
+        diferença importa. Custa ~1 s de predição a mais e remove a dúvida.
+        O treino continua com `n_jobs=-1`: lá o paralelismo não afeta o
+        resultado, só o tempo.
+
+    O n_jobs do modelo é deixado em 1 depois da chamada — que é justamente o
+    valor exigido pelo protocolo de medição de tempo (config.yaml -> tempo).
+    """
+    if getattr(modelo, "n_jobs", 1) != 1:
+        modelo.n_jobs = 1
+    return modelo.predict_proba(X)[:, 1]
+
+
 def selecionar_limiar(y_true, scores, criterio: str = "f1_macro",
                       conjunto: str = "validacao") -> dict:
     """Seleciona o limiar de decisão que maximiza `criterio` sobre (y_true, scores).

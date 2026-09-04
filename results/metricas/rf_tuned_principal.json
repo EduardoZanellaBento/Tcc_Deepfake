@@ -34,9 +34,9 @@
   "n_treino": 30000,
   "n_validacao": 22226,
   "semente": 42,
-  "tempo_treino_s": 4.67,
+  "tempo_treino_s": 4.89,
   "n_jobs_treino": -1,
-  "tempo_treino_s_n_jobs_1": 37.71,
+  "tempo_treino_s_n_jobs_1": 38.11,
   "nota_tempo_treino": "tempo_treino_s é com n_jobs=-1 (custo real de uso); tempo_treino_s_n_jobs_1 é o refit da mesma configuração com n_jobs=1, o único número comparável ao SVM, que é single-thread por natureza. n_jobs não altera o resultado do RF, só o tempo.",
   "matriz_confusao": [
     [
@@ -72,17 +72,17 @@
     },
     "latencia_ms": {
       "batch": 1,
-      "mediana": 5.6971,
-      "min": 5.0558,
-      "max": 5.9766
+      "mediana": 6.1075,
+      "min": 5.1678,
+      "max": 8.9845
     },
     "throughput": {
       "batch": 22226,
-      "total_s_mediana": 0.4924,
-      "total_s_min": 0.4784,
-      "total_s_max": 0.5139,
-      "ms_por_audio_mediana": 0.0222,
-      "audios_por_segundo_mediana": 45133.6
+      "total_s_mediana": 0.4541,
+      "total_s_min": 0.4476,
+      "total_s_max": 0.4982,
+      "ms_por_audio_mediana": 0.0204,
+      "audios_por_segundo_mediana": 48943.6
     }
   },
   "ambiente": {
