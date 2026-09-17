@@ -115,6 +115,20 @@ features:                # parâmetros das características manuais (RF e SVM)
   # decisão registrada. A definição vigente está assinada em
   # data/features/features.meta.json, conferido pela guarda de retomada de
   # executar() (_validar_retomada em src/features/extrair_features.py).
+  #
+  # LIMITAÇÃO REGISTRADA [B4.0, 17/09/2026] — a filterbank Mel interna do
+  # librosa.feature.mfcc, com o n_fft=512 congelado, cai no mesmo regime
+  # degenerado que motivou a P4 a adotar n_fft=1024 na CNN. NÃO foi corrigido, e
+  # deliberadamente: as features estão congeladas desde 30/08 e re-extrair
+  # abriria o Bloco 2 dentro do cronograma de recuperação. O impacto é atenuado
+  # pela DCT do MFCC, que retém só 20 dos 128 coeficientes. Registrado como
+  # limitação no TC II (não como experimento) pela regra de escopo de 17/09.
+  # Conferido em 17/09/2026 com librosa 0.11.0: librosa.filters.mel(sr=16000,
+  # n_fft=512, n_mels=128, fmin=0, fmax=8000, htk=False, norm='slaney') dá 61
+  # filtros com <= 2 bins ativos e 12 pares com o mesmo bin de pico — os mesmos
+  # números da P4. O n_mels default de librosa.feature.mfcc é 128, então o ramo
+  # clássico cai nessa filterbank de fato, e não só em tese.
+  # Consta como limitação 7 da lista do B6 (docs/execucao/B6_redacao_e_fechamento.md).
   n_mfcc: 20           # nº de coeficientes MFCC
   n_fft: 512           # tamanho da FFT
   hop_length: 256      # passo entre janelas
@@ -145,39 +159,82 @@ features:                # parâmetros das características manuais (RF e SVM)
   agregacao: ["media", "desvio_padrao"]  # (declarativo — ainda não consumido pelo código)
 
 # =============================================================================
-# ⚠️  BLOCO CONGELADO ATÉ A RESPOSTA DO ORIENTADOR (Bloco 4 — B4.1)
-# =============================================================================
-# NENHUM valor abaixo é decisão fechada. Eles são o rascunho da v1 e há
-# divergências CONHECIDAS entre eles e o que o pipeline produz. As sete
-# perguntas, com evidência medida e recomendação, estão em
-# results/metricas/DECISOES_PENDENTES_CNN.md; os números são recomputados por
-# `python -m scripts.auditar_decisoes_cnn`.
+# ENTRADA DA CNN — DEFINIÇÃO FECHADA EM 17/09/2026
+# As sete decisões (P1–P7) foram respondidas e aprovadas pelo orientador. O
+# registro, com a evidência que motivou cada uma, está em
+# results/metricas/DECISOES_PENDENTES_CNN.md (v5). NENHUMA SE REABRE.
 #
-# O que já se sabe que está errado ou faltando aqui:
-#   - `largura: 256` DIVERGE do pipeline, que produz 251 frames
-#     (1 + 64000//256), valor único nas 148.176 linhas do features.csv. (P1)
-#   - `n_mels: 128` com o `n_fft: 512` do bloco `features` é DEGENERADO: 61 dos
-#     128 filtros mel leem <= 2 bins de FFT e 12 pares compartilham o bin de
-#     pico. O librosa NÃO avisa nesse regime. (P4)
-#   - falta `n_fft` PRÓPRIO do espectrograma: hoje ele herdaria o do bloco
-#     `features` por acidente — o acoplamento silencioso que a guarda de esquema
-#     do Bloco 2 existe para impedir. (P4)
-#   - faltam `fmin`/`fmax`: a decisão de NÃO limitar a banda em 4 kHz foi
-#     ratificada pelo orientador e hoje depende do default do librosa. (P4)
-#   - falta a ESCALA DE AMPLITUDE: `tipo: "mel"` não diz se é potência linear ou
-#     dB, e a escolha muda radicalmente o que a CNN enxerga. (P5)
-#   - falta a NORMALIZAÇÃO: se global, as estatísticas têm de sair SÓ do treino,
-#     sob pena de vazamento irreversível num artefato gerado uma vez só. (P3)
+# A partir de 21/09 (B4.2) esta definição fica CONGELADA no mesmo sentido que as
+# features: regenerar os 74.453 tensores só por erro grave, com decisão
+# registrada. A assinatura vigente é gravada em
+# data/espectrogramas/espectrogramas.meta.json, conferida pela guarda de
+# retomada do gerador — o mesmo mecanismo do features.meta.json.
 #
-# Enquanto o documento não for respondido, este bloco NÃO é alterado e nenhum
-# script de geração de espectrograma é criado — gerar os 74.453 tensores é o
-# "lote único do Bloco 4" e não cabe duas vezes no cronograma.
+# POR QUE n_fft = 1024 COM win_length = 400 (formulação correta, exigida):
+#   a janela de análise continua em 400 amostras (~25 ms), logo a resolução
+#   física determinada pela janela NÃO muda e nenhuma informação nova é criada.
+#   A FFT de 1024 aumenta a DENSIDADE DE AMOSTRAGEM DA DFT por zero-padding
+#   (513 bins em vez de 257), o que permite representar o banco de 128 filtros
+#   Mel de maneira numericamente mais adequada. Com n_fft=512, 61 dos 128
+#   filtros leriam <= 2 bins e 12 pares compartilhariam o bin de pico — regime
+#   degenerado sobre o qual o librosa NÃO emite aviso.
+#
+# POR QUE db_ref = 1.0 (e por que a outra justificativa está PROIBIDA):
+#   NÃO é para "preservar o ganho original das gravações" — esse ganho já foi
+#   removido a montante pela normalização de pico por áudio, antes do VAD
+#   (src/data/preprocessamento.py -> normalizar_amplitude). A razão real é
+#   dupla: (a) não introduzir uma SEGUNDA normalização, relativa ao máximo do
+#   próprio espectrograma, que contradiria a normalização global da P3; e
+#   (b) manter paridade com a não-linearidade que librosa.feature.mfcc já
+#   aplica, que usa os defaults do power_to_db.
+#
+# RESSALVA DO top_db = 80 (documentar no texto): o piso fica limitado a 80 dB
+#   abaixo do máximo DAQUELE EXEMPLO. A região de padding vira, por isso, um
+#   platô constante DENTRO de cada exemplo, com valor (max - 80) que VARIA entre
+#   exemplos. Não invalida a decisão; precisa estar escrito.
 # =============================================================================
-espectrograma:           # entrada da CNN — (declarativo — ainda não consumido
-  tipo: "mel"            #  pelo código: a CNN ainda não foi implementada)
+espectrograma:
+  tipo: "mel"
+  sample_rate: 16000
+  n_fft: 1024
+  win_length: 400
+  hop_length: 256
+
   n_mels: 128
-  altura: 128          # dimensões da "imagem" que entra na CNN
-  largura: 256
+  fmin: 0
+  fmax: 8000
+
+  power: 2.0
+  escala: "db"
+  db_ref: 1.0
+  top_db: 80
+
+  center: true
+
+  altura: 128
+  largura: 251
+
+  normalizacao: "global_por_mel"
+  mascarar_agregacao: true
+
+  # Defaults do librosa 0.11 que são metodologicamente relevantes e que o
+  # orientador exigiu registrar explicitamente. NÃO são decisões novas: são os
+  # valores que o código já usaria por omissão, fixados aqui para que uma
+  # atualização de biblioteca não os mude em silêncio. O gerador do B4.1 deve
+  # PASSÁ-LOS EXPLICITAMENTE ao librosa, não confiar no default.
+  #
+  # `mel_norm` e `htk` importam para a PARIDADE com o ramo clássico:
+  # librosa.feature.mfcc usa norm='slaney' e htk=False na filterbank Mel, logo
+  # o espectrograma da CNN precisa usar os mesmos para que a convenção de
+  # escala Mel e as frequências centrais dos 128 filtros sejam as mesmas.
+  # (A densidade de amostragem da DFT difere, por causa do n_fft — ver acima;
+  # é a convenção da escala que é comum aos dois ramos, não o nº de bins.)
+  defaults_librosa_registrados:
+    window: "hann"
+    pad_mode: "constant"
+    htk: false
+    mel_norm: "slaney"
+    amin: 1.0e-10
 
 split:
   # DECIDIDO [aprovado pelo orientador] — split aleatório por utterance mantido

@@ -1,20 +1,162 @@
 # Decisões pendentes — definição do espectrograma da CNN (Bloco 4)
 
-> **Status:** BLOQUEADO, aguardando decisão do orientador.
-> **Aberto em:** 03/09/2026 · **Revisado em:** 17/09/2026 (**v4** — fechamento
-> das três pontas soltas que a própria v3 deixou: um exagero de linguagem na P3,
-> a procedência dos números que a v3 acrescentou na P5, e a tabela da P7, que
-> era o único número a sustentar uma recomendação de protocolo sem trava
-> nenhuma. A v3, do mesmo dia, foi a conferência de procedência — citações de
-> linha, um número fora do JSON, a troca entre as duas amostras do piloto e o
-> alcance real da trava de auditoria. A v2 (04/09/2026) foi a auditoria numérica
-> que corrigiu a P2, trocou a recomendação da P5 e acrescentou a P7. **Nenhuma
-> pergunta, opção, recomendação ou ordem de urgência mudou em nenhuma das
-> três.** Ver *Registro de revisão*, no fim.)
+> **Status:** **RESPONDIDO E FECHADO em 17/09/2026.** As sete perguntas foram
+> respondidas e aprovadas pelo orientador. As decisões estão transcritas na seção
+> «Respostas do orientador — 17/09/2026», abaixo do sumário, e aplicadas no bloco
+> `espectrograma:` do `config/config.yaml`. **Nenhuma delas se reabre.**
+> **Aberto em:** 03/09/2026 · **Revisado em:** 17/09/2026 (v4) ·
+> **Fechado em:** 17/09/2026 (v5 — transcrição das respostas).
 > **Aluno:** Eduardo Zanella Bento · **Orientador:** Prof. Anderson Fola.
-> **Enquanto este documento não for respondido:** o bloco `espectrograma:` do
-> `config/config.yaml` NÃO é alterado, nenhum script de geração de espectrograma
-> é criado, e o B4.1 não começa.
+
+## Respostas do orientador — 17/09/2026
+
+As sete perguntas foram respondidas e **aprovadas**. Esta seção é a transcrição das
+decisões; **as perguntas, a evidência medida, as opções e as recomendações continuam
+abaixo, intactas** — é a evidência que sustenta a decisão numa arguição, e apagá-la
+para deixar só a resposta destruiria exatamente o que fez este documento valer a
+pena. Cada `## Pergunta N` recebeu uma linha de marcação apontando para cá.
+
+**Todas as sete decisões já estão aplicadas no bloco `espectrograma:` do
+`config/config.yaml`** (B4.0, 17/09/2026), junto com a justificativa de cada uma e o
+sub-bloco `defaults_librosa_registrados`. **Nenhuma se reabre.**
+
+| # | decisão |
+|---|---|
+| **P4** | `n_fft=1024`, `win_length=400`, `hop_length=256`, `n_mels=128`, `fmin=0`, `fmax=8000`, `power=2.0`, `center=true` |
+| **P5** | Log-Mel em dB, `ref=1.0`, `top_db=80`. **Nunca `ref=np.max`** |
+| **P3** | Normalização por estatísticas **globais do treino**, média e desvio **por faixa Mel**. Validação e teste nunca entram no cálculo |
+| **P1** | `largura = 251`, `altura = 128`. Não interpolar para 256 |
+| **P2** | Espectrograma cru de formato fixo + **agregação mascarada dentro da rede** (opção D) |
+| **P6** | Split interno 27k/3k para *early stopping* + **refit final nos 30k** |
+| **P7** | *Loss* ponderada: `CrossEntropyLoss` com 2 saídas e peso maior para **bonafide (classe 0)**, razão 9:1. **Sem** over/undersampling |
+
+A ordem da tabela é a **ordem de urgência** da seção «O que se pede ao orientador»,
+não a ordem numérica: P4 primeiro porque é a que falha em silêncio.
+
+### As duas formulações proibidas no texto
+
+Vieram junto com a aprovação, e as duas aparecem naturalmente ao escrever.
+
+**(a) Não escrever que subir o `n_fft` de 512 para 1024 «aumenta a resolução
+espectral real».** A janela continua em 400 amostras (~25 ms), então nenhuma
+informação nova é criada. Formulação correta:
+
+> mantemos os mesmos 25 ms de análise e usamos FFT de 1024 para **aumentar a
+> densidade de amostragem da DFT por zero-padding**, permitindo representar o banco
+> de 128 filtros Mel de maneira numericamente mais adequada.
+
+**(b) Não escrever que `ref=1.0` «preserva o ganho original das gravações».** O
+pipeline já faz normalização de pico por áudio **antes** do VAD
+(`preprocessamento.py:62-77`), então esse ganho já foi removido a montante.
+Justificativa correta:
+
+> `ref=1.0` evita introduzir uma **segunda** normalização, relativa ao máximo do
+> próprio espectrograma — que contradiria a normalização global da P3 —, e mantém
+> paridade com a transformação que o MFCC já aplica.
+
+**E a paridade entre os ramos descreve-se assim:** entregar Log-Mel à CNN reduz a
+diferença entre os dois pipelines **principalmente à forma de representação e
+aprendizado** — no ramo clássico resumimos as características acústicas e
+classificamos com RF/SVM; na CNN preservamos a estrutura tempo-frequência e deixamos
+a rede aprender a representação.
+
+---
+
+### Refinamentos obrigatórios que vieram com a aprovação
+
+As quatro exigências abaixo **não são decisões novas**: são a forma aprovada de
+executar as decisões acima. Duas delas (a máscara e a *loss*) corrigem uma
+implementação que pareceria certa e estaria errada.
+
+#### 1. A máscara temporal tem de acompanhar a redução do eixo do tempo (P2)
+
+A opção D não é «mascarar a entrada». Dentro da rede, a cada `stride`, *pooling* ou
+qualquer camada que encurte o eixo do tempo, **a máscara é reduzida de forma
+coerente**. O resultado final é um **masked global pooling** — soma apenas das
+posições válidas, dividida pelo número de posições válidas —, nunca um
+`GlobalAveragePooling` comum sobre regiões inválidas.
+
+- A máscara atua **só no tempo**; o eixo de frequência continua integral.
+- **`Flatten` está vetado** como fuga do problema: infla os parâmetros e amarra a
+  rede às posições de padding.
+- A definição de frame válido é **a mesma** do ramo clássico: `frames_validos()` em
+  `src/features/extrair_features.py:119-135`, e `n_frames_validos` já está no
+  `features.csv` por `arquivo`.
+- Forma da arquitetura: **CNN pequena + agregação global mascarada.**
+
+É o que torna a P2 a tradução literal do que o Bloco 1 aprovou para RF e SVM —
+mascarar a **agregação**, não a entrada.
+
+#### 2. Artefato de normalização: `normalizacao_cnn.json` (P3)
+
+As estatísticas não podem viver só dentro do script que as calculou. **Salvar
+`normalizacao_cnn.json` no Git**, com:
+
+| campo | por quê |
+|---|---|
+| média por faixa Mel (128 valores) | é o que se aplica em inferência |
+| desvio por faixa Mel (128 valores) | idem |
+| conjunto de origem | prova que validação e teste ficaram fora |
+| nº de exemplos | prova de qual fase gerou o artefato (27k ou 30k — ver refinamento 3) |
+| hash / lista de IDs utilizada | torna o cálculo reconferível |
+| *seed* | reprodutibilidade |
+
+É **o que torna a inferência reproduzível**, e é por isso que o orientador o exigiu
+versionado. Nasce no **B4.3**. Os tensores em disco **não** ficam normalizados: a
+média/desvio são aplicados em **tempo de carga**, justamente porque o refit da P6
+recomputa as estatísticas.
+
+#### 3. Protocolo da CNN em duas fases (P6)
+
+Esta é a forma aprovada, e ela **substitui** a versão da recomendação original, que
+deixaria a CNN final treinada em apenas 27k:
+
+```
+30k → split interno fixo (27k treino / 3k early stopping, seed 42,
+      estratificado por classe × codec × ataque, salvo em disco)
+    → estatísticas de normalização calculadas nos 27k
+    → treina, seleciona arquitetura/regularização, registra a MELHOR ÉPOCA
+    → REFIT FINAL nos 30k completos: recomputa média/desvio nos 30k,
+      treina a arquitetura escolhida por nº FIXO de épocas
+    → validação externa APENAS para escolher o limiar
+    → teste lacrado, execução única
+```
+
+**A validação externa de 22.226 não é usada para *early stopping* em fase nenhuma.**
+Com o refit, a CNN final vê **as mesmas 30 mil amostras** que RF e SVM — que era a
+objeção de simetria que a opção A, sozinha, deixaria em aberto. O corte 30k → 27k
+passa a valer só na fase de seleção.
+
+#### 4. A armadilha da *loss* ponderada (P7)
+
+A convenção do projeto é `bonafide = 0`, `spoof = 1`, e **spoof é a classe
+MAJORITÁRIA** (≈ 9:1, medido nos quatro conjuntos — trava 11 do script de auditoria).
+Portanto:
+
+> **`BCEWithLogitsLoss(pos_weight=9)` INVERTERIA a intenção**, dando peso maior à
+> majoritária. É o erro que a implementação «óbvia» comete.
+
+Implementação aprovada: **`CrossEntropyLoss` com duas saídas e peso maior para a
+classe 0 (bonafide)**, na razão 9:1 — ou pelos pesos `balanced` da mesma lógica do
+scikit-learn. **Sem** over/undersampling: a composição da época fica intacta, e a
+seleção de limiar continua sendo o **segundo** mecanismo, compartilhado pelos três
+modelos. A saída da avaliação continua compatível com o protocolo do repositório:
+**maior score = maior evidência de spoof**.
+
+---
+
+### O que esta seção NÃO fecha
+
+Duas coisas que dependem destas decisões mas pertencem a marcos posteriores, e que
+**não** foram decididas aqui:
+
+- a **arquitetura** da CNN (nº de blocos, canais, regularização) — B4.4/B4.5;
+- os **hiperparâmetros de treino** (otimizador, *learning rate*, *batch*, épocas
+  máximas) — B4.4.
+
+O que está fechado é a **entrada** e o **protocolo**.
+
+---
 
 ## Por que isto está por escrito, e não num chat
 
@@ -96,6 +238,8 @@ os testes de escala da P5 são executados com `librosa` nos mesmos parâmetros d
 
 ## Pergunta 1 — Largura do espectrograma: **251** ou **256**?
 
+> **RESPONDIDA em 17/09/2026 — `largura = 251`, `altura = 128`; sem interpolar para 256. Ver «Respostas do orientador».**
+
 **O que o `config.yaml:180` diz hoje:** `largura: 256`.
 
 **O que o pipeline produz de fato: 251 frames.** Conferido em três fontes
@@ -128,6 +272,8 @@ config e não custa nada agora; custaria a re-geração inteira depois.
 ---
 
 ## Pergunta 2 — O padding na entrada da CNN
+
+> **RESPONDIDA em 17/09/2026 — opção D — espectrograma cru + agregação mascarada DENTRO da rede, com a máscara reduzida junto com o eixo do tempo. Ver «Respostas do orientador».**
 
 > ⚠️ **Esta pergunta foi reescrita na v2.** A v1 afirmava que o padding é
 > *"assimétrico entre as classes"*. **Isso está errado** e a afirmação está
@@ -234,6 +380,8 @@ escrito, jamais por omissão.
 
 ## Pergunta 3 — Normalização do espectrograma
 
+> **RESPONDIDA em 17/09/2026 — estatísticas globais do treino, média e desvio POR FAIXA MEL, gravadas em `normalizacao_cnn.json`. Ver «Respostas do orientador».**
+
 Duas famílias, com implicações diferentes:
 
 - **Estatísticas globais (média/desvio por banda mel):** têm de ser calculadas
@@ -272,6 +420,8 @@ treino** e aplicadas a validação e teste.
 ---
 
 ## Pergunta 4 — `n_mels = 128` com `n_fft = 512` produz filtros degenerados *(a mais grave)*
+
+> **RESPONDIDA em 17/09/2026 — `n_fft = 1024` PRÓPRIO do espectrograma, `win_length = 400`, `hop_length = 256`, `n_mels = 128`, `fmin = 0`, `fmax = 8000`, `power = 2.0`, `center = true`. Ver «Respostas do orientador».**
 
 **É a pergunta com maior chance de estragar o lote único sem dar nenhum aviso em
 tempo de execução.**
@@ -344,6 +494,8 @@ ratificada não deve depender de default de biblioteca.
 ---
 
 ## Pergunta 5 — Escala de amplitude: potência linear ou **dB (log-mel)**?
+
+> **RESPONDIDA em 17/09/2026 — Log-Mel em dB com `ref = 1.0` e `top_db = 80`; nunca `ref = np.max`. Ver «Respostas do orientador».**
 
 **Ausente do `config.yaml`:** o bloco `espectrograma:` diz apenas `tipo: "mel"`,
 o que não determina a escala de amplitude — e essa escolha muda radicalmente o
@@ -436,6 +588,8 @@ Três razões:
 
 ## Pergunta 6 — Em qual conjunto a CNN pára de treinar (*early stopping*)?
 
+> **RESPONDIDA em 17/09/2026 — opção A refinada — split interno 27k/3k para o *early stopping* MAIS refit final nos 30k completos. Ver «Respostas do orientador».**
+
 **Não bloqueia a geração dos espectrogramas, mas é decisão de protocolo.**
 
 Assimetria que existe hoje e ninguém declarou:
@@ -477,6 +631,8 @@ geração dos espectrogramas** — pode ser decidido junto, mas executado no B4.
 ---
 
 ## Pergunta 7 — Peso das classes na *loss* da CNN *(NOVA na v2)*
+
+> **RESPONDIDA em 17/09/2026 — opção A — `CrossEntropyLoss` com 2 saídas e peso maior para bonafide (classe 0), razão 9:1, sem over/undersampling. Ver «Respostas do orientador».**
 
 **Estava faltando, e a `NOTA_LIMIAR.md §4` já a nomeia explicitamente:** a regra
 de protocolo vale para *"RF, SVM (`class_weight`) e **CNN (peso na loss)**"*. As
@@ -612,6 +768,52 @@ motivou, exatamente como foi feito no Bloco 2.
 ---
 
 ## Registro de revisão
+
+### v5 — 17/09/2026 (transcrição das respostas — o documento fecha)
+
+Motivo: **as sete perguntas foram respondidas e aprovadas pelo orientador**, que
+pediu textualmente que a decisão ficasse anotada **neste próprio arquivo**, «para que
+a decisão fique versionada no repositório junto com a evidência que a motivou,
+exatamente como foi feito no Bloco 2». Então não se criou documento novo — editou-se
+este. **Nenhuma pergunta, evidência, opção ou recomendação foi apagada ou alterada:**
+a v5 só acrescenta as respostas e marca as perguntas como respondidas. Este é o marco
+**B4.0** (`docs/execucao/B4.0_fechamento_metodologico.md`).
+
+| # | o que mudou | por quê |
+|---|---|---|
+| **1** | **Status: `BLOQUEADO` → `RESPONDIDO E FECHADO em 17/09/2026`.** | O aviso «enquanto este documento não for respondido, o bloco `espectrograma:` não é alterado e o B4.1 não começa» cumpriu sua função e passou a ser **falso**: as decisões saíram e o config foi aplicado no mesmo dia. Manter o aviso deixaria o repositório com duas afirmações contraditórias sobre o mesmo bloco. O cabeçalho passa a registrar as três datas — aberto (03/09), revisado (17/09, v4) e fechado (17/09, v5). |
+| **2** | **Seção «Respostas do orientador — 17/09/2026» inserida**, logo após o cabeçalho, com a tabela das sete decisões, as duas formulações proibidas e os **quatro refinamentos obrigatórios**. | A tabela é a decisão em si. As formulações proibidas e os refinamentos vieram **junto** com a aprovação e não são decisões novas: são a forma aprovada de executar as sete. Dois deles corrigem implementações que pareceriam certas e estariam erradas — a máscara que não acompanha a redução do eixo do tempo (P2) e o `BCEWithLogitsLoss(pos_weight=9)`, que **inverteria** a intenção porque spoof é a majoritária (P7). Os outros dois criam obrigações de artefato e de protocolo: `normalizacao_cnn.json` versionado (P3) e o **refit final nos 30k** (P6), que substitui a recomendação original da P6 — sozinha, ela deixaria a CNN final treinada em 27k contra os 30k de RF e SVM. |
+| **3** | **Cada `## Pergunta N` recebeu uma linha `> **RESPONDIDA em 17/09/2026 — <decisão>**`** — e **só** isso: o corpo das sete seções está intacto. | A alternativa era apagar a pergunta e deixar só a resposta. Isso destruiria exatamente o que fez este documento valer a pena: a evidência medida é o que sustenta a decisão numa arguição, e sem ela a decisão volta a ser opinião. A linha de marcação resolve a leitura (ninguém lê uma pergunta já respondida achando que está aberta) sem custo nenhum de conteúdo. |
+| **4** | **Registro de revisão: esta entrada.** | Mesma disciplina das v2–v4. |
+
+**Aplicado no mesmo commit, fora deste arquivo:**
+
+| arquivo | o que mudou |
+|---|---|
+| `config/config.yaml` | bloco `espectrograma:` completo, com os 17 parâmetros metodológicos e o sub-bloco `defaults_librosa_registrados`; o bloco de comentário «⚠️ BLOCO CONGELADO ATÉ A RESPOSTA DO ORIENTADOR» foi **removido** e substituído pela justificativa de cada decisão — inclusive as duas formulações proibidas e a ressalva do `top_db`. `largura: 256` → **251**, e o espectrograma passa a ter `n_fft` **próprio** (1024), matando o acoplamento silencioso com o bloco `features:` que a P4 existe para impedir. |
+| `config/config.yaml`, bloco `features:` | **nenhum valor alterado** — as features estão congeladas desde 30/08 e o `features.meta.json` assina `n_fft: 512`; mexer ali invalidaria a guarda de retomada e reabriria o Bloco 2. Só um comentário foi acrescentado: a **limitação registrada** de que a filterbank Mel interna do `librosa.feature.mfcc` herda o mesmo regime degenerado da P4 com o `n_fft=512` congelado. |
+
+> **A limitação da filterbank foi medida antes de ser escrita**, não deduzida. Com
+> `librosa` 0.11.0, `librosa.filters.mel(sr=16000, n_fft=512, n_mels=128, fmin=0,
+> fmax=8000, htk=False, norm="slaney")` dá **61 filtros com ≤ 2 bins ativos** e
+> **12 pares** com o mesmo bin de pico — os mesmos números da P4 —, e o `n_mels`
+> default de `librosa.feature.mfcc` é **128**, confirmado por execução
+> (`melspectrogram` sem `n_mels` devolve `(128, 251)`). Ou seja, o ramo clássico cai
+> nessa filterbank **de fato**, não só em tese. Ela vai ao texto como **LIMITAÇÃO, não
+> como experimento**, pela regra de escopo de 17/09: o impacto é atenuado pela DCT do
+> MFCC, que retém 20 dos 128 coeficientes, e a comparação central exige que os dois
+> ramos partam do **mesmo áudio pré-processado** — e partem, por construção
+> (`preprocessar_audio` é o mesmo). A diferença de representação é o **objeto de
+> estudo**, não um confundidor. Já consta como **limitação 7** da lista do
+> `docs/execucao/B6_redacao_e_fechamento.md`.
+
+**O que a v5 NÃO fez, de propósito:** não criou `DECISOES_CNN_FECHADAS.md` nem
+qualquer outro documento de consulta (duas fontes = divergência garantida, e o
+orientador pediu a anotação no arquivo existente); não tocou em `src/models/*`; não
+gerou tensor nenhum; e não decidiu arquitetura nem hiperparâmetros de treino, que são
+B4.4/B4.5. A partir de **21/09 (B4.2)** a definição do espectrograma fica
+**congelada** no mesmo sentido que as features, com a assinatura vigente em
+`data/espectrogramas/espectrogramas.meta.json`.
 
 ### v4 — 17/09/2026 (as três pontas soltas da v3)
 
