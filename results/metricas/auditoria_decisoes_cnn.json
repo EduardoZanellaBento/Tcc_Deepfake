@@ -20,8 +20,8 @@
       251
     ],
     "aritmetica_1_mais_amostras_div_hop": 251,
-    "largura_no_config": 256,
-    "config_diverge_do_pipeline": true
+    "largura_no_config": 251,
+    "config_diverge_do_pipeline": false
   },
   "p2_padding_universo": {
     "minimo": 8,

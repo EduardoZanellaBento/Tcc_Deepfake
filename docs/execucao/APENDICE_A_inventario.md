@@ -7,6 +7,60 @@
 
 ---
 
+## Ritmo de execução — leia antes de tudo
+
+**As datas dos briefings são TETO, não agenda.** Terminar um marco antes da sua
+data-limite é o resultado desejado, não uma anomalia.
+
+Se você chegou a um marco adiantado:
+
+- **siga em frente sem pedir autorização, sem sinalizar e sem questionar o pedido.**
+  Estar adiantado não é motivo para conferir nada com o aluno. O aluno espera
+  adiantar boa parte do cronograma;
+- **só atraso gera conversa.** A regra de escopo, o teste «essa decisão impede a
+  validade do experimento principal?» e as seções «Se atrasar» dos briefings existem
+  para quando a data-limite está em risco. Adiantado, elas não se aplicam — não há o
+  que simplificar nem limitação a escrever;
+- **uma sessão por marco continua valendo**, mas o motivo é **higiene de contexto**,
+  não calendário. Se o marco de hoje terminou e sobrou dia, o certo é **encerrar a
+  sessão e abrir a próxima** com o briefing seguinte — não encadear dois marcos na
+  mesma conversa. A instrução «isto é B4.x, não faça aqui» é sobre **onde o trabalho
+  é registrado e commitado**, não sobre esperar a data chegar.
+
+### Os quatro portões que valem em qualquer ritmo
+
+Estes **não** são calendário — são pré-requisito. Adiantar nunca autoriza pular um:
+
+| portão | não faça antes de |
+|---|---|
+| **B4.1** (escrever o gerador) | o `config.yaml` do B4.0 estar commitado |
+| **B4.2** (disparar os 74.453) | as **12 checagens** do B4.1 passarem, e ≥ 10 GB livres |
+| **B4.6** (refit) | `melhor_epoca` estar registrada em `cnn_definida.json` |
+| **B5.1** (teste lacrado) | os três JSONs de validação existirem, com `selecao_limiar.conjunto == "validacao"` |
+
+### Onde vai o tempo que sobrar
+
+Adiantado **não** é licença para abrir eixo experimental novo nem para reabrir
+decisão fechada — a regra de escopo continua valendo com o mesmo peso. O tempo
+excedente vai para esta fila, nesta ordem:
+
+1. **redação** (B6.1) — é o item de maior risco do cronograma e o único que não tem
+   como ser comprimido no fim;
+2. **variância entre sementes na CNN** (3 sementes) — está fora do caminho crítico
+   por decisão registrada, mas é a lacuna que o trabalho declara como limitação se
+   não couber. Se couber, a limitação desaparece;
+3. **diagnóstico por ataque e por codec com a CNN incluída** — fecha a análise por
+   estrato para os três modelos;
+4. **simulação de banca** (`APENDICE_B_banca.md`) — cada pergunta sem resposta em 30
+   segundos é um parágrafo que falta no texto.
+
+**Nunca** para: leave-one-attack-out, cross-dataset, outra duração de áudio, outro
+`n_mels`, nova busca de hiperparâmetros do RF/SVM. Esses são trabalho futuro, e
+continuam sendo mesmo com uma semana sobrando — porque o que fecha o TC II é a
+comparação completa, não um experimento a mais.
+
+---
+
 ## 1. Números do experimento (decorar estes)
 
 | grandeza | valor | onde se confere |
@@ -31,6 +85,58 @@
 > fração de padding **não são a mesma coisa** e quase não se correlacionam. A v1 do
 > `DECISOES_PENDENTES_CNN.md` inferiu assimetria de padding entre classes a partir de
 > `prop_fala` e errou. Não repita.
+
+### Valores medidos do espectrograma — auditoria de 17/09, `aprovado: true`
+
+Regenerados por `python -m scripts.auditar_decisoes_cnn` **depois** do B4.0
+(`largura_no_config: 251`, `config_diverge_do_pipeline: false`). Use estes números
+nas asserções e no texto; não estime.
+
+**Filterbank Mel** (`htk=False`, `norm='slaney'`, `fmin=0`, `fmax=8000`):
+
+| `n_fft` | `n_mels` | bins FFT | suporte mínimo | filtros com ≤ 2 bins | picos duplicados |
+|---:|---:|---:|---:|---:|---:|
+| **512** *(ramo clássico — MFCC)* | 128 | 257 | **1** | **61** | **12** |
+| 512 | 80 | 257 | 2 | 19 | 0 |
+| 512 | 64 | 257 | 2 | 1 | 0 |
+| **1024** *(CNN — P4 aprovada)* | 128 | 513 | **2** | **1** | **0** |
+| 1024 | 80 | 513 | 4 | 0 | 0 |
+| 2048 | 128 | 1025 | 5 | 0 | 0 |
+
+Duas leituras, e as duas vão para o texto:
+
+1. **O que caracteriza o regime degenerado** não é «existir filtro estreito» — é
+   **suporte mínimo de 1 bin** e **picos compartilhados**. Com 1024 os dois
+   desaparecem; o único filtro de 2 bins que resta é o mais baixo, estreito por
+   construção da escala Mel junto a `fmin=0`. **Não asserte «zero filtros estreitos»:
+   o valor correto é ≤ 1.**
+2. **A limitação 7 está confirmada com número:** a filterbank do
+   `librosa.feature.mfcc`, com o `n_fft=512` congelado, tem **61 filtros com ≤ 2
+   bins e 12 picos duplicados**. Escreva a limitação com esses números.
+
+**Escala em dB** (`ref=1.0`, `top_db=80`, `amin=1e-10`):
+
+| grandeza | valor |
+|---|---:|
+| `db_max` | **+8,44** — positivo; `\|STFT\|²` passa de 1 mesmo com sinal em [−1,1] |
+| `db_min` (= platô do padding) | **−71,56** = `db_max − 80` → é o `top_db` atuando |
+| piso se `top_db` fosse `None` | −100,0 = `10·log₁₀(1e−10)` |
+| deslocamento com ganho 10× | **+20,0 dB** no máximo **e** no mínimo |
+| deslocamento com `ref=np.max` e ganho 10× | 5,7×10⁻⁶ dB (arredondamento de float32 — a invariância é `allclose`, não igualdade) |
+| deslocamento do MFCC com ganho 10× | 226,27 no `c0`; 8,3×10⁻⁶ nos demais |
+
+**Nunca asserte que `db_max <= 0`.** Foi uma expectativa errada, desmentida pela
+medição. O que se asserta é `db_max − db_min <= 80`.
+
+O deslocamento do MFCC prova que `librosa.feature.mfcc` aplica `power_to_db` com os
+**defaults** (`ref=1.0`) e isola o ganho no `c0` — é a evidência da paridade que
+justifica a P5.
+
+**Nº de frames independe do `n_fft`:** 251 para 512, 1024 e 2048.
+
+**Razão spoof:bonafide = 9,0 nos quatro conjuntos:** treino 9,001 · validação 9,003 ·
+teste 8,999 · **subamostra 30k exatamente 9,0 (27.000 / 3.000)**. O desbalanceamento
+é propriedade do **protocolo**, não de um conjunto — é o que sustenta a P7.
 
 ---
 

@@ -102,6 +102,22 @@ Três consequências práticas, para quem está executando:
 **A data real de entrega é 04/10.** O que existe entre 04/10 e 11/10 é o tempo do
 orientador, não o seu.
 
+### A regra de escopo é sobre atraso, não sobre ritmo
+
+As datas dos briefings são **teto, não agenda**. Adiantar é o resultado desejado, e
+a regra de escopo **não** se aplica a quem está na frente: não há o que simplificar
+nem limitação a escrever. Ela entra em cena quando uma data-limite está em risco.
+
+O que continua valendo em qualquer ritmo são **os quatro portões** e a **fila do
+tempo excedente**, ambos em `APENDICE_A_inventario.md` → «Ritmo de execução» — que é
+onde a instrução mora, para que toda sessão do Claude Code a leia junto com o
+briefing. Em resumo: adiantar sim; pular pré-requisito e abrir eixo experimental
+novo, não.
+
+E «uma sessão por marco» é sobre **higiene de contexto**, não sobre esperar a data
+chegar: terminou o marco e sobrou dia, encerre a sessão e abra a próxima com o
+briefing seguinte.
+
 ---
 
 ## 4. Estado do repositório em 17/09/2026
