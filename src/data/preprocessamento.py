@@ -183,6 +183,18 @@ def preprocessar_audio(caminho: str, cfg: dict) -> tuple[np.ndarray, float, int]
         longo com prop_fala baixa pode acabar com MENOS padding que um curto com
         prop_fala alta. Não inferir um do outro.
 
+        QUANTO ISSO IMPORTA, EM NÚMEROS [medido em 04/09/2026 sobre as 148.176
+        linhas do features.csv congelado; scripts/auditar_decisoes_cnn.py]:
+            prop_fala        -> 62,94% bonafide vs 84,65% spoof  (21,71 p.p.)
+            fração de padding-> 47,11% bonafide vs 47,25% spoof  ( 0,14 p.p.)
+            correlação entre prop_fala e n_frames_validos: r = 0,145
+        Ou seja: a classe que o VAD mais corta NÃO é a que recebe mais padding,
+        e uma variável praticamente não prediz a outra. Este aviso já existia em
+        prosa; virou número porque a v1 do results/metricas/
+        DECISOES_PENDENTES_CNN.md justificou uma decisão de arquitetura da CNN
+        inferindo assimetria de padding a partir de prop_fala — exatamente o que
+        este parágrafo proíbe.
+
         n_amostras_validas = min(len(y_pos_VAD), alvo):
           - `min` porque, se o áudio pós-VAD for MAIOR que o alvo, ele é cortado
             e não existe padding nenhum — todas as amostras são válidas;

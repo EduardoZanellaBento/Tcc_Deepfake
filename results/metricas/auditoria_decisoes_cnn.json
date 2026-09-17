@@ -1,0 +1,200 @@
+{
+  "documento_auditado": "results/metricas/DECISOES_PENDENTES_CNN.md",
+  "procedencia": {
+    "md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+    "md5_confere": true,
+    "n_linhas": 148176,
+    "universo": "eval",
+    "hop_length": 256,
+    "win_length": 400,
+    "duracao_segundos": 4.0,
+    "ambiente": {
+      "python": "3.10.11",
+      "numpy": "2.2.6",
+      "pandas": "2.3.3",
+      "librosa": "0.11.0"
+    }
+  },
+  "p1_largura": {
+    "n_frames_total_unicos": [
+      251
+    ],
+    "aritmetica_1_mais_amostras_div_hop": 251,
+    "largura_no_config": 256,
+    "config_diverge_do_pipeline": true
+  },
+  "p2_padding_universo": {
+    "minimo": 8,
+    "mediana": 120.0,
+    "media": 132.43,
+    "maximo": 250,
+    "de_um_total_de": 251,
+    "pct_audios_com_mais_da_metade_em_padding": 53.07
+  },
+  "p2_assimetria_entre_classes": {
+    "por_classe": {
+      "frac_padding": {
+        "bonafide": {
+          "media": 0.4711,
+          "mediana": 0.506
+        },
+        "spoof": {
+          "media": 0.4725,
+          "mediana": 0.5219
+        }
+      },
+      "prop_fala": {
+        "bonafide": {
+          "media": 0.6294,
+          "mediana": 0.6409
+        },
+        "spoof": {
+          "media": 0.8465,
+          "mediana": 0.8939
+        }
+      },
+      "n_frames_validos": {
+        "bonafide": {
+          "media": 132.7495,
+          "mediana": 124.0
+        },
+        "spoof": {
+          "media": 132.3964,
+          "mediana": 120.0
+        }
+      }
+    },
+    "diferenca_frac_padding_pp": 0.14,
+    "diferenca_prop_fala_pp": 21.71,
+    "correlacao_prop_fala_x_n_frames_validos": 0.1453,
+    "leitura": "a QUANTIDADE de padding é praticamente igual nas duas classes (0.14 p.p.), enquanto prop_fala é fortemente assimétrica (21.71 p.p.). Uma não prediz a outra (r=0.1453). Logo NÃO se pode justificar tratamento de padding na CNN por assimetria de classe — ver preprocessamento.py:180 e extrair_features.py:32."
+  },
+  "p4_filtros_mel": [
+    {
+      "n_fft": 512,
+      "n_mels": 128,
+      "bins_fft": 257,
+      "suporte_minimo": 1,
+      "filtros_ate_2_bins": 61,
+      "picos_duplicados": 12
+    },
+    {
+      "n_fft": 512,
+      "n_mels": 80,
+      "bins_fft": 257,
+      "suporte_minimo": 2,
+      "filtros_ate_2_bins": 19,
+      "picos_duplicados": 0
+    },
+    {
+      "n_fft": 512,
+      "n_mels": 64,
+      "bins_fft": 257,
+      "suporte_minimo": 2,
+      "filtros_ate_2_bins": 1,
+      "picos_duplicados": 0
+    },
+    {
+      "n_fft": 1024,
+      "n_mels": 128,
+      "bins_fft": 513,
+      "suporte_minimo": 2,
+      "filtros_ate_2_bins": 1,
+      "picos_duplicados": 0
+    },
+    {
+      "n_fft": 1024,
+      "n_mels": 80,
+      "bins_fft": 513,
+      "suporte_minimo": 4,
+      "filtros_ate_2_bins": 0,
+      "picos_duplicados": 0
+    },
+    {
+      "n_fft": 2048,
+      "n_mels": 128,
+      "bins_fft": 1025,
+      "suporte_minimo": 5,
+      "filtros_ate_2_bins": 0,
+      "picos_duplicados": 0
+    }
+  ],
+  "p4_frames_por_n_fft": {
+    "512": 251,
+    "1024": 251,
+    "2048": 251
+  },
+  "p5_escala_db": {
+    "padding_vira_plato_constante_com_ref_1_0": true,
+    "valor_do_plato_db": -71.56,
+    "ref_max_invariante_a_ganho": true,
+    "ref_absoluto_preserva_ganho": true,
+    "mfcc_sensivel_a_ganho": true,
+    "mfcc_ganho_isolado_no_c0": true,
+    "mfcc_deslocamento_c0_com_ganho_10x": 226.274,
+    "mfcc_deslocamento_demais_coeficientes": 8.34e-06,
+    "ref_max_diferenca_maxima_db_com_ganho_10x": 5.72e-06,
+    "nuance_top_db": {
+      "db_min": -71.56,
+      "db_max": 8.44,
+      "db_min_com_ganho_10x": -51.56,
+      "db_max_com_ganho_10x": 28.44,
+      "deslocamento_do_minimo_db": 20.0,
+      "deslocamento_do_maximo_db": 20.0,
+      "db_min_sem_top_db": -100.0
+    },
+    "leitura": "librosa.feature.mfcc aplica power_to_db com os DEFAULTS (ref=1.0, top_db=80) — provado por o MFCC mudar com o ganho, e mudar só no c0. Logo a paridade de não-linearidade com o ramo clássico se obtém com ref=1.0, NÃO com ref=np.max: este último é normalização por exemplo (invariante a ganho), a família que a P3 rejeita. Com ref=1.0 o padding ainda vira platô constante, então top_db=80 continua resolvendo a faixa dinâmica sem custar a energia global. NUANCE (nuance_top_db): o corte é em max-80 DO PRÓPRIO EXEMPLO, então um ganho de 10x desloca máximo e piso pelo mesmo nº de dB (a energia global sobrevive, e por isso a recomendação continua de pé), mas o valor absoluto do platô varia de exemplo para exemplo. E a invariância de ref=np.max é allclose, não igualdade: sobra ~1e-6 dB de arredondamento de float32 (5.72e-06 dB medidos aqui)."
+  },
+  "p7_desbalanceamento": {
+    "por_conjunto": {
+      "teste": {
+        "n": 22227,
+        "spoof": 20004,
+        "bonafide": 2223,
+        "razao_spoof_por_bonafide": 8.999
+      },
+      "treino": {
+        "n": 103723,
+        "spoof": 93352,
+        "bonafide": 10371,
+        "razao_spoof_por_bonafide": 9.001
+      },
+      "validacao": {
+        "n": 22226,
+        "spoof": 20004,
+        "bonafide": 2222,
+        "razao_spoof_por_bonafide": 9.003
+      },
+      "subamostra_30k": {
+        "n": 30000,
+        "spoof": 27000,
+        "bonafide": 3000,
+        "razao_spoof_por_bonafide": 9.0
+      }
+    },
+    "razao_esperada": 9.0,
+    "leitura": "a razão spoof:bonafide vale nos quatro conjuntos, inclusive na subamostra de 30k que a CNN vai usar. É o que sustenta a recomendação da P7 (loss ponderada) e o que torna o desbalanceamento uma propriedade do PROTOCOLO, e não de um conjunto específico."
+  },
+  "escopo_geracao": {
+    "n_por_conjunto": {
+      "treino": 103723,
+      "teste": 22227,
+      "validacao": 22226
+    },
+    "n_subamostra_treino": 30000,
+    "n_necessario_para_cnn": 74453,
+    "n_universo": 148176,
+    "n_que_nao_seria_consumido": 73723
+  },
+  "disco": {
+    "altura_x_largura": "128 x 251",
+    "bytes_por_tensor_float32": 128512,
+    "kib_por_tensor_float32": 125.5,
+    "gb_necessario_float32": 9.57,
+    "gib_necessario_float32": 8.91,
+    "gb_necessario_float16": 4.78,
+    "gb_universo_float32": 19.04
+  },
+  "problemas": [],
+  "aprovado": true
+}

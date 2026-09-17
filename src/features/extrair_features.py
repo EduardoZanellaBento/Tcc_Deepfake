@@ -39,6 +39,23 @@ MASCARAMENTO DE PADDING [decisão aprovada pelo orientador]:
         quantidade de zeros: misturar zeros a espectros diferentes não move
         as médias na mesma proporção.
 
+    CONFIRMAÇÃO NO UNIVERSO COMPLETO [04/09/2026, auditoria do Bloco 4]:
+        os números de (1) e (2) vinham da amostra de n=200 do piloto.
+        Recomputados sobre as 148.176 linhas do features.csv congelado
+        (scripts/auditar_decisoes_cnn.py ->
+        results/metricas/auditoria_decisoes_cnn.json), a conclusão é a MESMA e
+        fica mais forte:
+          - mediana de 120 frames válidos em 251 (121 na amostra), e 53,07%
+            dos áudios têm MAIS DA METADE do tensor em padding;
+          - fração de padding 47,11% bonafide vs 47,25% spoof -> 0,14 p.p. de
+            diferença. A advertência de (2) vale no universo, não só na amostra.
+        O contraste que motivou a recheca: prop_fala é 62,94% no bonafide
+        contra 84,65% no spoof — 21,71 p.p. Quem lê prop_fala como se fosse
+        "quantidade de padding" conclui, errado, que há assimetria de padding
+        entre as classes (a correlação entre as duas é de apenas r=0,145). Foi
+        exatamente esse o erro da v1 do DECISOES_PENDENTES_CNN.md. Ver o aviso
+        em preprocessamento.py -> preprocessar_audio.
+
     Contexto adicional: results/metricas/RECOMENDACAO_MASCARAMENTO.md (piloto
     A/B de 2.000 áudios; RF neutro-para-melhor com mascaramento) — ver o adendo
     de 26/08 nesse arquivo, que corrige o mecanismo alegado na versão original.

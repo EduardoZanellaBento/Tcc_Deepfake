@@ -20,6 +20,14 @@ data/features/*.csv
 # meta do piloto e descartavel (regenerado a cada verificar_mascaramento);
 # o features.meta.json OFICIAL (assinatura da definicao congelada) e versionado
 data/features/features_piloto_mascarado.meta.json
+# Espectrogramas da CNN (Bloco 4): ~9,6 GB em float32 para os 74.453 tensores
+# necessarios. Regra acrescentada em 04/09/2026, ANTES da geracao do primeiro
+# arquivo - ver "Armadilha do .gitignore" em
+# results/metricas/DECISOES_PENDENTES_CNN.md. Sem ela, um `git add .` distraido
+# tentaria versionar o lote inteiro. So o .meta.json (assinatura da definicao,
+# alguns KB) e versionado, pelo mesmo motivo do features.meta.json.
+data/espectrogramas/*
+!data/espectrogramas/espectrogramas.meta.json
 
 # Modelos treinados (regeneraveis pelo pipeline)
 models/*

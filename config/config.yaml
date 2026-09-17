@@ -128,6 +128,12 @@ features:                # parâmetros das características manuais (RF e SVM)
   # classes (até |0,47| padronizado em mfcc1_std/centroide_std/mfcc5_media),
   # embora a FRAÇÃO de padding seja quase igual (44,8% bonafide vs 45,2% spoof)
   # — a assimetria vem do conteúdo acústico, não da quantidade de zeros.
+  # [04/09/2026] Os números acima são da amostra de n=200 do piloto. Recomputados
+  # no universo de 148.176 (scripts/auditar_decisoes_cnn.py), a conclusão é a
+  # mesma e mais forte: mediana de 120 frames válidos em 251, 53,07% dos áudios
+  # com mais da metade em padding, e fração de padding de 47,11% (bonafide) vs
+  # 47,25% (spoof) — 0,14 p.p. NÃO CONFUNDIR com prop_fala, que é 62,94% vs
+  # 84,65% (21,71 p.p.) e mede outra coisa: r = 0,145 entre as duas.
   # Justificativa completa: docstring de src/features/extrair_features.py e
   # results/metricas/RECOMENDACAO_MASCARAMENTO.md (com o adendo de 26/08).
   # Consumo: _processar_um em src/features/extrair_features.py (default True se
@@ -138,6 +144,35 @@ features:                # parâmetros das características manuais (RF e SVM)
   # transformando uma série temporal num vetor de tamanho fixo (entrada tabular).
   agregacao: ["media", "desvio_padrao"]  # (declarativo — ainda não consumido pelo código)
 
+# =============================================================================
+# ⚠️  BLOCO CONGELADO ATÉ A RESPOSTA DO ORIENTADOR (Bloco 4 — B4.1)
+# =============================================================================
+# NENHUM valor abaixo é decisão fechada. Eles são o rascunho da v1 e há
+# divergências CONHECIDAS entre eles e o que o pipeline produz. As sete
+# perguntas, com evidência medida e recomendação, estão em
+# results/metricas/DECISOES_PENDENTES_CNN.md; os números são recomputados por
+# `python -m scripts.auditar_decisoes_cnn`.
+#
+# O que já se sabe que está errado ou faltando aqui:
+#   - `largura: 256` DIVERGE do pipeline, que produz 251 frames
+#     (1 + 64000//256), valor único nas 148.176 linhas do features.csv. (P1)
+#   - `n_mels: 128` com o `n_fft: 512` do bloco `features` é DEGENERADO: 61 dos
+#     128 filtros mel leem <= 2 bins de FFT e 12 pares compartilham o bin de
+#     pico. O librosa NÃO avisa nesse regime. (P4)
+#   - falta `n_fft` PRÓPRIO do espectrograma: hoje ele herdaria o do bloco
+#     `features` por acidente — o acoplamento silencioso que a guarda de esquema
+#     do Bloco 2 existe para impedir. (P4)
+#   - faltam `fmin`/`fmax`: a decisão de NÃO limitar a banda em 4 kHz foi
+#     ratificada pelo orientador e hoje depende do default do librosa. (P4)
+#   - falta a ESCALA DE AMPLITUDE: `tipo: "mel"` não diz se é potência linear ou
+#     dB, e a escolha muda radicalmente o que a CNN enxerga. (P5)
+#   - falta a NORMALIZAÇÃO: se global, as estatísticas têm de sair SÓ do treino,
+#     sob pena de vazamento irreversível num artefato gerado uma vez só. (P3)
+#
+# Enquanto o documento não for respondido, este bloco NÃO é alterado e nenhum
+# script de geração de espectrograma é criado — gerar os 74.453 tensores é o
+# "lote único do Bloco 4" e não cabe duas vezes no cronograma.
+# =============================================================================
 espectrograma:           # entrada da CNN — (declarativo — ainda não consumido
   tipo: "mel"            #  pelo código: a CNN ainda não foi implementada)
   n_mels: 128
