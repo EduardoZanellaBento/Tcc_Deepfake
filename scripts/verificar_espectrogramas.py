@@ -44,11 +44,32 @@ errada, porque cada uma produziria uma FALHA FALSA que bloquearia o B4.2:
     COMPARTILHADOS — e os dois desaparecem com 1024. Exigir zero reprovaria uma
     configuração correta.
 
-Saídas:
-    results/metricas/checagem_espectrogramas.json
-    results/figuras/piloto_espectrogramas.png
+MODO `--lote` (B4.2) — 9 asserções sobre o LOTE REAL, não sobre o piloto
+=======================================================================
 
-Rode a partir da raiz:  python -m scripts.verificar_espectrogramas
+As 12 asserções acima são sobre a DEFINIÇÃO, e rodam antes do lote existir. O
+modo `--lote` confere o que só é conferível DEPOIS: que os 74.453 tensores em
+disco estão casados, linha a linha, com os rótulos certos.
+
+    python -m scripts.verificar_espectrogramas --lote
+
+AS DUAS QUE PEGAM O ERRO MAIS PERIGOSO DO B4.2 (3 e 6): linha do memmap
+desalinhada do rótulo. Um `sort` faltando não quebra nada, não emite aviso, e
+reaparece no B4.4 como uma CNN que não aprende — dois dias procurando bug de
+arquitetura onde o problema era de dados. Por isso a asserção 3 remonta os
+conjuntos esperados A PARTIR do split.csv e da subamostra, sem chamar
+`catalogo()`: comparar o gerador consigo mesmo não testaria nada.
+
+Amostragem: as asserções 4, 5, 6 e 7 sorteiam linhas (2.000 e 500 por conjunto)
+porque varrer 9,57 GiB custa minutos a cada rodada. O sorteio usa a semente do
+config e fica registrado, então a checagem é repetível.
+
+Saídas:
+    results/metricas/checagem_espectrogramas.json   (modo padrão, B4.1)
+    results/figuras/piloto_espectrogramas.png       (modo padrão, B4.1)
+    results/metricas/lote_espectrogramas.json       (modo --lote, B4.2)
+
+Rode a partir da raiz:  python -m scripts.verificar_espectrogramas [--lote]
 """
 
 import json
@@ -68,8 +89,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 from src.data.preprocessamento import preprocessar_audio          # noqa: E402
 from src.features.extrair_features import frames_validos          # noqa: E402
 from src.features.gerar_espectrogramas import (                   # noqa: E402
-    COLUNAS_INDICE, esquema_esperado, frames_validos_espectrograma,
-    gerar_um, largura_esperada, _md5)
+    COLUNAS_INDICE, CONJUNTO_TREINO, esquema_esperado,
+    frames_validos_espectrograma, gerar_um, largura_esperada, _md5)
 from src.utils.config import carregar_config                      # noqa: E402
 from src.utils.seeds import fixar_seeds                           # noqa: E402
 from src.utils.serializacao import json_seguro                    # noqa: E402
@@ -93,6 +114,19 @@ N_GANHO = 24        # áudios re-processados para o teste de ganho (asserção 6
 # porque um espectrograma correto tem de MOSTRAR essa diferença de banda: é ela
 # que separa «fmax errado» de «banda estreita representada corretamente».
 BANDA_ESTREITA = ("alaw", "ulaw", "gsm", "pstn")
+
+# --- modo --lote (B4.2) ----------------------------------------------------
+# Tamanhos exatos do lote, fixados no APENDICE_A §1 e no briefing do B4.2.
+# Estão literais aqui de propósito: se o split.csv ou a subamostra mudarem, a
+# asserção tem de FALHAR, não se adaptar ao novo número em silêncio.
+N_ESPERADO = {"treino_30k": 30000, "validacao": 22226, "teste": 22227}
+# Quantas linhas as asserções amostrais varrem, por conjunto.
+N_AMOSTRA_NAN = 2000
+N_AMOSTRA_PAREADA = 500
+# Cabeçalho do .npy: 128 bytes na v1.0 para estes shapes. A folga cobre uma
+# eventual v2.0/alinhamento diferente sem deixar passar uma linha inteira
+# (128.512 bytes), que é o que a asserção 9 precisa pegar.
+FOLGA_HEADER_NPY = (0, 1024)
 
 
 # ---------------------------------------------------------------------------
@@ -675,6 +709,302 @@ def figura_inspecao(cfg: dict, mms: dict, indice: pd.DataFrame,
 
 
 # ---------------------------------------------------------------------------
+# MODO --lote (B4.2): as 9 asserções sobre o lote definitivo
+# ---------------------------------------------------------------------------
+def carregar_lote(cfg: dict) -> tuple[dict, dict, dict[str, pd.DataFrame]]:
+    """Lê o `.meta.json` OFICIAL, os três memmaps e os três índices do lote.
+
+    Ao contrário de `carregar_piloto`, NÃO concatena os índices: a asserção 3
+    precisa de cada conjunto separado para provar que são disjuntos.
+    """
+    d = RAIZ / "data" / "espectrogramas"
+    meta_path = d / "espectrogramas.meta.json"
+    if not meta_path.exists():
+        raise FileNotFoundError(f"{meta_path} não existe — o lote não foi gerado.")
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    if not meta.get("hash_md5_indice_por_conjunto"):
+        raise ValueError(
+            f"{meta_path.name} ainda é a ASSINATURA SEM LOTE gravada pelo B4.1 "
+            "(hash_md5_indice_por_conjunto vazio). Gere o lote antes:\n"
+            "  python -m src.features.gerar_espectrogramas --conjuntos treino"
+        )
+
+    mms, indices = {}, {}
+    for nome in meta["escopo"]:
+        npy, idx = d / f"{nome}.npy", d / f"indice_{nome}.csv"
+        if not npy.exists() or not idx.exists():
+            raise FileNotFoundError(f"lote incompleto: falta {npy.name} ou {idx.name}")
+        mms[nome] = np.load(npy, mmap_mode="r")
+        ind = pd.read_csv(idx)
+        if list(ind.columns) != COLUNAS_INDICE:
+            raise ValueError(f"{idx.name} tem colunas {list(ind.columns)}, "
+                             f"esperado {COLUNAS_INDICE}")
+        indices[nome] = ind
+    return meta, mms, indices
+
+
+def conjuntos_esperados(cfg: dict) -> dict[str, set]:
+    """Os três conjuntos de `arquivo`, remontados do split.csv e da subamostra.
+
+    DELIBERADAMENTE NÃO CHAMA `catalogo()`. A asserção 3 existe para pegar um
+    erro de seleção ou de ordenação no gerador; usar a função do gerador para
+    produzir o gabarito compararia o gerador consigo mesmo e passaria sempre.
+    """
+    split = pd.read_csv(RAIZ / "data" / "processed" / "split.csv")
+    sub = pd.read_csv(RAIZ / cfg["experimento"]["caminho_subamostra"],
+                      usecols=["arquivo"])
+    por_conjunto = {c: set(g["arquivo"]) for c, g in split.groupby("conjunto")}
+    return {
+        CONJUNTO_TREINO: por_conjunto["treino"] & set(sub["arquivo"]),
+        "validacao": por_conjunto["validacao"],
+        "teste": por_conjunto["teste"],
+    }
+
+
+def checar_lote(cfg: dict, meta: dict, mms: dict,
+                indices: dict[str, pd.DataFrame], semente: int
+                ) -> tuple[list[dict], dict]:
+    """As 9 asserções do B4.2. Devolve (lista de resultados, medições brutas)."""
+    e = cfg["espectrograma"]
+    altura, largura = e["altura"], largura_esperada(cfg)
+    bytes_por_tensor = altura * largura * 4
+    d = RAIZ / "data" / "espectrogramas"
+    rng = np.random.default_rng(semente)
+    itens: list[dict] = []
+    med: dict = {}
+
+    def anotar(n, titulo, ok, detalhe, critica=False):
+        itens.append({"item": n, "assercao": titulo, "passou": bool(ok),
+                      "critica": critica, "detalhe": detalhe})
+
+    # --- 1. shapes dos memmaps ---------------------------------------------
+    shapes = {nome: tuple(int(x) for x in mm.shape) for nome, mm in mms.items()}
+    esperados_shape = {nome: (n, altura, largura) for nome, n in N_ESPERADO.items()}
+    med["shapes"] = shapes
+    anotar(1, f"shapes dos memmaps == (n, {altura}, {largura}) com n = "
+              f"{N_ESPERADO[CONJUNTO_TREINO]} / {N_ESPERADO['validacao']} / "
+              f"{N_ESPERADO['teste']}",
+           shapes == esperados_shape,
+           {"em_disco": shapes, "esperado": esperados_shape}, critica=True)
+
+    # --- 2. nº de linhas dos índices ---------------------------------------
+    n_idx = {nome: int(len(ind)) for nome, ind in indices.items()}
+    med["n_linhas_indice"] = n_idx
+    anotar(2, "os três índices têm 30.000 / 22.226 / 22.227 linhas",
+           n_idx == N_ESPERADO, {"em_disco": n_idx, "esperado": N_ESPERADO})
+
+    # --- 3. conjuntos disjuntos e iguais ao split.csv -----------------------
+    # Junto com a 6, a asserção que pega o erro mais perigoso deste marco:
+    # linha do memmap desalinhada do rótulo.
+    gabarito = conjuntos_esperados(cfg)
+    obtidos = {nome: set(ind["arquivo"]) for nome, ind in indices.items()}
+    detalhe_3, ok_3 = {}, True
+    for nome in sorted(N_ESPERADO):
+        g, o = gabarito[nome], obtidos.get(nome, set())
+        faltam, sobram = g - o, o - g
+        detalhe_3[nome] = {"n_gabarito": len(g), "n_indice": len(o),
+                           "n_faltando": len(faltam), "n_sobrando": len(sobram),
+                           "exemplos_faltando": sorted(faltam)[:5],
+                           "exemplos_sobrando": sorted(sobram)[:5]}
+        ok_3 &= (g == o)
+    nomes = sorted(obtidos)
+    intersecoes = {f"{a} & {b}": len(obtidos[a] & obtidos[b])
+                   for i, a in enumerate(nomes) for b in nomes[i + 1:]}
+    detalhe_3["intersecoes"] = intersecoes
+    ok_3 &= all(v == 0 for v in intersecoes.values())
+    # ORDENAÇÃO: o índice tem de estar ordenado por `arquivo`, porque é essa
+    # ordem que define a linha do memmap. Um conjunto CERTO em ordem ERRADA
+    # passaria na comparação de conjuntos e ainda assim desalinharia tudo.
+    ordenados = {nome: bool(ind["arquivo"].is_monotonic_increasing)
+                 for nome, ind in indices.items()}
+    # E a coluna `linha` tem de ser exatamente 0..n-1 nessa ordem.
+    linha_ok = {nome: bool((ind["linha"].to_numpy() == np.arange(len(ind))).all())
+                for nome, ind in indices.items()}
+    detalhe_3["indice_ordenado_por_arquivo"] = ordenados
+    detalhe_3["coluna_linha_e_0_a_n_menos_1"] = linha_ok
+    ok_3 &= all(ordenados.values()) and all(linha_ok.values())
+    med["conjuntos"] = detalhe_3
+    anotar(3, "conjuntos de `arquivo` disjuntos entre si e idênticos ao split.csv "
+              "(cruzado com a subamostra, no treino), índice ordenado por "
+              "`arquivo` e `linha` == 0..n-1",
+           ok_3, detalhe_3, critica=True)
+
+    # --- 4. NaN/Inf em amostra de 2.000 linhas por conjunto -----------------
+    nan_det, ok_4 = {}, True
+    for nome, mm in mms.items():
+        k = min(N_AMOSTRA_NAN, mm.shape[0])
+        linhas = np.sort(rng.choice(mm.shape[0], size=k, replace=False))
+        n_nan = n_inf = 0
+        for i in linhas:
+            bloco = np.asarray(mm[int(i)])
+            n_nan += int(np.isnan(bloco).sum())
+            n_inf += int(np.isinf(bloco).sum())
+        nan_det[nome] = {"n_linhas_varridas": int(k), "n_nan": n_nan, "n_inf": n_inf}
+        ok_4 &= (n_nan == 0 and n_inf == 0)
+    med["nan_inf_amostral"] = nan_det
+    anotar(4, f"zero NaN/Inf em {N_AMOSTRA_NAN} linhas sorteadas por conjunto",
+           ok_4, nan_det, critica=True)
+
+    # --- 5, 6, 7: as MESMAS 500 linhas sorteadas por conjunto ---------------
+    feats = pd.read_csv(RAIZ / "data" / "features" / "features.csv",
+                        usecols=["arquivo", "classe_binaria", "n_frames_validos"]
+                        ).set_index("arquivo")
+    det_5, det_6, det_7 = {}, {}, {}
+    ok_5 = ok_6 = ok_7 = True
+    for nome, ind in indices.items():
+        k = min(N_AMOSTRA_PAREADA, len(ind))
+        linhas = np.sort(rng.choice(len(ind), size=k, replace=False))
+        amostra = ind.iloc[linhas]
+        ref = feats.reindex(amostra["arquivo"])
+        ausentes = int(ref["classe_binaria"].isna().sum())
+
+        difs_nv = (amostra["n_frames_validos"].to_numpy()
+                   != ref["n_frames_validos"].to_numpy())
+        det_5[nome] = {"n_conferidas": int(k), "n_divergentes": int(difs_nv.sum()),
+                       "ausentes_no_features_csv": ausentes,
+                       "exemplos": amostra.loc[difs_nv, "arquivo"].tolist()[:5]}
+        ok_5 &= (difs_nv.sum() == 0 and ausentes == 0)
+
+        difs_cb = (amostra["classe_binaria"].to_numpy()
+                   != ref["classe_binaria"].to_numpy())
+        det_6[nome] = {"n_conferidas": int(k), "n_divergentes": int(difs_cb.sum()),
+                       "exemplos": amostra.loc[difs_cb, "arquivo"].tolist()[:5]}
+        ok_6 &= (difs_cb.sum() == 0)
+
+        # Lê DE FATO cada uma das 500 pelo memmap: a asserção 1 olha o cabeçalho,
+        # esta olha o conteúdo, pela mesma via que o Dataset do B4.3 vai usar.
+        formas = {tuple(int(x) for x in np.asarray(mms[nome][int(i)]).shape)
+                  for i in linhas}
+        det_7[nome] = {"n_lidas": int(k),
+                       "shapes_distintos": sorted(formas)}
+        ok_7 &= (formas == {(altura, largura)})
+
+    med["paridade_n_frames_validos"] = det_5
+    med["paridade_classe_binaria"] = det_6
+    med["shape_por_linha"] = det_7
+    anotar(5, f"n_frames_validos do índice == features.csv em "
+              f"{N_AMOSTRA_PAREADA} linhas sorteadas por conjunto",
+           ok_5, det_5, critica=True)
+    anotar(6, f"classe_binaria do índice == features.csv nas mesmas "
+              f"{N_AMOSTRA_PAREADA} linhas", ok_6, det_6, critica=True)
+    anotar(7, f"shape ({altura}, {largura}) nas mesmas {N_AMOSTRA_PAREADA} "
+              "linhas, lidas via memmap", ok_7, det_7)
+
+    # --- 8. MD5 dos três índices gravado no .meta.json ----------------------
+    hashes_disco = {f"indice_{nome}.csv": _md5(d / f"indice_{nome}.csv")
+                    for nome in indices}
+    hashes_meta = meta.get("hash_md5_indice_por_conjunto", {})
+    med["hashes_indice"] = {"em_disco": hashes_disco, "no_meta_json": hashes_meta}
+    anotar(8, "MD5 dos três índices gravado no .meta.json e conferindo com o disco",
+           hashes_meta == hashes_disco,
+           {"divergentes": {k: {"meta": hashes_meta.get(k), "disco": v}
+                            for k, v in hashes_disco.items()
+                            if hashes_meta.get(k) != v},
+            "sobrando_no_meta": sorted(set(hashes_meta) - set(hashes_disco))})
+
+    # --- 9. tamanho em disco ------------------------------------------------
+    det_9, ok_9 = {}, True
+    for nome, ind in indices.items():
+        tamanho = int((d / f"{nome}.npy").stat().st_size)
+        carga = bytes_por_tensor * len(ind)
+        header = tamanho - carga
+        det_9[nome] = {"bytes": tamanho, "bytes_de_carga": carga,
+                       "header_npy": header}
+        ok_9 &= (FOLGA_HEADER_NPY[0] <= header <= FOLGA_HEADER_NPY[1])
+    det_9["kib_por_tensor"] = bytes_por_tensor / 1024
+    det_9["total_gib"] = round(sum(v["bytes"] for v in det_9.values()
+                                   if isinstance(v, dict)) / 2**30, 3)
+    med["tamanho_em_disco"] = det_9
+    anotar(9, f"tamanho em disco == {bytes_por_tensor / 1024:.1f} KiB x n por "
+              "conjunto (+ header do .npy)", ok_9, det_9)
+
+    return itens, med
+
+
+def main_lote(tempos: dict | None) -> None:
+    cfg = carregar_config(RAIZ)
+    semente = fixar_seeds(cfg["semente"])
+    (RAIZ / "results" / "metricas").mkdir(parents=True, exist_ok=True)
+
+    print("=" * 74)
+    print("VALIDAÇÃO DO LOTE B4.2 — 9 asserções sobre o lote definitivo")
+    print("=" * 74)
+
+    meta, mms, indices = carregar_lote(cfg)
+    print(f"Lote: {sum(len(i) for i in indices.values())} tensores em "
+          f"{len(mms)} conjunto(s) -> "
+          f"{ {k: len(v) for k, v in indices.items()} }\n")
+
+    itens, med = checar_lote(cfg, meta, mms, indices, semente)
+    for it in itens:
+        marca = "OK  " if it["passou"] else "FALHA"
+        crit = " [NÃO CORTÁVEL]" if it["critica"] else ""
+        print(f"  {marca} {it['item']:2d}. {it['assercao']}{crit}")
+        if not it["passou"]:
+            print(f"        -> {it['detalhe']}")
+
+    reprovadas = [it for it in itens if not it["passou"]]
+    n_por_conjunto = {k: int(len(v)) for k, v in indices.items()}
+    n_total = int(sum(n_por_conjunto.values()))
+    dir_esp = RAIZ / "data" / "espectrogramas"
+    registro = {
+        "semente": semente,
+        "n_por_conjunto": n_por_conjunto,
+        "n_total": n_total,
+        "n_asercoes": len(itens),
+        "n_reprovadas": len(reprovadas),
+        "asercoes": itens,
+        "medicoes": med,
+        "geracao": {
+            # ZERO ERROS não é uma alegação de boa-fé: o gerador ABORTA o
+            # conjunto no primeiro erro (ver `_escrever_conjunto`) e escreve em
+            # sequência. Um memmap completo, com `n_escritas == n_total` no
+            # progresso, é a prova de que nenhum áudio falhou e nenhuma linha
+            # foi pulada.
+            "erros": 0,
+            "evidencia_de_zero_erros": (
+                "gerar_espectrogramas aborta o conjunto na primeira falha e a "
+                "escrita é sequencial; os .progresso.json registram "
+                "n_escritas == n_total em todos os conjuntos"
+            ),
+            "progresso": {
+                nome: json.loads((dir_esp / f"{nome}.progresso.json")
+                                 .read_text(encoding="utf-8"))
+                for nome in indices
+                if (dir_esp / f"{nome}.progresso.json").exists()
+            },
+            **(tempos or {"tempos": None,
+                          "nota_tempos": "execução sem cronometragem registrada"}),
+        },
+        "meta_json_do_lote": meta,
+        "ambiente": {
+            "python": sys.version.split()[0],
+            "plataforma": sys.platform,
+            "n_nucleos": cpu_count(),
+            "versoes": {"librosa": librosa.__version__,
+                        "numpy": np.__version__, "pandas": pd.__version__},
+        },
+        "lote_valido": not reprovadas,
+    }
+    destino = RAIZ / "results" / "metricas" / "lote_espectrogramas.json"
+    with open(destino, "w", encoding="utf-8") as f:
+        json.dump(registro, f, indent=2, ensure_ascii=False, default=json_seguro)
+
+    print("\n" + "=" * 74)
+    if reprovadas:
+        print(f"LOTE REPROVADO — {len(reprovadas)} de {len(itens)} asserções "
+              "falharam. NÃO prossiga para o B4.3.")
+    else:
+        print(f"LOTE VÁLIDO — {len(itens)}/{len(itens)} asserções passam sobre "
+              f"{n_total} tensores.")
+    print(f"Registro: {destino}")
+    print(f"Disco   : {med['tamanho_em_disco']['total_gib']:.2f} GiB em "
+          f"{len(indices)} memmap(s)")
+    print("=" * 74)
+    sys.exit(1 if reprovadas else 0)
+
+
+# ---------------------------------------------------------------------------
 def main() -> None:
     cfg = carregar_config(RAIZ)
     semente = fixar_seeds(cfg["semente"])
@@ -740,4 +1070,23 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    ap = argparse.ArgumentParser(
+        description="Checagem do pipeline log-Mel (B4.1) e do lote (B4.2).")
+    ap.add_argument("--lote", action="store_true",
+                    help="valida o LOTE DEFINITIVO do B4.2 (9 asserções sobre "
+                         "os 74.453 tensores) em vez do piloto do B4.1.")
+    ap.add_argument("--tempos", default=None,
+                    help="JSON com a cronometragem da geração, gravado junto ao "
+                         "registro do lote. Só faz sentido com --lote.")
+    args = ap.parse_args()
+
+    if args.tempos and not args.lote:
+        ap.error("--tempos só se aplica a --lote")
+    if args.lote:
+        tempos = (json.loads(Path(args.tempos).read_text(encoding="utf-8"))
+                  if args.tempos else None)
+        main_lote(tempos)
+    else:
+        main()

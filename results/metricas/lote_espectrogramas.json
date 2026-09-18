@@ -1,0 +1,557 @@
+{
+  "semente": 42,
+  "n_por_conjunto": {
+    "treino_30k": 30000,
+    "validacao": 22226,
+    "teste": 22227
+  },
+  "n_total": 74453,
+  "n_asercoes": 9,
+  "n_reprovadas": 0,
+  "asercoes": [
+    {
+      "item": 1,
+      "assercao": "shapes dos memmaps == (n, 128, 251) com n = 30000 / 22226 / 22227",
+      "passou": true,
+      "critica": true,
+      "detalhe": {
+        "em_disco": {
+          "treino_30k": [
+            30000,
+            128,
+            251
+          ],
+          "validacao": [
+            22226,
+            128,
+            251
+          ],
+          "teste": [
+            22227,
+            128,
+            251
+          ]
+        },
+        "esperado": {
+          "treino_30k": [
+            30000,
+            128,
+            251
+          ],
+          "validacao": [
+            22226,
+            128,
+            251
+          ],
+          "teste": [
+            22227,
+            128,
+            251
+          ]
+        }
+      }
+    },
+    {
+      "item": 2,
+      "assercao": "os três índices têm 30.000 / 22.226 / 22.227 linhas",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "em_disco": {
+          "treino_30k": 30000,
+          "validacao": 22226,
+          "teste": 22227
+        },
+        "esperado": {
+          "treino_30k": 30000,
+          "validacao": 22226,
+          "teste": 22227
+        }
+      }
+    },
+    {
+      "item": 3,
+      "assercao": "conjuntos de `arquivo` disjuntos entre si e idênticos ao split.csv (cruzado com a subamostra, no treino), índice ordenado por `arquivo` e `linha` == 0..n-1",
+      "passou": true,
+      "critica": true,
+      "detalhe": {
+        "teste": {
+          "n_gabarito": 22227,
+          "n_indice": 22227,
+          "n_faltando": 0,
+          "n_sobrando": 0,
+          "exemplos_faltando": [],
+          "exemplos_sobrando": []
+        },
+        "treino_30k": {
+          "n_gabarito": 30000,
+          "n_indice": 30000,
+          "n_faltando": 0,
+          "n_sobrando": 0,
+          "exemplos_faltando": [],
+          "exemplos_sobrando": []
+        },
+        "validacao": {
+          "n_gabarito": 22226,
+          "n_indice": 22226,
+          "n_faltando": 0,
+          "n_sobrando": 0,
+          "exemplos_faltando": [],
+          "exemplos_sobrando": []
+        },
+        "intersecoes": {
+          "teste & treino_30k": 0,
+          "teste & validacao": 0,
+          "treino_30k & validacao": 0
+        },
+        "indice_ordenado_por_arquivo": {
+          "treino_30k": true,
+          "validacao": true,
+          "teste": true
+        },
+        "coluna_linha_e_0_a_n_menos_1": {
+          "treino_30k": true,
+          "validacao": true,
+          "teste": true
+        }
+      }
+    },
+    {
+      "item": 4,
+      "assercao": "zero NaN/Inf em 2000 linhas sorteadas por conjunto",
+      "passou": true,
+      "critica": true,
+      "detalhe": {
+        "treino_30k": {
+          "n_linhas_varridas": 2000,
+          "n_nan": 0,
+          "n_inf": 0
+        },
+        "validacao": {
+          "n_linhas_varridas": 2000,
+          "n_nan": 0,
+          "n_inf": 0
+        },
+        "teste": {
+          "n_linhas_varridas": 2000,
+          "n_nan": 0,
+          "n_inf": 0
+        }
+      }
+    },
+    {
+      "item": 5,
+      "assercao": "n_frames_validos do índice == features.csv em 500 linhas sorteadas por conjunto",
+      "passou": true,
+      "critica": true,
+      "detalhe": {
+        "treino_30k": {
+          "n_conferidas": 500,
+          "n_divergentes": 0,
+          "ausentes_no_features_csv": 0,
+          "exemplos": []
+        },
+        "validacao": {
+          "n_conferidas": 500,
+          "n_divergentes": 0,
+          "ausentes_no_features_csv": 0,
+          "exemplos": []
+        },
+        "teste": {
+          "n_conferidas": 500,
+          "n_divergentes": 0,
+          "ausentes_no_features_csv": 0,
+          "exemplos": []
+        }
+      }
+    },
+    {
+      "item": 6,
+      "assercao": "classe_binaria do índice == features.csv nas mesmas 500 linhas",
+      "passou": true,
+      "critica": true,
+      "detalhe": {
+        "treino_30k": {
+          "n_conferidas": 500,
+          "n_divergentes": 0,
+          "exemplos": []
+        },
+        "validacao": {
+          "n_conferidas": 500,
+          "n_divergentes": 0,
+          "exemplos": []
+        },
+        "teste": {
+          "n_conferidas": 500,
+          "n_divergentes": 0,
+          "exemplos": []
+        }
+      }
+    },
+    {
+      "item": 7,
+      "assercao": "shape (128, 251) nas mesmas 500 linhas, lidas via memmap",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "treino_30k": {
+          "n_lidas": 500,
+          "shapes_distintos": [
+            [
+              128,
+              251
+            ]
+          ]
+        },
+        "validacao": {
+          "n_lidas": 500,
+          "shapes_distintos": [
+            [
+              128,
+              251
+            ]
+          ]
+        },
+        "teste": {
+          "n_lidas": 500,
+          "shapes_distintos": [
+            [
+              128,
+              251
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "item": 8,
+      "assercao": "MD5 dos três índices gravado no .meta.json e conferindo com o disco",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "divergentes": {},
+        "sobrando_no_meta": []
+      }
+    },
+    {
+      "item": 9,
+      "assercao": "tamanho em disco == 125.5 KiB x n por conjunto (+ header do .npy)",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "treino_30k": {
+          "bytes": 3855360128,
+          "bytes_de_carga": 3855360000,
+          "header_npy": 128
+        },
+        "validacao": {
+          "bytes": 2856307840,
+          "bytes_de_carga": 2856307712,
+          "header_npy": 128
+        },
+        "teste": {
+          "bytes": 2856436352,
+          "bytes_de_carga": 2856436224,
+          "header_npy": 128
+        },
+        "kib_por_tensor": 125.5,
+        "total_gib": 8.911
+      }
+    }
+  ],
+  "medicoes": {
+    "shapes": {
+      "treino_30k": [
+        30000,
+        128,
+        251
+      ],
+      "validacao": [
+        22226,
+        128,
+        251
+      ],
+      "teste": [
+        22227,
+        128,
+        251
+      ]
+    },
+    "n_linhas_indice": {
+      "treino_30k": 30000,
+      "validacao": 22226,
+      "teste": 22227
+    },
+    "conjuntos": {
+      "teste": {
+        "n_gabarito": 22227,
+        "n_indice": 22227,
+        "n_faltando": 0,
+        "n_sobrando": 0,
+        "exemplos_faltando": [],
+        "exemplos_sobrando": []
+      },
+      "treino_30k": {
+        "n_gabarito": 30000,
+        "n_indice": 30000,
+        "n_faltando": 0,
+        "n_sobrando": 0,
+        "exemplos_faltando": [],
+        "exemplos_sobrando": []
+      },
+      "validacao": {
+        "n_gabarito": 22226,
+        "n_indice": 22226,
+        "n_faltando": 0,
+        "n_sobrando": 0,
+        "exemplos_faltando": [],
+        "exemplos_sobrando": []
+      },
+      "intersecoes": {
+        "teste & treino_30k": 0,
+        "teste & validacao": 0,
+        "treino_30k & validacao": 0
+      },
+      "indice_ordenado_por_arquivo": {
+        "treino_30k": true,
+        "validacao": true,
+        "teste": true
+      },
+      "coluna_linha_e_0_a_n_menos_1": {
+        "treino_30k": true,
+        "validacao": true,
+        "teste": true
+      }
+    },
+    "nan_inf_amostral": {
+      "treino_30k": {
+        "n_linhas_varridas": 2000,
+        "n_nan": 0,
+        "n_inf": 0
+      },
+      "validacao": {
+        "n_linhas_varridas": 2000,
+        "n_nan": 0,
+        "n_inf": 0
+      },
+      "teste": {
+        "n_linhas_varridas": 2000,
+        "n_nan": 0,
+        "n_inf": 0
+      }
+    },
+    "paridade_n_frames_validos": {
+      "treino_30k": {
+        "n_conferidas": 500,
+        "n_divergentes": 0,
+        "ausentes_no_features_csv": 0,
+        "exemplos": []
+      },
+      "validacao": {
+        "n_conferidas": 500,
+        "n_divergentes": 0,
+        "ausentes_no_features_csv": 0,
+        "exemplos": []
+      },
+      "teste": {
+        "n_conferidas": 500,
+        "n_divergentes": 0,
+        "ausentes_no_features_csv": 0,
+        "exemplos": []
+      }
+    },
+    "paridade_classe_binaria": {
+      "treino_30k": {
+        "n_conferidas": 500,
+        "n_divergentes": 0,
+        "exemplos": []
+      },
+      "validacao": {
+        "n_conferidas": 500,
+        "n_divergentes": 0,
+        "exemplos": []
+      },
+      "teste": {
+        "n_conferidas": 500,
+        "n_divergentes": 0,
+        "exemplos": []
+      }
+    },
+    "shape_por_linha": {
+      "treino_30k": {
+        "n_lidas": 500,
+        "shapes_distintos": [
+          [
+            128,
+            251
+          ]
+        ]
+      },
+      "validacao": {
+        "n_lidas": 500,
+        "shapes_distintos": [
+          [
+            128,
+            251
+          ]
+        ]
+      },
+      "teste": {
+        "n_lidas": 500,
+        "shapes_distintos": [
+          [
+            128,
+            251
+          ]
+        ]
+      }
+    },
+    "hashes_indice": {
+      "em_disco": {
+        "indice_treino_30k.csv": "b431e1113dd748da03eca87f3d725221",
+        "indice_validacao.csv": "169c9c9f7ec7cef353f9765f3fa02ec9",
+        "indice_teste.csv": "f04b47d7070f3038571828550f4c67b2"
+      },
+      "no_meta_json": {
+        "indice_treino_30k.csv": "b431e1113dd748da03eca87f3d725221",
+        "indice_validacao.csv": "169c9c9f7ec7cef353f9765f3fa02ec9",
+        "indice_teste.csv": "f04b47d7070f3038571828550f4c67b2"
+      }
+    },
+    "tamanho_em_disco": {
+      "treino_30k": {
+        "bytes": 3855360128,
+        "bytes_de_carga": 3855360000,
+        "header_npy": 128
+      },
+      "validacao": {
+        "bytes": 2856307840,
+        "bytes_de_carga": 2856307712,
+        "header_npy": 128
+      },
+      "teste": {
+        "bytes": 2856436352,
+        "bytes_de_carga": 2856436224,
+        "header_npy": 128
+      },
+      "kib_por_tensor": 125.5,
+      "total_gib": 8.911
+    }
+  },
+  "geracao": {
+    "erros": 0,
+    "evidencia_de_zero_erros": "gerar_espectrogramas aborta o conjunto na primeira falha e a escrita é sequencial; os .progresso.json registram n_escritas == n_total em todos os conjuntos",
+    "progresso": {
+      "treino_30k": {
+        "n_escritas": 30000,
+        "n_total": 30000
+      },
+      "validacao": {
+        "n_escritas": 22226,
+        "n_total": 22226
+      },
+      "teste": {
+        "n_escritas": 22227,
+        "n_total": 22227
+      }
+    },
+    "tempos": {
+      "por_conjunto": {
+        "treino_30k": {
+          "segundos": 70.1,
+          "n": 30000,
+          "ms_por_audio": 2.34,
+          "codigo_de_saida": 0
+        },
+        "validacao": {
+          "segundos": 54.9,
+          "n": 22226,
+          "ms_por_audio": 2.47,
+          "codigo_de_saida": 0
+        },
+        "teste": {
+          "segundos": 57.2,
+          "n": 22227,
+          "ms_por_audio": 2.57,
+          "codigo_de_saida": 0
+        }
+      },
+      "total_segundos": 182.2,
+      "total_minutos": 3.04,
+      "ms_por_audio_medio": 2.45,
+      "n_jobs": 12,
+      "execucoes": "tres, uma por conjunto (treino -> validacao -> teste), como manda o B4.2"
+    },
+    "projecao_previa": {
+      "piloto_segundos": 19.8,
+      "piloto_n": 201,
+      "projecao_horas": 2.04,
+      "nota": "a conferencia 5 do briefing projeta tempo_piloto/200*74453 e deu 2,04 h contra 3,04 min reais. A formula superestima por construcao: num piloto de 200 arquivos a partida do Pool (~4,6 s, paga uma vez por conjunto) domina o relogio, enquanto no lote ela se dilui em dezenas de milhares de audios. Superestimar e o erro seguro aqui - a projecao existe para decidir se cabe na janela, e 2,04 h ja cabia."
+    }
+  },
+  "meta_json_do_lote": {
+    "semente": 42,
+    "tipo": "mel",
+    "sample_rate": 16000,
+    "n_fft": 1024,
+    "win_length": 400,
+    "hop_length": 256,
+    "n_mels": 128,
+    "fmin": 0,
+    "fmax": 8000,
+    "power": 2.0,
+    "escala": "db",
+    "db_ref": 1.0,
+    "top_db": 80,
+    "center": true,
+    "altura": 128,
+    "largura": 251,
+    "normalizacao": "global_por_mel",
+    "mascarar_agregacao": true,
+    "window": "hann",
+    "pad_mode": "constant",
+    "htk": false,
+    "mel_norm": "slaney",
+    "amin": 1e-10,
+    "dtype": "float32",
+    "escopo": [
+      "treino_30k",
+      "validacao",
+      "teste"
+    ],
+    "n_por_conjunto": {
+      "treino_30k": 30000,
+      "validacao": 22226,
+      "teste": 22227
+    },
+    "caminho_filterbank": "melspectrogram(htk,norm)",
+    "nota_normalizacao": "os tensores em disco NAO estao normalizados; media/desvio por faixa Mel sao aplicados em tempo de carga, a partir de normalizacao_cnn.json (B4.3)",
+    "hash_md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+    "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+    "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d",
+    "hash_md5_indice_por_conjunto": {
+      "indice_treino_30k.csv": "b431e1113dd748da03eca87f3d725221",
+      "indice_validacao.csv": "169c9c9f7ec7cef353f9765f3fa02ec9",
+      "indice_teste.csv": "f04b47d7070f3038571828550f4c67b2"
+    },
+    "versoes": {
+      "librosa": "0.11.0",
+      "numpy": "2.2.6",
+      "soundfile": "0.12.1"
+    },
+    "commit_git": "72b86d91e30884d5ffeb239873c7c1eb423e1bae",
+    "git_dirty": true,
+    "estado": "LOTE COMPLETO - DEFINICAO CONGELADA (B4.2): os tres conjuntos estao em disco com seus indices e hashes. A partir daqui o bloco `espectrograma` do config.yaml entra no mesmo regime de `features`: nao se altera. Regeracao apenas por erro grave, com decisao registrada - e a guarda _validar_retomada recusa gerar com outros parametros ate que o .meta.json, os indices e os .npy sejam arquivados."
+  },
+  "ambiente": {
+    "python": "3.10.11",
+    "plataforma": "win32",
+    "n_nucleos": 12,
+    "versoes": {
+      "librosa": "0.11.0",
+      "numpy": "2.2.6",
+      "pandas": "2.3.3"
+    }
+  },
+  "lote_valido": true
+}

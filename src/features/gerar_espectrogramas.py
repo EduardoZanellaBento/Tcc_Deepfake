@@ -268,6 +268,56 @@ def _md5(caminho: Path) -> str:
     return h.hexdigest()
 
 
+# Ordem canônica dos conjuntos nos artefatos — a mesma que `catalogo` produz.
+ORDEM_CONJUNTOS = (CONJUNTO_TREINO, "validacao", "teste")
+
+
+def _lote_em_disco(saida_dir: Path, prefixo: str
+                   ) -> tuple[dict[str, int], dict[str, str]]:
+    """Escopo e MD5 dos índices REALMENTE em disco para este prefixo.
+
+    O B4.2 gera os três conjuntos em execuções SEPARADAS (uma por conjunto,
+    para que uma queda no meio do terceiro não custe os dois primeiros), e cada
+    execução reescreve o `.meta.json`. Montar o escopo só com o que a execução
+    corrente gerou apagaria o registro das anteriores: depois de rodar `teste`
+    por último, o `.meta.json` alegaria um lote de 22.227 tensores. Reler o
+    disco acerta os dois lados — o registro acumula entre execuções e nunca
+    afirma a existência de um índice que não está lá.
+
+    Levanta se um índice e seu memmap discordarem no nº de linhas: isso é um
+    conjunto interrompido, e registrá-lo como completo no `.meta.json` seria
+    exatamente o tipo de alegação falsa que este arquivo existe para impedir.
+    """
+    achados = {}
+    for idx_path in saida_dir.glob(f"{prefixo}indice_*.csv"):
+        nome = idx_path.name[len(prefixo) + len("indice_"):-len(".csv")]
+        achados[nome] = idx_path
+    ordem = ([n for n in ORDEM_CONJUNTOS if n in achados]
+             + sorted(n for n in achados if n not in ORDEM_CONJUNTOS))
+
+    escopo, hashes = {}, {}
+    for nome in ordem:
+        idx_path = achados[nome]
+        n_idx = len(pd.read_csv(idx_path, usecols=["linha"]))
+        npy = saida_dir / f"{prefixo}{nome}.npy"
+        if not npy.exists():
+            raise ValueError(
+                f"{idx_path.name} existe mas {npy.name} não. Um índice sem "
+                "memmap não descreve lote nenhum: arquive-o antes de gerar."
+            )
+        n_npy = int(np.load(npy, mmap_mode="r").shape[0])
+        if n_npy != n_idx:
+            raise ValueError(
+                f"{npy.name} tem {n_npy} linhas e {idx_path.name} tem {n_idx}. "
+                "O conjunto ficou incompleto; rode de novo o comando daquele "
+                "conjunto (a retomada continua de onde parou) antes de fechar "
+                "o .meta.json."
+            )
+        escopo[nome] = n_idx
+        hashes[idx_path.name] = _md5(idx_path)
+    return escopo, hashes
+
+
 def _meta_geracao(cfg: dict, raiz: Path, escopo: dict[str, int],
                   hashes_indice: dict[str, str] | None = None) -> dict:
     """Assinatura completa gravada em `<prefixo>espectrogramas.meta.json`.
@@ -327,8 +377,12 @@ def _meta_geracao(cfg: dict, raiz: Path, escopo: dict[str, int],
 #   versoes -> só `librosa` define a transformada e é conferida à parte
 #     (_CHAVE_VERSAO_CRITICA); bloquear a retomada de um lote de 74.453 tensores
 #     por um bump de patch do numpy seria custo sem ganho.
+#   estado -> rotulo do ciclo de vida do artefato (assinatura sem lote / lote
+#     completo e congelado). Descreve em que ponto o lote esta, nao o tensor;
+#     compara-lo travaria a PRIMEIRA geracao sobre a assinatura do B4.1.
 _CHAVES_INFORMATIVAS = ("escopo", "n_por_conjunto", "hash_md5_indice_por_conjunto",
-                        "commit_git", "git_dirty", "versoes", "nota_normalizacao")
+                        "commit_git", "git_dirty", "versoes", "nota_normalizacao",
+                        "estado")
 _CHAVE_VERSAO_CRITICA = "librosa"
 
 
@@ -732,7 +786,7 @@ def executar(cfg: dict, raiz: Path,
         )
 
     # ---- índice PRIMEIRO, memmap depois ------------------------------------
-    resultados, hashes = {}, {}
+    resultados = {}
     for nome in ordem:
         linhas = cat[cat["nome_conjunto"] == nome].reset_index(drop=True)
         npy = saida_dir / f"{prefixo}{nome}.npy"
@@ -774,9 +828,31 @@ def executar(cfg: dict, raiz: Path,
                 f"{int(plano['caminho'].isna().sum())} sem caminho)."
             )
         resultados[nome] = _escrever_conjunto(npy, plano, cfg, n_jobs, flush_a_cada)
-        hashes[f"{prefixo}indice_{nome}.csv"] = _md5(idx_path)
 
-    meta_atual = _meta_geracao(cfg, raiz, escopo, hashes_indice=hashes)
+    # O escopo e os hashes gravados descrevem o LOTE EM DISCO, não apenas o que
+    # esta execução gerou — o B4.2 roda um conjunto por vez.
+    escopo_disco, hashes = _lote_em_disco(saida_dir, prefixo)
+    meta_atual = _meta_geracao(cfg, raiz, escopo_disco, hashes_indice=hashes)
+    # O rotulo de congelamento vale para os artefatos OFICIAIS. Um piloto tem os
+    # tres conjuntos tambem (estratificado por conjunto x classe) e receberia o
+    # mesmo carimbo, alegando lote definitivo sobre 201 tensores.
+    completo = (not prefixo) and all(escopo_disco.get(n) for n in ORDEM_CONJUNTOS)
+    meta_atual["estado"] = (
+        "LOTE COMPLETO - DEFINICAO CONGELADA (B4.2): os tres conjuntos estao em "
+        "disco com seus indices e hashes. A partir daqui o bloco `espectrograma` "
+        "do config.yaml entra no mesmo regime de `features`: nao se altera. "
+        "Regeracao apenas por erro grave, com decisao registrada - e a guarda "
+        "_validar_retomada recusa gerar com outros parametros ate que o "
+        ".meta.json, os indices e os .npy sejam arquivados."
+        if completo else
+        f"LOTE NAO OFICIAL (prefixo '{prefixo}'): "
+        + ", ".join(f"{k} ({v})" for k, v in escopo_disco.items())
+        + ". Nao congela definicao nenhuma."
+        if prefixo else
+        "LOTE PARCIAL: gerado(s) " + ", ".join(f"{k} ({v})" for k, v in escopo_disco.items())
+        + ". Faltam " + ", ".join(n for n in ORDEM_CONJUNTOS if not escopo_disco.get(n))
+        + " - a definicao so se declara congelada com os tres em disco."
+    )
     meta_path.write_text(json.dumps(meta_atual, indent=2, ensure_ascii=False),
                          encoding="utf-8")
     print(f"\nAssinatura gravada em {meta_path}")
