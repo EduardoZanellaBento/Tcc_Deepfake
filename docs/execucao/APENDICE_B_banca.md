@@ -101,6 +101,27 @@ coisa: a fração do áudio **original** que o VAD manteve. A correlação entre
 de apenas **r = 0,145**. *(Esta é uma pergunta-armadilha e a v1 do
 `DECISOES_PENDENTES_CNN.md` caiu nela; a v2 corrigiu.)*
 
+**A janela é de 400 amostras e o passo é de 256. A janela do último frame válido
+invade o zero-padding. Isso não contamina a agregação mascarada?**
+Contamina parcialmente, sim, e por construção — a definição de frame válido é **pelo
+centro** (convenção `center=True` do librosa), não pelo suporte integral da janela.
+Como `400 > 256`, o último frame válido pode conter até 200 amostras de padding, e o
+primeiro frame inválido — o frame de **transição** — ainda alcança até 200 amostras de
+áudio real. Medido no piloto: a região `[:, n_valid:]` tem mais de um valor distinto
+em **120 de 201** exemplos, justamente por isso.
+
+O que torna isso aceitável é que a aproximação de ±1 frame é **idêntica nos dois
+ramos**: `extrair_vetor` agrega `serie[:, :n_valid]` e a máscara da CNN marca as
+mesmas `n_valid` posições, com `n_valid` vindo da **mesma função**
+(`frames_validos`). Então o frame de transição é excluído dos dois e o último frame
+válido é contaminado nos dois, na mesma medida — e a paridade, que é o que a
+comparação exige, está preservada (checagem: 201/201).
+
+A alternativa, exigir suporte integral da janela, reduziria a contagem em um frame e
+abriria divergência com o `features.csv`, congelado desde 30/08 — pelo ganho de
+excluir um frame que é ~78% áudio real. A escolha está registrada como aproximação
+deliberada, não como descuido.
+
 **Por que `prop_fala`, `n_frames_validos` e `n_frames_total` estão no CSV mas fora
 do X?**
 As três medem **quantidade de fala/silêncio**, não timbre. Como o bonafide perde mais
@@ -166,6 +187,23 @@ pipelines **principalmente à forma de representação e aprendizado** — no ra
 resumimos as características acústicas e classificamos com RF/SVM; na CNN preservamos
 a estrutura tempo-frequência e deixamos a rede aprender a representação. O áudio de
 entrada é **o mesmo**, produzido pela **mesma função** de pré-processamento.
+
+**Em mais da metade do dataset, metade das faixas Mel do espectrograma é constante.
+Por que gerar 128 faixas até 8 kHz então?**
+Porque o dataset é heterogêneo, e é exatamente essa heterogeneidade que a decisão
+respeita. 57,9% do universo é banda estreita (alaw, ulaw, gsm, pstn, teto ~4 kHz) e
+nesses áudios a metade superior das faixas é platô no piso do `top_db` — medido no
+piloto: **65 de 118** áudios de banda estreita, contra **2 de 83** de banda larga.
+Mas os outros **42,1%** têm sinal real acima de 4 kHz, e é justamente ali que vivem
+os artefatos de síntese. Um `fmax = 4000` global destruiria esse sinal em 42% dos
+dados para economizar faixas mortas em 58% — e os números por codec mostram que a
+banda larga é onde os dois modelos clássicos vão melhor (RF 0,6958 → 0,7510;
+SVM 0,7711 → 0,8397, com EER independente de limiar).
+
+O platô não é um atalho de classe: a subamostra é estratificada por classe × codec ×
+ataque, então o codec não prediz o rótulo. O que a rede pode aprender é uma regra
+específica por codec — que é o que RF e SVM já fazem implicitamente, via ZCR e
+centróide, que se deslocam com o teto de banda.
 
 **A filterbank é a mesma nos dois ramos?**
 A **convenção da escala Mel e as frequências centrais dos 128 filtros** são as mesmas

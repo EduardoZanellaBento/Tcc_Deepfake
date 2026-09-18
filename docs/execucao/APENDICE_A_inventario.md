@@ -134,6 +134,52 @@ justifica a P5.
 
 **Nº de frames independe do `n_fft`:** 251 para 512, 1024 e 2048.
 
+### O frame de transição — precisão que vale para os dois ramos
+
+`win_length = 400` é **maior** que `hop = 256`. Logo as janelas se sobrepõem, e a
+fronteira entre áudio e padding **não** é um degrau limpo:
+
+- `frames_validos()` define frame válido **pelo centro**: o frame `i` é válido
+  enquanto `i·hop < n_amostras_validas`, o que dá `ceil(n_amostras_validas / hop)`;
+- o frame `n_valid` (o primeiro **inválido**) está centrado em `n_valid·256` e sua
+  janela cobre `[n_valid·256 − 200, n_valid·256 + 200)` — então ele **ainda alcança
+  até 200 amostras de áudio real**. É um frame de **transição**, não de padding puro;
+- pelo mesmo motivo, o frame `n_valid − 1` (o último **válido**, que **entra** na
+  agregação) pode conter até 200 amostras de zero-padding na sua janela.
+
+Medido no piloto: `[:, n_valid:]` tem mais de um valor distinto em **120 de 201**
+exemplos. **Isto não é erro da máscara.** A definição é idêntica nos dois ramos —
+`extrair_vetor` agrega `serie[:, :n_valid]` e a máscara da CNN marca as mesmas
+`n_valid` posições —, então o frame de transição é excluído dos dois, e o último
+frame válido é parcialmente contaminado nos dois, **na mesma medida**. A paridade,
+que é o que a comparação exige, está intacta: item 7 da checagem deu 201/201.
+
+É uma aproximação de ±1 frame, deliberada, herdada da definição do piloto do Bloco 1
+e mantida para que a máscara da CNN e o mascaramento clássico usem **exatamente o
+mesmo número** para o mesmo áudio. Exigir suporte integral da janela reduziria a
+contagem em 1 e abriria divergência com o `features.csv` congelado. **Resposta de
+banca em `APENDICE_B_banca.md` §3.**
+
+### O topo morto por codec — observação que vira evidência
+
+`fmax = 8000` dá 128 faixas Mel até 8 kHz, mas **57,9% do universo é banda estreita**
+(alaw, ulaw, gsm, pstn, teto ~4 kHz). Nesses áudios a metade superior das faixas Mel
+é um platô constante no piso do `top_db`. Medido no piloto: topo morto em **65 de 118**
+áudios de banda estreita e em **2 de 83** de banda larga (ambos `opus`).
+
+**É o codec, não o `fmax`** — e isso é útil de três formas:
+
+1. **valida a rejeição do `fmax=4000` global** de forma visual: nos 42,1% de banda
+   larga há sinal real acima de 4 kHz, que um filtro global destruiria;
+2. **explica** por que a banda larga tem desempenho melhor nos dois modelos clássicos
+   (RF 0,6958 → 0,7510; SVM 0,7711 → 0,8397);
+3. **não é atalho de classe.** A subamostra é estratificada por classe × codec ×
+   ataque, então o codec não prediz o rótulo. A rede pode aprender regras
+   específicas por codec — que é o que RF e SVM já fazem implicitamente.
+
+Aplicando a regra de escopo: **não impede a validade do experimento principal.** Vai
+para a **discussão** (§Análise por codec), não para experimento novo.
+
 **Razão spoof:bonafide = 9,0 nos quatro conjuntos:** treino 9,001 · validação 9,003 ·
 teste 8,999 · **subamostra 30k exatamente 9,0 (27.000 / 3.000)**. O desbalanceamento
 é propriedade do **protocolo**, não de um conjunto — é o que sustenta a P7.
