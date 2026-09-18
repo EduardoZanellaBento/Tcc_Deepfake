@@ -73,13 +73,16 @@ class CnnDeepfake(nn.Module):
        em ate 27 frames originais (checagem 3 de checagem_mascara_cnn.json).
 
     7. A reducao da mascara usa semantica de TETO: `max_pool1d` marca a posicao
-       reduzida como valida se QUALQUER frame original dela era valido. Depois
-       dos 4 blocos cada posicao reduzida agrega 16 frames (251 -> 125 -> 62 ->
-       31 -> 15), entao a posicao de FRONTEIRA pode ser majoritariamente padding
-       e ainda entrar no pooling com peso 1 — no maximo 1 posicao entre as
-       validas. A alternativa (semantica de piso) descartaria a fronteira do
-       audio, que e informacao real. Convencao declarada, coerente com o `ceil`
-       de `n_frames_validos` do Bloco 1.
+       reduzida como valida se QUALQUER frame original dela era valido. Cada
+       posicao final agrega `2 ** n_blocos` frames originais (16 com os 4 blocos
+       do B4.4; 8 com os 3 blocos que entram na grade do B4.5), entao a posicao
+       de FRONTEIRA pode ser majoritariamente padding e ainda entrar no pooling
+       com peso 1 — no maximo 1 posicao entre as validas. A alternativa
+       (semantica de piso) descartaria a fronteira do audio, que e informacao
+       real. Convencao declarada, coerente com o `ceil` de `n_frames_validos` do
+       Bloco 1. Os numeros exatos saem de `reducao_temporal()`, nunca escritos a
+       mao: MENOS blocos agregam MENOS frames por posicao, entao a magnitude da
+       L2 muda com a arquitetura e tem de ser recalculada, nao copiada.
     """
 
     def __init__(self, n_mels: int = 128, canais=(32, 64, 128, 128),
@@ -101,6 +104,24 @@ class CnnDeepfake(nn.Module):
         self.n_mels = n_mels
         self.canais = tuple(canais)
         self.p_drop = p_drop
+
+    def reducao_temporal(self, t_entrada: int = 251) -> list:
+        """Comprimento do eixo do tempo após cada bloco: [251, 125, 62, ...].
+
+        CALCULADO, NÃO ESCRITO À MÃO. A cadeia `251 -> 125 -> 62 -> 31 -> 15` e o
+        «cada posição final agrega 16 frames» estavam fixos na prosa que descreve a
+        limitação L2 — e valem só para 4 blocos. O B4.5 põe 3 blocos na grade, onde
+        os números viram `251 -> 125 -> 62 -> 31` e 8 frames. Descrição errada de
+        arquitetura é achado de banca, então ela passa a sair do próprio modelo.
+
+        O `//` reproduz o `floor` do `MaxPool2d(2, 2)` — a mesma conta que o
+        `max_pool1d` da máscara faz, que é por que os comprimentos batem.
+        """
+        cadeia, t = [int(t_entrada)], int(t_entrada)
+        for _ in self.blocos:
+            t //= 2
+            cadeia.append(t)
+        return cadeia
 
     def forward(self, x, mascara, mascarar: bool = True):
         """x: (B, 1, 128, 251) ja normalizado. mascara: (B, 251) float {0,1}."""
@@ -146,6 +167,8 @@ class CnnDeepfake(nn.Module):
                                    "comprimentos batem por construcao, com assert no forward"),
             "flatten": False,
             "n_parametros": int(n_par),
+            "reducao_temporal": self.reducao_temporal(251),
+            "frames_originais_por_posicao_final": 2 ** len(self.blocos),
         }
 
 

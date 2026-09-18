@@ -19,6 +19,19 @@ A RÉGUA É A MESMA DOS OUTROS DOIS: `selecionar_limiar`, `calcular_eer` e `aval
 vêm de src/models/avaliacao.py, sem cópia local. Num trabalho cuja pergunta central é
 COMPARAR modelos, uma divergência silenciosa entre cópias invalidaria a comparação.
 
+O QUE O B4.5 MUDOU AQUI (e o que ele NÃO mudou):
+    `treinar()` foi partido em `preparar_treino()` (sementes, dados, modelo, loss,
+    otimizador) e `laco_de_treino()` (o laço de épocas), porque a busca de arquitetura
+    do B4.5 precisa rodar o MESMO protocolo várias vezes trocando só hiperparâmetros —
+    e a única forma de as rodadas serem comparáveis é compartilharem este código em
+    vez de uma cópia. É a extensão natural da regra do parágrafo acima.
+
+    O COMPORTAMENTO DO B4.4 NÃO MUDOU: `treinar()` chama o laço com `paciencia=None`,
+    que é exatamente o que rodou antes — orçamento fixo de épocas e melhor época
+    apenas REGISTRADA. O early stopping de verdade, a grade e a escolha da melhor
+    época moram em `src/models/definir_cnn.py`, do mesmo jeito que a busca do ramo
+    clássico mora em `ajustar_rf.py` e não em `treinar_rf.py`.
+
 Uso:
     python -m src.models.treinar_cnn
     python -m src.models.treinar_cnn --epocas 15 --canais 16,32,64   # modo "se atrasar"
@@ -299,9 +312,26 @@ def _plotar_curva(historico: list, destino: Path) -> None:
 # =============================================================================
 # Execução
 # =============================================================================
-def treinar(cfg: dict, raiz: Path, epocas: int = 30, batch: int = 128,
-            lr: float = 1e-3, canais=(32, 64, 128, 128), p_drop: float = 0.3,
-            estrito: bool = True) -> dict:
+def preparar_treino(cfg: dict, raiz: Path, batch: int = 128, lr: float = 1e-3,
+                    canais=(32, 64, 128, 128), p_drop: float = 0.3,
+                    estrito: bool = True) -> dict:
+    """Tudo que antecede o laço de épocas: sementes, dados, modelo, loss, otimizador.
+
+    SEPARADO DO LAÇO POR CAUSA DO B4.5. A busca de arquitetura precisa rodar o MESMO
+    protocolo de treino várias vezes trocando só hiperparâmetros, e a única forma de
+    garantir que as rodadas são comparáveis é elas compartilharem este código — não
+    uma cópia dele. É a mesma regra que já vale para `avaliacao.py`: num trabalho cuja
+    pergunta central é COMPARAR, uma divergência silenciosa entre cópias invalidaria a
+    comparação.
+
+    A ORDEM DE CONSUMO DO GERADOR É PARTE DO CONTRATO: `fixar_seeds_torch` é
+    re-chamada DEPOIS da sondagem de determinismo, então toda configuração da grade
+    começa do MESMÍSSIMO estado de RNG. Duas configurações diferem por hiperparâmetro,
+    e por mais nada — sem isso, parte da diferença medida seria sorte de inicialização.
+
+    Nada aqui abre a validação externa (22.226) nem o teste (22.227): os únicos dados
+    lidos são `treino_30k.npy` e o split interno 27k/3k do B4.3.
+    """
     # fixar_seeds_torch define CUBLAS_WORKSPACE_CONFIG, que so tem efeito se
     # nenhum contexto CUDA foi criado ainda. `import torch` sozinho nao cria
     # contexto; `torch.zeros(1, device="cuda")` cria. Por isso vem ANTES de tudo.
@@ -385,9 +415,55 @@ def treinar(cfg: dict, raiz: Path, epocas: int = 30, batch: int = 128,
           f"(razao {float(pesos[0] / pesos[1]):.2f}:1 a favor do bonafide)")
     print(f"Parametros: {modelo.descricao()['n_parametros']:,}")
 
-    # ---- Laço ---------------------------------------------------------------
+    return {
+        "modelo": modelo, "criterio": criterio, "otimizador": otimizador,
+        "dl_tr": dl_tr, "dl_es": dl_es, "dispositivo": dispositivo,
+        "tr_df": tr_df, "es_df": es_df, "resumo_split": resumo_split,
+        "media": media, "desvio": desvio, "norm": norm,
+        "n_por_classe": n_por_classe, "pesos": pesos,
+        "semente": semente,
+        "determinismo_estrito": determinismo_estrito,
+        "limitacao_determinismo": limitacao_determinismo,
+    }
+
+
+def laco_de_treino(ctx: dict, epocas: int, paciencia: int | None = None,
+                   rotulo: str = "") -> tuple[list, dict]:
+    """O laço de épocas, com PARADA ANTECIPADA opcional no conjunto interno de 3k.
+
+    `paciencia=None` — comportamento do B4.4: roda o orçamento inteiro de épocas e
+    apenas REGISTRA a melhor. `paciencia=k` — comportamento do B4.5: para de verdade
+    depois de k épocas sem melhora do f1_macro nos 3k, e `epocas` vira o TETO.
+
+    POR QUE PACIÊNCIA 8 E NÃO 3 (a decisão do B4.5, escrita junto do código que a
+    executa): com apenas 300 bonafide no conjunto de early stopping, o f1_macro
+    oscila entre épocas por VARIÂNCIA DE ESTIMATIVA, não por sobreajuste. A curva do
+    B4.4 mostra isso de forma literal — quedas nas épocas 11, 16, 18, 22, 24 e 28,
+    todas seguidas de recuperação para um valor mais alto do que o anterior. Uma
+    paciência curta pararia na primeira dessas flutuações e SUBESTIMARIA a melhor
+    época — que é justamente o número que o refit do B4.6 vai consumir como fixo.
+
+    O CONJUNTO É O INTERNO. A validação externa de 22.226 não é lida aqui nem em
+    lugar nenhum deste módulo: usá-la para parar o treino escolheria o limiar do
+    B4.7 num conjunto que já guiou o ajuste, e é a proibição mais importante do
+    Bloco 4.
+
+    O CRITÉRIO É f1_macro, NÃO A LOSS. O diagnóstico do B4.4 mostrou que a loss nos
+    3k dá picos de uma ordem de grandeza enquanto f1_macro e EER continuam
+    melhorando: com peso 5,0 na bonafide, poucos minoritários confiantes no lado
+    errado dominam a CrossEntropy sem mudar o ORDENAMENTO dos scores. Parar pela
+    loss pararia por perda de calibração, não por perda de desempenho.
+    """
+    modelo, criterio = ctx["modelo"], ctx["criterio"]
+    dl_tr, dl_es = ctx["dl_tr"], ctx["dl_es"]
+    otimizador, dispositivo = ctx["otimizador"], ctx["dispositivo"]
+
     historico = []
     melhor = {"f1": -1.0, "epoca": -1, "estado": None}
+    sem_melhora = 0
+    parou_por_paciencia = False
+    epoca = 0
+
     for epoca in range(1, epocas + 1):
         t0 = time.perf_counter()
         loss_tr = _uma_epoca(modelo, dl_tr, criterio, otimizador, dispositivo)
@@ -412,22 +488,61 @@ def treinar(cfg: dict, raiz: Path, epocas: int = 30, batch: int = 128,
             "limiar_epoca": sel_ep["limiar"],
             "tempo_s": round(dt, 2),
         })
-        print(f"epoca {epoca:>3}/{epocas} | loss_tr {loss_tr:.4f} | loss_3k {loss_es:.4f} "
-              f"| f1_macro {m_ep['f1_macro']:.4f} | EER {m_ep['eer']:.4f} | {dt:.1f}s")
+        print(f"{rotulo}epoca {epoca:>3}/{epocas} | loss_tr {loss_tr:.4f} "
+              f"| loss_3k {loss_es:.4f} | f1_macro {m_ep['f1_macro']:.4f} "
+              f"| EER {m_ep['eer']:.4f} | {dt:.1f}s")
 
         if m_ep["f1_macro"] > melhor["f1"]:
-            # APENAS REGISTRAR a melhor época — nao parar de verdade. O criterio
-            # de parada fecha no B4.5. O estado e guardado para que o .pt salvo
-            # seja o da melhor epoca, nao o da ultima.
+            # O estado e guardado para que o .pt salvo seja o da MELHOR epoca, nao
+            # o da ultima — «salvar so os pesos e nao a epoca» e uma das armadilhas
+            # listadas do B4.5, e a inversa (salvar a ultima) e a mesma falha.
             melhor = {
                 "f1": m_ep["f1_macro"],
                 "epoca": epoca,
                 "estado": {k: v.detach().cpu().clone()
                            for k, v in modelo.state_dict().items()},
             }
+            sem_melhora = 0
+        else:
+            sem_melhora += 1
+            if paciencia is not None and sem_melhora >= paciencia:
+                parou_por_paciencia = True
+                print(f"{rotulo}PARADA ANTECIPADA na epoca {epoca}: {paciencia} "
+                      f"epocas sem melhora do f1_macro nos 3k "
+                      f"(melhor: epoca {melhor['epoca']}, f1 {melhor['f1']:.4f})")
+                break
 
-    print(f"\nMelhor epoca (registrada, sem parada): {melhor['epoca']} "
-          f"-> f1_macro {melhor['f1']:.4f}")
+    melhor["epoca_em_que_parou"] = epoca
+    melhor["parou_por_paciencia"] = parou_por_paciencia
+    # Teto atingido = NAO parou de verdade, acabou o orcamento. E a leitura que o
+    # B4.4 deixou pendente e que este marco tem de responder honestamente.
+    melhor["atingiu_teto"] = bool(not parou_por_paciencia and epoca == epocas)
+
+    if paciencia is None:
+        print(f"\nMelhor epoca (registrada, sem parada): {melhor['epoca']} "
+              f"-> f1_macro {melhor['f1']:.4f}")
+    return historico, melhor
+
+
+def treinar(cfg: dict, raiz: Path, epocas: int = 30, batch: int = 128,
+            lr: float = 1e-3, canais=(32, 64, 128, 128), p_drop: float = 0.3,
+            estrito: bool = True) -> dict:
+    """B4.4 — baseline: orçamento fixo de épocas, melhor época apenas REGISTRADA.
+
+    Preservado sem mudança de comportamento: `paciencia=None` mantém o laço idêntico
+    ao que gerou `cnn_baseline.json`. O early stopping de verdade é do B4.5, e mora
+    em `src/models/definir_cnn.py`.
+    """
+    ctx = preparar_treino(cfg, raiz, batch=batch, lr=lr, canais=canais,
+                          p_drop=p_drop, estrito=estrito)
+    modelo, criterio, otimizador = ctx["modelo"], ctx["criterio"], ctx["otimizador"]
+    dl_tr, dl_es, dispositivo = ctx["dl_tr"], ctx["dl_es"], ctx["dispositivo"]
+    resumo_split, norm = ctx["resumo_split"], ctx["norm"]
+    n_por_classe, pesos, semente = ctx["n_por_classe"], ctx["pesos"], ctx["semente"]
+    determinismo_estrito = ctx["determinismo_estrito"]
+    limitacao_determinismo = ctx["limitacao_determinismo"]
+
+    historico, melhor = laco_de_treino(ctx, epocas, paciencia=None)
 
     # ---- Métricas finais: os pesos da MELHOR época --------------------------
     modelo.load_state_dict(melhor["estado"])

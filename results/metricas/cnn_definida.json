@@ -1,0 +1,301 @@
+{
+  "modelo": "cnn_definida",
+  "limiar": 0.2304617166519165,
+  "regra": "score >= limiar",
+  "acuracia": 0.975,
+  "precisao_spoof": 0.9862912189699888,
+  "recall_spoof": 0.9859259259259259,
+  "f1_spoof": 0.9861085386182626,
+  "precisao_bonafide": 0.8737541528239202,
+  "recall_bonafide": 0.8766666666666667,
+  "f1_bonafide": 0.8752079866888519,
+  "f1_macro": 0.9306582626535573,
+  "eer": 0.060000000000000026,
+  "limiar_eer": 0.9221277236938477,
+  "melhor_epoca": 37,
+  "criterio_parada": "f1_macro no conjunto interno de early stopping (3.000)",
+  "paciencia": 8,
+  "teto_epocas": 60,
+  "epoca_em_que_parou": 45,
+  "f1_macro_3k_na_melhor_epoca": 0.9306582626535573,
+  "eer_3k_na_melhor_epoca": 0.060000000000000026,
+  "nota_epocas_refit": "o refit do B4.6 treina por 37 EPOCAS FIXAS nos 30000 da subamostra, sem early stopping e sem tocar na validacao externa. A arquitetura e a da chave `arquitetura` deste JSON (canais 32, 64, 128, 128, dropout 0.0), com lr 0.001, batch 128, Adam, e a mesma loss ponderada derivada das contagens do conjunto de refit.",
+  "marco": "B4.5 — CNN definida (arquitetura final e melhor epoca)",
+  "braco": "principal",
+  "conjunto_avaliado": "early_stopping_interno (3.000 da subamostra de 30k)",
+  "parou_de_verdade": true,
+  "atingiu_teto": false,
+  "nota_parada": "A rede parou por PACIENCIA na epoca 45: 8 epocas sem melhora do f1_macro nos 3k depois da epoca 37. Diferente do B4.4, onde a melhor epoca foi a ultima e a rede nao parou — acabou o orcamento.",
+  "selecao_limiar": {
+    "criterio": "f1_macro",
+    "regra": "score >= limiar",
+    "conjunto": "early_stopping_interno",
+    "limiar": 0.2304617166519165,
+    "f1_macro": 0.9306582626535573,
+    "n_candidatos": 1563,
+    "n_empates_no_maximo": 1
+  },
+  "nota_limiar_provisorio": "LIMIAR PROVISORIO. Selecionado nos 3k de early stopping interno, nao na validacao externa — por isso conjunto='early_stopping_interno'. O limiar do protocolo nasce no B4.7, na validacao externa.",
+  "nota_escala_score": "score = softmax(logits)[:, 1] = P(spoof), em [0,1] — comparavel ao predict_proba do RF e de escala DIFERENTE do decision_function do SVM.",
+  "nota_comparabilidade": "ESTE f1_macro NAO E COMPARAVEL aos 0,7225 do RF e 0,7987 do SVM, que saem da VALIDACAO EXTERNA (22.226). Este sai dos 3k internos e e otimista por QUATRO motivos de construcao, um a mais que no B4.4: (1) CONJUNTO — os 3k vem da mesma subamostra de 30k que gerou o treino; (2) LIMIAR — foi selecionado nos MESMOS 3k em que a metrica e reportada; (3) EPOCA — a melhor epoca foi escolhida pelo f1_macro nos MESMOS 3k, entao o valor e um MAXIMO sobre as epocas rodadas; (4) ARQUITETURA — NOVO NESTE MARCO: a propria configuracao vencedora foi escolhida por f1_macro nesses mesmos 3k, entao o valor publicado e tambem um maximo sobre a grade. Com 300 bonafide a variancia da estimativa e grande por cima disso tudo. Os numeros comparaveis saem no B4.7. Nada aqui autoriza a frase «a CNN superou o SVM».",
+  "selecao_arquitetura": {
+    "config_id_vencedora": "A4-32x64x128x128|drop0.0|lr0.001",
+    "criterio": "f1_macro no conjunto interno de 3.000, na melhor época de cada configuração",
+    "por_que_f1_macro_e_nao_eer": "a busca do RF e do SVM pontuou por EER porque ali só se escolhia o MODELO — o limiar viria depois, na validação. Aqui se escolhe ARQUITETURA e ÉPOCA ao mesmo tempo, e a parada precisa de um número que reflita a decisão binária que o modelo vai tomar. A assimetria é proposital e está registrada.",
+    "margem_de_empate": 0.005,
+    "por_que_a_margem": "com 300 bonafide nos 3k, o erro padrão do recall da minoritária é da ordem de 0,023 e a diferença que isso produz em f1_macro fica no centésimo. 0,005 é conservador, e foi fixado ANTES de rodar a grade.",
+    "n_configuracoes_empatadas": 1,
+    "configuracoes_empatadas": [
+      "A4-32x64x128x128|drop0.0|lr0.001"
+    ],
+    "houve_desempate_por_estabilidade": false,
+    "lider_por_f1_macro": "A4-32x64x128x128|drop0.0|lr0.001",
+    "lider_por_eer": "A4-32x64x128x128|drop0.0|lr0.001",
+    "f1_macro_e_eer_discordam": false,
+    "nota_divergencia": "f1_macro e EER apontam a MESMA configuração; não há discordância a reportar.",
+    "nota_desempate": "o maior f1_macro e a maior estabilidade apontam a mesma configuração; o desempate não precisou ser acionado."
+  },
+  "grade": {
+    "n_configuracoes": 6,
+    "desenho": "grade curta e deliberada em duas fases: 2 arquiteturas x 2 dropouts com lr=1e-3, mais as 2 arquiteturas com lr=3e-4 no dropout vencedor da fase 1",
+    "por_que_nao_random_search": "regra de escopo do projeto: «busca de hiperparametros ficou cara -> reduz o espaco de busca». Um fit de RF custa segundos e comportou RandomizedSearchCV; um fit desta CNN custa entre 6 e 25 minutos. Random Search amplo estouraria o marco.",
+    "eixos": {
+      "profundidade_canais": "capacidade x sobreajuste com 27.000 exemplos, dos quais so 2.700 sao bonafide. A arquitetura A e a do B4.4 (240.866 parametros); a B e mais rasa e mais estreita. Se a B empatar com a A, a resposta de banca deixa de ser «escolhi a maior» e passa a ser «a maior nao pagou o que custou».",
+      "dropout": "e o regularizador mais barato de testar e o unico que o B4.4 aplicou sem nunca ter comparado com a ausencia dele: 0,3 foi escolhido por convencao, nao por evidencia. Este eixo transforma essa convencao em medida.",
+      "learning_rate": "a loss nos 3k do B4.4 oscilou muito (picos de ate 2,92 contra minimo de 0,20) enquanto f1_macro e EER seguiam melhorando. O diagnostico registrado atribui isso a perda de CALIBRACAO, nao de desempenho — mas um lr menor e o suspeito alternativo obvio, e sai barato descarta-lo ou confirma-lo."
+    },
+    "eixos_nao_explorados": [
+      "scheduler de learning rate (mantido em None, como no B4.4)",
+      "weight decay (mantido em 0, o padrao do Adam, como no B4.4)",
+      "tamanho do kernel (mantido em 3x3)",
+      "BatchNorm sim/nao (mantido: sim, em todos os blocos)",
+      "batch size (mantido em 128)"
+    ],
+    "decisao_da_fase_2": {
+      "regra": "dropout com maior f1_macro MEDIO entre as duas arquiteturas da fase 1 — fixada antes de rodar, em montar_grade",
+      "f1_macro_medio_por_dropout": {
+        "0.0": 0.890605543811348,
+        "0.3": 0.8755826086724678
+      },
+      "dropout_escolhido_para_a_fase_2": 0.0
+    },
+    "arquivo": "results/metricas/busca_cnn.csv",
+    "arquivo_curvas": "results/metricas/curvas_busca_cnn.csv",
+    "so_fase1": false,
+    "tempo_busca_s": 5589.93,
+    "tempo_busca_min": 93.2
+  },
+  "arquitetura": {
+    "nome": "CnnDeepfake",
+    "n_blocos": 4,
+    "canais": [
+      32,
+      64,
+      128,
+      128
+    ],
+    "bloco": "Conv2d(3x3, padding=1, bias=False) -> BatchNorm2d -> ReLU -> MaxPool2d(2,2)",
+    "n_mels": 128,
+    "p_dropout": 0.0,
+    "cabeca": "Linear(C_final -> 2)",
+    "agregacao": "media integral no eixo de frequencia + masked global pooling no eixo do tempo (soma das posicoes validas / numero de posicoes validas)",
+    "reducao_da_mascara": "F.max_pool1d(kernel=2, stride=2) por bloco — a MESMA operacao que reduz o eixo do tempo do mapa; comprimentos batem por construcao, com assert no forward",
+    "flatten": false,
+    "n_parametros": 240866,
+    "reducao_temporal": [
+      251,
+      125,
+      62,
+      31,
+      15
+    ],
+    "frames_originais_por_posicao_final": 16
+  },
+  "hiperparametros": {
+    "epocas_rodadas": 45,
+    "teto_epocas": 60,
+    "paciencia": 8,
+    "batch": 128,
+    "otimizador": "Adam",
+    "lr": 0.001,
+    "scheduler": null,
+    "weight_decay": 0.0,
+    "p_dropout": 0.0,
+    "canais": [
+      32,
+      64,
+      128,
+      128
+    ],
+    "amp_autocast": false,
+    "nota_amp": "AMP nao usado de proposito: ganho desprezivel numa rede pequena e introduz nao-determinismo numerico."
+  },
+  "loss": {
+    "funcao": "CrossEntropyLoss",
+    "n_saidas": 2,
+    "formula_pesos": "w_c = n / (k * n_c)  (mesma logica do class_weight='balanced')",
+    "contagens_usadas": {
+      "bonafide": 2700,
+      "spoof": 24300
+    },
+    "peso_bonafide": 5.0,
+    "peso_spoof": 0.5556,
+    "razao": 9.0,
+    "reamostragem": "nenhuma — sem undersampling e sem oversampling (P7)"
+  },
+  "split_interno": {
+    "n_treino_interno": 27000,
+    "n_early_stopping": 3000,
+    "bonafide_treino": 2700,
+    "spoof_treino": 24300,
+    "bonafide_early_stopping": 300,
+    "spoof_early_stopping": 2700,
+    "intersecao_arquivos": 0,
+    "intersecao_linhas_memmap": 0
+  },
+  "isolamento_validacao": {
+    "verificado_por": "leitura do código-fonte (AST) dos módulos do caminho de treino, não por memória nem por afirmação escrita à mão",
+    "arquivos_auditados": {
+      "src/models/cnn.py": {
+        "md5": "6f08d179f88a70841f0a9ec9b528d487",
+        "chamadas_selecionar_limiar": []
+      },
+      "src/models/treinar_cnn.py": {
+        "md5": "57fc545948eba78f33a57d90158e39b4",
+        "chamadas_selecionar_limiar": [
+          {
+            "linha": 555,
+            "conjunto_declarado": "early_stopping_interno",
+            "explicito": true
+          },
+          {
+            "linha": 475,
+            "conjunto_declarado": "early_stopping_interno",
+            "explicito": true
+          }
+        ]
+      },
+      "src/models/definir_cnn.py": {
+        "md5": "50ce6bae483f608f66719fe1bc540856",
+        "chamadas_selecionar_limiar": [
+          {
+            "linha": 398,
+            "conjunto_declarado": "early_stopping_interno",
+            "explicito": true
+          }
+        ]
+      }
+    },
+    "nomes_de_dados_proibidos": [
+      "validacao.npy",
+      "indice_validacao",
+      "teste.npy",
+      "indice_teste",
+      "carregar_dados_split",
+      "filtrar_treino_braco"
+    ],
+    "o_que_foi_checado": [
+      "nenhum identificador nem string de código dos módulos auditados contém qualquer um dos nomes listados em `nomes_de_dados_proibidos`",
+      "toda chamada a selecionar_limiar declara o conjunto EXPLICITAMENTE, e declara o conjunto interno — nunca herda o default da assinatura"
+    ],
+    "o_que_NAO_e_checado": "docstrings e comentários são ignorados de propósito — é neles que o projeto DOCUMENTA a proibição, e uma guarda que dispara com a própria documentação seria ruído que ensina a ignorar o alarme",
+    "dados_efetivamente_lidos": [
+      "data/espectrogramas/treino_30k.npy (a subamostra de 30k)",
+      "data/espectrogramas/indice_treino_30k.csv",
+      "data/processed/split_interno_cnn.csv (o split interno 27k/3k do B4.3)",
+      "data/espectrogramas/normalizacao_cnn.json (estatísticas dos 27k)"
+    ],
+    "resultado": "a validação externa (22.226) e o teste (22.227) NÃO foram lidos"
+  },
+  "coerencia_pesos_melhor_epoca": {
+    "f1_macro_no_historico": 0.9306582626535573,
+    "f1_macro_com_os_pesos_recarregados": 0.9306582626535573,
+    "delta": 0.0,
+    "tolerancia": 1e-06,
+    "bate": true,
+    "o_que_prova": "os pesos guardados são MESMO os da época registrada como melhor — e não os da última época, nem os de uma época vizinha"
+  },
+  "normalizacao": {
+    "fonte": "data/espectrogramas/normalizacao_cnn.json (B4.3)",
+    "eixo": "por_faixa_mel",
+    "faixas_com_desvio_clampado": 0
+  },
+  "semente": 42,
+  "determinismo": {
+    "estrito": true,
+    "limitacao": null,
+    "num_workers": 0,
+    "nota_grade": "toda configuracao da grade comeca do MESMO estado de RNG: preparar_treino re-fixa a semente depois da sondagem de determinismo. Duas configuracoes diferem por hiperparametro, e por mais nada."
+  },
+  "n_sementes": 1,
+  "nota_sementes": "resultado principal em semente 42. A analise de 3 sementes na CNN esta, por decisao registrada, FORA do caminho critico — limitacao computacional declarada, e o refit nao foi atrasado por ela.",
+  "limitacoes_registradas": [
+    {
+      "id": "L1-batchnorm-ve-o-padding",
+      "titulo": "O masked pooling protege a AGREGACAO, nao a NORMALIZACAO",
+      "descricao": "O BatchNorm2d de cada bloco calcula media e variancia por canal sobre o LOTE inteiro (N, F, T), com o padding incluido, e essas estatisticas normalizam tambem as posicoes validas.",
+      "por_que_nao_invalida": "A estatistica do BatchNorm e do LOTE, nao do exemplo: desloca e escala todos os exemplos do lote da mesma forma e NAO cria um canal por exemplo que codifique onde o audio termina. Alem disso o padding e um plato constante, produzido pelo mesmo pipeline para bonafide e para spoof, logo nao e informativo de classe.",
+      "teste_da_regra_de_escopo": "NAO impede a validade do experimento principal",
+      "destino": "limitacao no texto (B6.1)",
+      "trabalho_futuro": "BatchNorm mascarado, ou LayerNorm/GroupNorm",
+      "custo_para_corrigir_agora": "re-treino de todo o Bloco 4; nao cabe no cronograma",
+      "nota_b45": "herdada do B4.4 sem mudanca: a grade do B4.5 nao mexeu no eixo BatchNorm sim/nao, entao a limitacao vale igual."
+    },
+    {
+      "id": "L2-semantica-de-teto-na-fronteira",
+      "titulo": "A reducao da mascara usa semantica de TETO, e a posicao de fronteira e parcialmente padding",
+      "descricao": "A mascara e reduzida por F.max_pool1d, entao uma posicao reduzida conta como VALIDA se QUALQUER frame original dela era valido. Na arquitetura ESCOLHIDA, de 4 blocos, o eixo do tempo percorre 251 -> 125 -> 62 -> 31 -> 15 e cada posicao final agrega 16 frames originais — logo a posicao de FRONTEIRA pode ser majoritariamente padding e ainda entrar no masked pooling com peso 1.",
+      "magnitude": "No maximo UMA posicao entre as validas: 1 de 15 (~7%) num exemplo sem padding. Com MENOS blocos a fronteira pesa MENOS, porque cada posicao agrega menos frames — os numeros vem de CnnDeepfake.reducao_temporal(), nao de copia do texto do B4.4.",
+      "por_que_foi_escolhida": "A alternativa e a semantica de PISO, que descartaria a fronteira do audio — informacao real, nao padding — e encurtaria mais o sinal justamente nos audios curtos. O teto e coerente com o ceil de n_frames_validos do Bloco 1.",
+      "teste_da_regra_de_escopo": "NAO impede a validade do experimento principal",
+      "destino": "convencao declarada no texto (B6.1)",
+      "custo_para_corrigir_agora": "re-treinar e re-medir o Bloco 4; nao cabe no cronograma"
+    },
+    {
+      "id": "L3-epocas-fixas-nao-sao-passos-fixos",
+      "titulo": "37 epocas em 27000 exemplos NAO e 37 epocas em 30000 exemplos",
+      "descricao": "O refit do B4.6 vai treinar pelo MESMO NUMERO DE EPOCAS selecionado aqui, mas sobre 30000 exemplos em vez de 27000. Com o mesmo batch size, uma epoca no conjunto de refit tem 11.1% MAIS passos de gradiente que uma epoca aqui. «Mesmo numero de epocas» NAO e «mesmo numero de atualizacoes».",
+      "alternativa_considerada": "Fixar os PASSOS: treinar por melhor_epoca x passos_por_epoca do conjunto interno, o que igualaria o numero de atualizacoes.",
+      "por_que_foi_descartada": "Simplicidade de descricao. Epocas fixas e o que o orientador escreveu («treina a arquitetura escolhida por numero FIXO de epocas»), e e a forma como a literatura reporta. A alternativa usa um numero quebrado de epocas e complica a descricao sem mudar a conclusao.",
+      "razao_de_tamanho": 1.1111,
+      "percentual_a_mais_de_atualizacoes": 11.1,
+      "teste_da_regra_de_escopo": "NAO impede a validade do experimento principal",
+      "destino": "limitacao no texto (B6.1)",
+      "redacao_para_o_texto": "O refit foi executado pelo mesmo numero de epocas selecionado na fase de early stopping. Como o conjunto de refit e 11.1% maior, isso corresponde a 11.1% mais atualizacoes de gradiente; a alternativa — fixar o numero de atualizacoes — foi considerada e descartada por simplicidade de descricao, e a diferenca fica registrada como limitacao."
+    }
+  ],
+  "matriz_confusao": [
+    [
+      263,
+      37
+    ],
+    [
+      38,
+      2662
+    ]
+  ],
+  "roc_auc_early_stopping": 0.9838,
+  "loss_final_early_stopping": 0.2535711957613627,
+  "tempo_treino_vencedora_s": 1068.4,
+  "tempo_por_epoca_s_mediana": 23.62,
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1,
+    "torch": "2.11.0+cu128",
+    "cuda_disponivel": true,
+    "cuda_versao": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "dispositivo_treino": "cuda"
+  },
+  "hash_md5_split_interno_csv": "4dd2246cf8b24e4a06517d4a3b2b37b7",
+  "hash_md5_indice_treino_csv": "b431e1113dd748da03eca87f3d725221",
+  "hash_md5_normalizacao_json": "5f5603343d4b06ee2078bcb7f9b6cf8a"
+}
