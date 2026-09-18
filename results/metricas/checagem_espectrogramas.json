@@ -1,0 +1,540 @@
+{
+  "semente": 42,
+  "piloto": {
+    "prefixo": "piloto_",
+    "n_tensores": 201,
+    "por_conjunto": {
+      "treino_30k": 81,
+      "teste": 60,
+      "validacao": 60
+    },
+    "n_bonafide": 20,
+    "n_spoof": 181
+  },
+  "definicao_frame_valido": "centro do frame (i*hop, center=True) dentro do áudio real pós-VAD e pré-padding — a MESMA função frames_validos() do ramo clássico, chamada com o hop do bloco `espectrograma`",
+  "n_asercoes": 12,
+  "n_reprovadas": 0,
+  "asercoes": [
+    {
+      "item": 1,
+      "assercao": "shape (128, 251) em todos os 201 exemplos",
+      "passou": true,
+      "critica": true,
+      "detalhe": "todos conformes"
+    },
+    {
+      "item": 2,
+      "assercao": "largura = 1 + 64000 // 256 = 251, recomputada e igual ao pipeline",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "formula_1_mais_n_div_hop": 251,
+        "n_amostras": 64000,
+        "hop_length": 256,
+        "config_yaml": 251,
+        "meta_json": 251,
+        "medida_no_pipeline": 251
+      }
+    },
+    {
+      "item": 3,
+      "assercao": "zero NaN e zero Inf em todos os tensores",
+      "passou": true,
+      "critica": true,
+      "detalhe": "0 NaN, 0 Inf"
+    },
+    {
+      "item": 4,
+      "assercao": "os 24 parâmetros do .meta.json (17 do bloco `espectrograma` + semente + 5 defaults do librosa + dtype) batem com o config.yaml, e os 3 hashes de entrada batem com o disco",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "parametros_divergentes": {},
+        "hashes_divergentes": {}
+      }
+    },
+    {
+      "item": 5,
+      "assercao": "db_max - db_min <= 80 em todo exemplo, e db_min == db_max - 80 onde há padding (o top_db atuando, não o amin, cujo piso seria -100 dB)",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "violacoes_faixa": 0,
+        "violacoes_piso": 0
+      }
+    },
+    {
+      "item": 6,
+      "assercao": "ganho 10x desloca o espectrograma em 20,0 ± 0.01 dB (FALHA a invariância — é o que distingue ref=1.0 de ref=np.max)",
+      "passou": true,
+      "critica": true,
+      "detalhe": {
+        "audios_fora_da_tolerancia": 0,
+        "erro_max_dB": 0.000232696533203125
+      }
+    },
+    {
+      "item": 7,
+      "assercao": "frames_validos(n_amostras_validas, 256, 251) == n_frames_validos do features.csv em 100% do piloto",
+      "passou": true,
+      "critica": true,
+      "detalhe": {
+        "fracao_igual": 1.0,
+        "divergentes": []
+      }
+    },
+    {
+      "item": 8,
+      "assercao": "a região [:, n_frames_validos+1:] é um platô constante de valor db_max - top_db (e a fronteira é provada por aritmética da janela)",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "problemas": [],
+        "fronteira_provada": true
+      }
+    },
+    {
+      "item": 9,
+      "assercao": "o valor do platô VARIA entre exemplos (a ressalva do top_db=80 é real e vai para o texto)",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "n_exemplos": 187,
+        "n_valores_distintos": 187,
+        "minimo": -73.77880859375,
+        "maximo": -52.780296325683594,
+        "amplitude": 20.998512268066406
+      }
+    },
+    {
+      "item": 10,
+      "assercao": "filterbank com n_fft=1024: suporte_minimo >= 2, picos_duplicados == 0 e filtros_ate_2_bins <= 1 (o valor correto é <= 1, NÃO zero — o filtro mais baixo é estreito por construção da escala Mel junto a fmin=0)",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "cnn": {
+          "n_fft": 1024,
+          "n_mels": 128,
+          "bins_fft": 513,
+          "suporte_minimo": 2,
+          "filtros_ate_2_bins": 1,
+          "picos_duplicados": 0
+        },
+        "contraste_512": {
+          "n_fft": 512,
+          "n_mels": 128,
+          "bins_fft": 257,
+          "suporte_minimo": 1,
+          "filtros_ate_2_bins": 61,
+          "picos_duplicados": 12
+        }
+      }
+    },
+    {
+      "item": 11,
+      "assercao": "o nº de frames independe do n_fft: 512, 1024 e 2048 dão 251 nos três (o eixo do tempo é hop, não n_fft)",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "512": 251,
+        "1024": 251,
+        "2048": 251
+      }
+    },
+    {
+      "item": 12,
+      "assercao": "bonafide e spoof plausíveis: figura 2x3 gravada, nenhum tensor chapado na região válida (power/ref corretos), faixa Mel do topo centrada em fmax=8000 Hz e a banda do codec aparecendo no espectro (banda larga com topo vivo, banda estreita com topo no platô) - e o que separa `fmax errado` de `banda estreita representada corretamente`",
+      "passou": true,
+      "critica": false,
+      "detalhe": {
+        "n_exemplos": 6,
+        "nao_chapado": true,
+        "graves_acima_das_agudas_em": 6,
+        "frequencia_central_da_faixa_do_topo_hz": 8000.0,
+        "topo_centrado_em_fmax": true,
+        "topo_por_banda_do_codec": {
+          "estreita": {
+            "n": 118,
+            "n_topo_no_plato": 65,
+            "fracao_topo_no_plato": 0.5508,
+            "std_topo_mediano": 0.0
+          },
+          "larga": {
+            "n": 83,
+            "n_topo_no_plato": 2,
+            "fracao_topo_no_plato": 0.0241,
+            "std_topo_mediano": 8.363
+          }
+        },
+        "topo_por_codec": {
+          "alaw": {
+            "n": 30,
+            "n_topo_no_plato": 17,
+            "std_topo_mediano": 0.0
+          },
+          "g722": {
+            "n": 26,
+            "n_topo_no_plato": 0,
+            "std_topo_mediano": 10.8
+          },
+          "gsm": {
+            "n": 41,
+            "n_topo_no_plato": 24,
+            "std_topo_mediano": 0.0
+          },
+          "none": {
+            "n": 31,
+            "n_topo_no_plato": 0,
+            "std_topo_mediano": 9.604
+          },
+          "opus": {
+            "n": 26,
+            "n_topo_no_plato": 2,
+            "std_topo_mediano": 4.675
+          },
+          "pstn": {
+            "n": 24,
+            "n_topo_no_plato": 11,
+            "std_topo_mediano": 0.291
+          },
+          "ulaw": {
+            "n": 23,
+            "n_topo_no_plato": 13,
+            "std_topo_mediano": 0.0
+          }
+        },
+        "banda_do_codec_aparece": true,
+        "nota_topo": "um topo de espectro constante é ESPERADO em alaw/ulaw/gsm/pstn (teto de 4 kHz, 57,9% do universo) e seria defeito só se aparecesse também na banda larga. A figura identifica o codec em cada painel justamente para que isso não seja lido como erro.",
+        "confirmacao_visual_humana": "CONFERIDA em 17/09/2026 sobre results/figuras/piloto_espectrogramas.png (3 bonafide / 3 spoof, com banda larga e banda estreita nos dois lados): (a) a fronteira do padding cai EXATAMENTE sobre a linha tracejada de n_frames_validos nos 6 paineis - a mascara nao esta deslocada e o item 7 nao passou por coincidencia; (b) estrutura harmonica visivel nas faixas Mel graves; (c) o corte de banda em ~4 kHz (faixa Mel ~99) aparece SO nos paineis gsm/ulaw e nao nos opus/none - e o codec, nao o fmax; (d) nenhum espectrograma chapado. Reconfira ao regerar a figura."
+      }
+    }
+  ],
+  "medicoes": {
+    "shapes": {
+      "teste": [
+        60,
+        128,
+        251
+      ],
+      "treino_30k": [
+        81,
+        128,
+        251
+      ],
+      "validacao": [
+        60,
+        128,
+        251
+      ]
+    },
+    "n_por_conjunto": {
+      "teste": 60,
+      "treino_30k": 81,
+      "validacao": 60
+    },
+    "largura": {
+      "formula_1_mais_n_div_hop": 251,
+      "n_amostras": 64000,
+      "hop_length": 256,
+      "config_yaml": 251,
+      "meta_json": 251,
+      "medida_no_pipeline": 251
+    },
+    "n_nan": 0,
+    "n_inf": 0,
+    "n_parametros_conferidos": 24,
+    "hashes_entrada": {
+      "hash_md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+      "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+      "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d"
+    },
+    "caminho_filterbank": "melspectrogram(htk,norm)",
+    "db": {
+      "db_max_min": 6.221189975738525,
+      "db_max_max": 27.219703674316406,
+      "db_max_mediana": 19.752939224243164,
+      "db_min_min": -73.77880859375,
+      "db_min_max": -52.780296325683594,
+      "faixa_dinamica_max": 80.00000381469727,
+      "n_exemplos_com_padding": 201,
+      "piso_se_top_db_fosse_None": -100.0,
+      "db_max_positivo_em": 201,
+      "nota": "db_max é POSITIVO: |STFT|^2 passa de 1 mesmo com o sinal em [-1,1], porque a STFT soma 400 amostras janeladas. Assertar db_max <= 0 seria uma falha falsa."
+    },
+    "ganho": {
+      "n_audios": 24,
+      "delta_min_observado": 19.999820709228516,
+      "delta_max_observado": 20.000232696533203,
+      "erro_absoluto_maximo_vs_20dB": 0.000232696533203125,
+      "contraste_ref_np_max_desloc_absmax": 0.0002288818359375,
+      "nota": "com ref=1.0 o ganho 10x desloca TODO o espectrograma em +20 dB; com ref=np.max o deslocamento colapsa para o arredondamento do float32 — é assim que se distingue uma escala absoluta de uma normalização por exemplo."
+    },
+    "mascara": {
+      "n_conferidos": 201,
+      "n_iguais": 201,
+      "fracao_igual": 1.0,
+      "delegacao_identica_a_frames_validos": true,
+      "n_frames_validos_min": 42,
+      "n_frames_validos_mediana": 124.0,
+      "n_frames_validos_max": 250
+    },
+    "plato": {
+      "n_exemplos_com_plato_conferivel": 187,
+      "n_exemplos_com_frame_de_transicao_nao_constante": 120,
+      "n_exemplos_em_que_a_janela_de_n_valid_alcanca_audio_real": 175,
+      "fronteira_n_valid_mais_1_provada_por_aritmetica": true,
+      "nota": "a região [:, n_valid:] NÃO é constante: o frame n_valid é de transição porque win_length=400 > hop=256 e sua janela ainda alcança até 200 amostras reais. O platô exato é [:, n_valid+1:]. A máscara guarda [:, :n_valid], logo o frame de transição fica fora dos dois ramos e a paridade da asserção 7 continua exata."
+    },
+    "plato_valores": {
+      "n_exemplos": 187,
+      "n_valores_distintos": 187,
+      "minimo": -73.77880859375,
+      "maximo": -52.780296325683594,
+      "amplitude": 20.998512268066406
+    },
+    "filterbank": {
+      "cnn_n_fft_1024": {
+        "n_fft": 1024,
+        "n_mels": 128,
+        "bins_fft": 513,
+        "suporte_minimo": 2,
+        "filtros_ate_2_bins": 1,
+        "picos_duplicados": 0
+      },
+      "ramo_classico_n_fft_512": {
+        "n_fft": 512,
+        "n_mels": 128,
+        "bins_fft": 257,
+        "suporte_minimo": 1,
+        "filtros_ate_2_bins": 61,
+        "picos_duplicados": 12
+      }
+    },
+    "largura_por_n_fft": {
+      "512": 251,
+      "1024": 251,
+      "2048": 251
+    },
+    "disco_para_o_lote_b42": {
+      "n_tensores": 74453,
+      "bytes_por_tensor": 128512,
+      "previsto_gib": 8.91,
+      "livre_gib": 1071.0,
+      "folga_gib": 1062.1,
+      "suficiente": true
+    },
+    "frequencias_centrais_mel": {
+      "n": 128,
+      "independem_do_n_fft": true,
+      "primeiras_5_hz": [
+        0.0,
+        23.751,
+        47.502,
+        71.253,
+        95.004
+      ],
+      "ultimas_3_hz": [
+        7617.54,
+        7806.43,
+        8000.0
+      ],
+      "nota": "o que os dois ramos COMPARTILHAM é a convenção da escala Mel (htk=False, norm='slaney') e as 128 frequências centrais, que não dependem do n_fft; o que DIFERE é a densidade de amostragem da DFT (513 bins contra 257)."
+    },
+    "plausibilidade": {
+      "exemplos": [
+        {
+          "arquivo": "LA_E_9002041",
+          "label": "bonafide",
+          "codec": "opus",
+          "banda": "larga",
+          "n_frames_validos": 134,
+          "db_max": 17.83,
+          "db_min": -62.17,
+          "desvio_regiao_valida": 18.824,
+          "desvio_faixa_mel_do_topo": 4.81,
+          "db_medio_32_graves": -22.28,
+          "db_medio_32_agudas": -46.39
+        },
+        {
+          "arquivo": "LA_E_7216223",
+          "label": "bonafide",
+          "codec": "gsm",
+          "banda": "estreita",
+          "n_frames_validos": 150,
+          "db_max": 6.41,
+          "db_min": -73.59,
+          "desvio_regiao_valida": 19.468,
+          "desvio_faixa_mel_do_topo": 2.557,
+          "db_medio_32_graves": -33.85,
+          "db_medio_32_agudas": -72.62
+        },
+        {
+          "arquivo": "LA_E_1455576",
+          "label": "bonafide",
+          "codec": "none",
+          "banda": "larga",
+          "n_frames_validos": 169,
+          "db_max": 6.72,
+          "db_min": -73.28,
+          "desvio_regiao_valida": 18.529,
+          "desvio_faixa_mel_do_topo": 12.44,
+          "db_medio_32_graves": -36.62,
+          "db_medio_32_agudas": -57.43
+        },
+        {
+          "arquivo": "LA_E_2741944",
+          "label": "spoof",
+          "codec": "opus",
+          "banda": "larga",
+          "n_frames_validos": 62,
+          "db_max": 21.9,
+          "db_min": -58.1,
+          "desvio_regiao_valida": 18.451,
+          "desvio_faixa_mel_do_topo": 0.09,
+          "db_medio_32_graves": -10.96,
+          "db_medio_32_agudas": -39.72
+        },
+        {
+          "arquivo": "LA_E_3251119",
+          "label": "spoof",
+          "codec": "ulaw",
+          "banda": "estreita",
+          "n_frames_validos": 203,
+          "db_max": 18.87,
+          "db_min": -61.13,
+          "desvio_regiao_valida": 22.065,
+          "desvio_faixa_mel_do_topo": 0.0,
+          "db_medio_32_graves": -12.07,
+          "db_medio_32_agudas": -59.32
+        },
+        {
+          "arquivo": "LA_E_9002992",
+          "label": "spoof",
+          "codec": "gsm",
+          "banda": "estreita",
+          "n_frames_validos": 96,
+          "db_max": 17.17,
+          "db_min": -62.83,
+          "desvio_regiao_valida": 21.967,
+          "desvio_faixa_mel_do_topo": 0.0,
+          "db_medio_32_graves": -14.13,
+          "db_medio_32_agudas": -61.61
+        }
+      ],
+      "n_exemplos": 6,
+      "nao_chapado": true,
+      "graves_acima_das_agudas_em": 6,
+      "frequencia_central_da_faixa_do_topo_hz": 8000.0,
+      "topo_centrado_em_fmax": true,
+      "topo_por_banda_do_codec": {
+        "estreita": {
+          "n": 118,
+          "n_topo_no_plato": 65,
+          "fracao_topo_no_plato": 0.5508,
+          "std_topo_mediano": 0.0
+        },
+        "larga": {
+          "n": 83,
+          "n_topo_no_plato": 2,
+          "fracao_topo_no_plato": 0.0241,
+          "std_topo_mediano": 8.363
+        }
+      },
+      "topo_por_codec": {
+        "alaw": {
+          "n": 30,
+          "n_topo_no_plato": 17,
+          "std_topo_mediano": 0.0
+        },
+        "g722": {
+          "n": 26,
+          "n_topo_no_plato": 0,
+          "std_topo_mediano": 10.8
+        },
+        "gsm": {
+          "n": 41,
+          "n_topo_no_plato": 24,
+          "std_topo_mediano": 0.0
+        },
+        "none": {
+          "n": 31,
+          "n_topo_no_plato": 0,
+          "std_topo_mediano": 9.604
+        },
+        "opus": {
+          "n": 26,
+          "n_topo_no_plato": 2,
+          "std_topo_mediano": 4.675
+        },
+        "pstn": {
+          "n": 24,
+          "n_topo_no_plato": 11,
+          "std_topo_mediano": 0.291
+        },
+        "ulaw": {
+          "n": 23,
+          "n_topo_no_plato": 13,
+          "std_topo_mediano": 0.0
+        }
+      },
+      "banda_do_codec_aparece": true,
+      "nota_topo": "um topo de espectro constante é ESPERADO em alaw/ulaw/gsm/pstn (teto de 4 kHz, 57,9% do universo) e seria defeito só se aparecesse também na banda larga. A figura identifica o codec em cada painel justamente para que isso não seja lido como erro.",
+      "confirmacao_visual_humana": "CONFERIDA em 17/09/2026 sobre results/figuras/piloto_espectrogramas.png (3 bonafide / 3 spoof, com banda larga e banda estreita nos dois lados): (a) a fronteira do padding cai EXATAMENTE sobre a linha tracejada de n_frames_validos nos 6 paineis - a mascara nao esta deslocada e o item 7 nao passou por coincidencia; (b) estrutura harmonica visivel nas faixas Mel graves; (c) o corte de banda em ~4 kHz (faixa Mel ~99) aparece SO nos paineis gsm/ulaw e nao nos opus/none - e o codec, nao o fmax; (d) nenhum espectrograma chapado. Reconfira ao regerar a figura."
+    },
+    "figura": "results/figuras/piloto_espectrogramas.png"
+  },
+  "meta_json_do_piloto": {
+    "semente": 42,
+    "tipo": "mel",
+    "sample_rate": 16000,
+    "n_fft": 1024,
+    "win_length": 400,
+    "hop_length": 256,
+    "n_mels": 128,
+    "fmin": 0,
+    "fmax": 8000,
+    "power": 2.0,
+    "escala": "db",
+    "db_ref": 1.0,
+    "top_db": 80,
+    "center": true,
+    "altura": 128,
+    "largura": 251,
+    "normalizacao": "global_por_mel",
+    "mascarar_agregacao": true,
+    "window": "hann",
+    "pad_mode": "constant",
+    "htk": false,
+    "mel_norm": "slaney",
+    "amin": 1e-10,
+    "dtype": "float32",
+    "escopo": [
+      "teste",
+      "treino_30k",
+      "validacao"
+    ],
+    "n_por_conjunto": {
+      "teste": 60,
+      "treino_30k": 81,
+      "validacao": 60
+    },
+    "caminho_filterbank": "melspectrogram(htk,norm)",
+    "nota_normalizacao": "os tensores em disco NAO estao normalizados; media/desvio por faixa Mel sao aplicados em tempo de carga, a partir de normalizacao_cnn.json (B4.3)",
+    "hash_md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+    "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+    "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d",
+    "hash_md5_indice_por_conjunto": {
+      "piloto_indice_teste.csv": "33bd72a85aaabb0250f3a4fd1e765424",
+      "piloto_indice_treino_30k.csv": "27a6fef088948274efbb908c7ec50ca6",
+      "piloto_indice_validacao.csv": "09896e2283db34b7b581224f8e0bdef0"
+    },
+    "versoes": {
+      "librosa": "0.11.0",
+      "numpy": "2.2.6",
+      "soundfile": "0.12.1"
+    },
+    "commit_git": "91dd619a63c8caecb8eec637c793f0cb819578bf",
+    "git_dirty": true
+  },
+  "aprovado_para_lote": true
+}
