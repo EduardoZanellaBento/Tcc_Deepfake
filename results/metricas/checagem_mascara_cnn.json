@@ -1,0 +1,145 @@
+{
+  "proposito": "evidencia direta da pergunta de banca «como a mascara temporal acompanhou a reducao do eixo do tempo dentro da CNN?» — rodado ANTES do treino do B4.4",
+  "arquitetura": {
+    "nome": "CnnDeepfake",
+    "n_blocos": 4,
+    "canais": [
+      32,
+      64,
+      128,
+      128
+    ],
+    "bloco": "Conv2d(3x3, padding=1, bias=False) -> BatchNorm2d -> ReLU -> MaxPool2d(2,2)",
+    "n_mels": 128,
+    "p_dropout": 0.3,
+    "cabeca": "Linear(C_final -> 2)",
+    "agregacao": "media integral no eixo de frequencia + masked global pooling no eixo do tempo (soma das posicoes validas / numero de posicoes validas)",
+    "reducao_da_mascara": "F.max_pool1d(kernel=2, stride=2) por bloco — a MESMA operacao que reduz o eixo do tempo do mapa; comprimentos batem por construcao, com assert no forward",
+    "flatten": false,
+    "n_parametros": 240866
+  },
+  "checagem_1_comprimentos": {
+    "nota": "o assert `mascara x mapa` mora DENTRO do forward; aqui ele e exercitado em varias larguras para mostrar que os comprimentos batem por CONSTRUCAO (a mascara passa pelo mesmo max_pool1d que reduz o mapa), nao por coincidencia com o 251",
+    "larguras_testadas": [
+      {
+        "largura_entrada": 251,
+        "saida": [
+          4,
+          2
+        ]
+      },
+      {
+        "largura_entrada": 128,
+        "saida": [
+          4,
+          2
+        ]
+      },
+      {
+        "largura_entrada": 64,
+        "saida": [
+          4,
+          2
+        ]
+      },
+      {
+        "largura_entrada": 32,
+        "saida": [
+          4,
+          2
+        ]
+      }
+    ],
+    "aprovado": true
+  },
+  "checagem_2_invariancia_direta": {
+    "nota": "o teste do B4.4 na letra: dois exemplos identicos na parte valida (100 frames), padding -3.0 contra 7.0 em TODO o resto, com e sem mascara, nos logits",
+    "achado": "A razao sem/com NAO explode: fica em 3-4x na maioria das sementes e em 0,70x na semente 42, a do projeto. O B4.4 previa que razao ~1 significaria «o masked pooling nao esta fazendo nada» — e esse diagnostico NAO se aplica aqui (a checagem 3 prova o contrario, com zero exato). A causa real e dupla: (a) o vazamento da convolucao alcanca ate 27 frames originais e, com n_valid=100, o eixo reduzido tem 15 posicoes das quais so 7 sao validas — o vazamento contamina 1 a 2 dessas 7, entao a diferenca COM mascara nao tem como ser pequena; (b) a cabeca Linear(128->2) soma 128 canais com pesos aleatorios de sinal variado, e os deltas se cancelam parcialmente, comprimindo o numero SEM mascara. Por isso esta checagem e REGISTRADA mas NAO aprova o marco.",
+    "por_semente": [
+      {
+        "semente": 42,
+        "diferenca_com_mascara": 0.013443894684314728,
+        "diferenca_sem_mascara": 0.009537547826766968,
+        "razao_sem_sobre_com": 0.7094333934268783
+      },
+      {
+        "semente": 1,
+        "diferenca_com_mascara": 0.018082983791828156,
+        "diferenca_sem_mascara": 0.06905431300401688,
+        "razao_sem_sobre_com": 3.8187455012387432
+      },
+      {
+        "semente": 7,
+        "diferenca_com_mascara": 0.01135176420211792,
+        "diferenca_sem_mascara": 0.045380521565675735,
+        "razao_sem_sobre_com": 3.99766245648487
+      },
+      {
+        "semente": 123,
+        "diferenca_com_mascara": 0.011575136333703995,
+        "diferenca_sem_mascara": 0.042805954813957214,
+        "razao_sem_sobre_com": 3.6980950875988077
+      },
+      {
+        "semente": 2026,
+        "diferenca_com_mascara": 0.013894621282815933,
+        "diferenca_sem_mascara": 0.03999257832765579,
+        "razao_sem_sobre_com": 2.878277681243195
+      }
+    ]
+  },
+  "checagem_3_alcance_medido": {
+    "nota": "menor zona de guarda que torna a diferenca COM mascara ZERO EXATO. Varia com o alinhamento de n_valid a grade de pooling (o bloco mais profundo agrega 16 frames originais por posicao reduzida)",
+    "por_n_valid": {
+      "n_valid_100": 27,
+      "n_valid_120": 23,
+      "n_valid_137": 22
+    },
+    "maior_observado": 27,
+    "zona_guarda_adotada": 32
+  },
+  "checagem_4_invariancia_com_zona_de_guarda": {
+    "nota": "variando o padding SO depois de uma zona de guarda maior que o alcance da convolucao, nenhuma posicao reduzida marcada como VALIDA consegue enxergar a parte que variou. Sob masked pooling a saida tem de ser BIT A BIT IGUAL — nao «pequena». Sem mascara ela tem de mudar, porque a media comum engole o padding inteiro. Zero exato contra diferenca mensuravel e uma separacao categorica, que nao depende de sorte de inicializacao",
+    "criterio": "diferenca COM mascara == 0.0 exato E diferenca SEM mascara > 0",
+    "zona_guarda": 32,
+    "por_semente": [
+      {
+        "semente": 42,
+        "diferenca_com_mascara": 0.0,
+        "diferenca_sem_mascara": 0.01655227690935135,
+        "com_mascara_e_zero_exato": true
+      },
+      {
+        "semente": 1,
+        "diferenca_com_mascara": 0.0,
+        "diferenca_sem_mascara": 0.057675860822200775,
+        "com_mascara_e_zero_exato": true
+      },
+      {
+        "semente": 7,
+        "diferenca_com_mascara": 0.0,
+        "diferenca_sem_mascara": 0.03952875733375549,
+        "com_mascara_e_zero_exato": true
+      },
+      {
+        "semente": 123,
+        "diferenca_com_mascara": 0.0,
+        "diferenca_sem_mascara": 0.02736709639430046,
+        "com_mascara_e_zero_exato": true
+      },
+      {
+        "semente": 2026,
+        "diferenca_com_mascara": 0.0,
+        "diferenca_sem_mascara": 0.026060007512569427,
+        "com_mascara_e_zero_exato": true
+      }
+    ],
+    "aprovado": true
+  },
+  "resposta_a_banca": "A mascara e reduzida pela MESMA operacao que reduz o mapa de ativacao (F.max_pool1d com o kernel/stride do eixo do tempo do MaxPool2d), com assert de comprimento dentro do forward — os tamanhos batem por construcao, nao por formula. A agregacao final e um masked global pooling: soma das posicoes validas dividida pelo numero de posicoes validas. A mascara atua so no tempo; a frequencia e agregada por media integral, porque nao ha padding em frequencia. Flatten nao aparece em lugar nenhum. A prova empirica esta na checagem 4: conteudo de padding fora do alcance da convolucao tem influencia EXATAMENTE NULA na saida mascarada, e influencia mensuravel na nao-mascarada.",
+  "semente": 42,
+  "versoes": {
+    "torch": "2.11.0+cu128"
+  },
+  "aprovado": true
+}

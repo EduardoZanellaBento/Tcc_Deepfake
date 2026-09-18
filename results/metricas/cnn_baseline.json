@@ -1,0 +1,159 @@
+{
+  "modelo": "cnn_baseline",
+  "limiar": 0.0006488421349786222,
+  "regra": "score >= limiar",
+  "acuracia": 0.9666666666666667,
+  "precisao_spoof": 0.9747991234477721,
+  "recall_spoof": 0.9885185185185185,
+  "f1_spoof": 0.9816108863552777,
+  "precisao_bonafide": 0.8816793893129771,
+  "recall_bonafide": 0.77,
+  "f1_bonafide": 0.8220640569395018,
+  "f1_macro": 0.9018374716473898,
+  "eer": 0.07740740740740742,
+  "limiar_eer": 0.012542706914246082,
+  "selecao_limiar": {
+    "criterio": "f1_macro",
+    "regra": "score >= limiar",
+    "conjunto": "early_stopping_interno",
+    "limiar": 0.0006488421349786222,
+    "f1_macro": 0.9018374716473898,
+    "n_candidatos": 2917,
+    "n_empates_no_maximo": 1
+  },
+  "nota_escala_score": "score = softmax(logits)[:, 1] = P(spoof), em [0,1] — comparavel ao predict_proba do RF e de escala DIFERENTE do decision_function do SVM. softmax[:,1] e logits[:,1]-logits[:,0] sao monotonicamente equivalentes, logo o limiar selecionado e o MESMO ponto de corte nos dois; o softmax foi escolhido por legibilidade. A regra do protocolo e agnostica de escala.",
+  "nota_limiar_provisorio": "LIMIAR PROVISORIO. Selecionado nos 3k de early stopping interno, nao na validacao externa — por isso conjunto='early_stopping_interno'. Serve para ler as primeiras metricas do B4.4 e NAO e o limiar do protocolo, que nasce na validacao externa no B4.7.",
+  "marco": "B4.4 — CNN baseline (nao e a arquitetura final; o B4.5 a define)",
+  "braco": "principal",
+  "conjunto_avaliado": "early_stopping_interno (3.000 da subamostra de 30k)",
+  "nota_comparabilidade": "ESTE f1_macro NAO E COMPARAVEL aos 0,7225 do RF e 0,7987 do SVM. Aqueles saem da VALIDACAO EXTERNA (22.226); este sai dos 3k internos, e e otimista por TRES motivos independentes, todos de construcao: (1) CONJUNTO — os 3k vem da mesma subamostra estratificada de 30k que gerou o treino, enquanto a validacao externa e o conjunto completo; (2) LIMIAR — foi selecionado nos MESMOS 3k em que a metrica e reportada, e nao num conjunto a parte; (3) EPOCA — a melhor epoca foi escolhida pelo f1_macro nos MESMOS 3k, entao o valor publicado e um MAXIMO sobre 30 epocas naquele conjunto. Com apenas 300 bonafide, a variancia da estimativa ainda e grande por cima disso. Os numeros comparaveis saem no B4.7, na validacao externa. Nada aqui autoriza a frase «a CNN superou o SVM».",
+  "diagnostico_curva": {
+    "melhor_epoca_e_a_ultima": true,
+    "f1_macro_primeira_epoca": 0.6796085858585859,
+    "f1_macro_ultima_epoca": 0.9018374716473898,
+    "f1_macro_media_ultimas_5": 0.8905531439982491,
+    "loss_early_stopping_min": 0.20039470402399698,
+    "loss_early_stopping_max": 2.921631669362386,
+    "loss_early_stopping_ultima": 0.6139687247276306,
+    "loss_treino_ultima": 0.08935523507992427,
+    "leitura": "Se `melhor_epoca_e_a_ultima` for True, a rede NAO PAROU de treinar: acabou o orcamento de epocas. E a resposta honesta a pergunta de banca «por que a CNN parou de treinar onde parou?» — nao parou, e o B4.5 precisa decidir o criterio de parada sabendo disso. Separadamente: a loss nos 3k e MUITO mais ruidosa que a de treino e chega a dar picos de uma ordem de grandeza, enquanto f1_macro e EER continuam melhorando. Isso NAO e perda de desempenho — e perda de CALIBRACAO: com peso 5,0 na bonafide, poucos exemplos minoritarios classificados com alta confianca no lado errado dominam a CrossEntropy, mas nao mudam o ORDENAMENTO dos scores, que e o que EER e AUC medem. Por isso o criterio de parada deste projeto e o f1_macro, nao a loss."
+  },
+  "arquitetura": {
+    "nome": "CnnDeepfake",
+    "n_blocos": 4,
+    "canais": [
+      32,
+      64,
+      128,
+      128
+    ],
+    "bloco": "Conv2d(3x3, padding=1, bias=False) -> BatchNorm2d -> ReLU -> MaxPool2d(2,2)",
+    "n_mels": 128,
+    "p_dropout": 0.3,
+    "cabeca": "Linear(C_final -> 2)",
+    "agregacao": "media integral no eixo de frequencia + masked global pooling no eixo do tempo (soma das posicoes validas / numero de posicoes validas)",
+    "reducao_da_mascara": "F.max_pool1d(kernel=2, stride=2) por bloco — a MESMA operacao que reduz o eixo do tempo do mapa; comprimentos batem por construcao, com assert no forward",
+    "flatten": false,
+    "n_parametros": 240866
+  },
+  "hiperparametros": {
+    "epocas": 30,
+    "batch": 128,
+    "otimizador": "Adam",
+    "lr": 0.001,
+    "scheduler": null,
+    "p_dropout": 0.3,
+    "canais": [
+      32,
+      64,
+      128,
+      128
+    ],
+    "amp_autocast": false,
+    "nota_amp": "AMP nao usado de proposito: ganho desprezivel numa rede pequena e introduz nao-determinismo numerico exatamente quando se esta tentando provar que o pipeline esta correto"
+  },
+  "loss": {
+    "funcao": "CrossEntropyLoss",
+    "n_saidas": 2,
+    "formula_pesos": "w_c = n / (k * n_c)  (mesma logica do class_weight='balanced')",
+    "contagens_usadas": {
+      "bonafide": 2700,
+      "spoof": 24300
+    },
+    "peso_bonafide": 5.0,
+    "peso_spoof": 0.5556,
+    "razao": 9.0,
+    "nota": "pesos DERIVADOS das contagens reais do split interno, nunca hard-coded: se o split mudar, os pesos acompanham. NAO BCEWithLogitsLoss com pos_weight=9 — spoof e a MAJORITARIA, e isso inverteria a intencao aprovada (P7).",
+    "reamostragem": "nenhuma — sem undersampling e sem oversampling; os 30 mil permanecem intactos (P7)"
+  },
+  "early_stopping": {
+    "melhor_epoca": 30,
+    "f1_macro_na_melhor_epoca": 0.9018374716473898,
+    "criterio": "f1_macro nos 3k",
+    "parou_de_verdade": false,
+    "nota": "a melhor epoca e APENAS REGISTRADA neste marco; o criterio de parada fecha no B4.5. Os pesos salvos em models/cnn_baseline.pt sao os da melhor epoca."
+  },
+  "split_interno": {
+    "n_treino_interno": 27000,
+    "n_early_stopping": 3000,
+    "bonafide_treino": 2700,
+    "spoof_treino": 24300,
+    "bonafide_early_stopping": 300,
+    "spoof_early_stopping": 2700,
+    "intersecao_arquivos": 0,
+    "intersecao_linhas_memmap": 0
+  },
+  "normalizacao": {
+    "fonte": "data/espectrogramas/normalizacao_cnn.json (B4.3)",
+    "eixo": "por_faixa_mel",
+    "aplicada_em": "tempo de carga, no Dataset, sobre os 251 frames INCLUSIVE o padding — o padding e plato constante que, normalizado, continua constante, e nao entra em conta nenhuma porque a agregacao e mascarada. Normalizar so a parte valida criaria uma descontinuidade artificial na fronteira, que a convolucao leria como borda",
+    "faixas_com_desvio_clampado": 0
+  },
+  "semente": 42,
+  "determinismo": {
+    "fixar_seeds_torch_chamado_antes_de_qualquer_cuda": true,
+    "estrito": true,
+    "limitacao": null,
+    "num_workers": 0,
+    "nota_pooling": "o masked global pooling e implementado com sum/div explicitos e NAO usa adaptive_avg_pool2d, cujo backward em CUDA e nao-deterministico — a arquitetura aprovada e, por acidente feliz, mais amigavel ao determinismo estrito do que a alternativa obvia"
+  },
+  "loss_final_early_stopping": 0.6139687247276306,
+  "matriz_confusao": [
+    [
+      231,
+      69
+    ],
+    [
+      31,
+      2669
+    ]
+  ],
+  "roc_auc_early_stopping": 0.9743,
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1,
+    "torch": "2.11.0+cu128",
+    "cuda_disponivel": true,
+    "cuda_versao": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "compute_capability": [
+      12,
+      0
+    ],
+    "dispositivo_treino": "cuda"
+  },
+  "tempo_treino_s": 693.58,
+  "tempo_por_epoca_s_mediana": 23.16,
+  "hash_md5_split_interno_csv": "4dd2246cf8b24e4a06517d4a3b2b37b7",
+  "hash_md5_indice_treino_csv": "b431e1113dd748da03eca87f3d725221",
+  "hash_md5_normalizacao_json": "5f5603343d4b06ee2078bcb7f9b6cf8a",
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d"
+}
