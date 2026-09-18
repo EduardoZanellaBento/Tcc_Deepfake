@@ -16,6 +16,10 @@ data/processed/*
 # estabilidade_subamostra.json sejam verificáveis sem re-gerar nada.
 !data/processed/subamostras_estabilidade/
 !data/processed/subamostras_estabilidade/*.csv
+# Split interno da CNN (B4.3): 27.000 treino_interno / 3.000 early_stopping.
+# Versionado pelo mesmo motivo do split.csv — sem o arquivo em disco, "a CNN
+# parou na epoca 14" deixa de ser uma afirmacao verificavel.
+!data/processed/split_interno_cnn.csv
 data/features/*.csv
 # meta do piloto e descartavel (regenerado a cada verificar_mascaramento);
 # o features.meta.json OFICIAL (assinatura da definicao congelada) e versionado
@@ -28,6 +32,11 @@ data/features/features_piloto_mascarado.meta.json
 # alguns KB) e versionado, pelo mesmo motivo do features.meta.json.
 data/espectrogramas/*
 !data/espectrogramas/espectrogramas.meta.json
+# Estatisticas de normalizacao da CNN (B4.3): 128 medias + 128 desvios, alguns
+# KB. Exigencia explicita do orientador — "e o que torna a inferencia
+# reproduzivel". Sem ele versionado, os tensores crus do lote nao bastam para
+# reconstruir a entrada que a rede viu.
+!data/espectrogramas/normalizacao_cnn.json
 
 # Modelos treinados (regeneraveis pelo pipeline)
 models/*
