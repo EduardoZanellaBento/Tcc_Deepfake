@@ -136,7 +136,12 @@
     ],
     "aprovado": true
   },
-  "resposta_a_banca": "A mascara e reduzida pela MESMA operacao que reduz o mapa de ativacao (F.max_pool1d com o kernel/stride do eixo do tempo do MaxPool2d), com assert de comprimento dentro do forward — os tamanhos batem por construcao, nao por formula. A agregacao final e um masked global pooling: soma das posicoes validas dividida pelo numero de posicoes validas. A mascara atua so no tempo; a frequencia e agregada por media integral, porque nao ha padding em frequencia. Flatten nao aparece em lugar nenhum. A prova empirica esta na checagem 4: conteudo de padding fora do alcance da convolucao tem influencia EXATAMENTE NULA na saida mascarada, e influencia mensuravel na nao-mascarada.",
+  "ressalva_batchnorm": {
+    "nota": "A checagem 4 roda com o modelo em eval(), onde o BatchNorm2d usa running stats FIXAS. E por isso que a diferenca COM mascara e zero EXATO ali: com as estatisticas de normalizacao congeladas, nenhuma via liga o padding distante as posicoes validas. Em train() essa invariancia bit a bit NAO vale, porque o BatchNorm calcula media e variancia por canal sobre o LOTE inteiro (N, F, T), padding incluido, e normaliza com isso tambem as posicoes validas — o masked pooling protege a AGREGACAO, nao a NORMALIZACAO.",
+    "por_que_nao_invalida_a_checagem": "A estatistica do BatchNorm e do LOTE, nao do exemplo: ela desloca e escala todos os exemplos igualmente e nao carrega, por exemplo, a informacao de onde o audio termina. O que a checagem 4 prova continua de pe — que a AGREGACAO e mascarada — e e isso que a pergunta de banca sobre a mascara temporal cobra. Registrado como limitacao em results/metricas/cnn_baseline.json (L1-batchnorm-ve-o-padding).",
+    "modo_do_modelo_nas_checagens": "eval"
+  },
+  "resposta_a_banca": "A mascara e reduzida pela MESMA operacao que reduz o mapa de ativacao (F.max_pool1d com o kernel/stride do eixo do tempo do MaxPool2d), com assert de comprimento dentro do forward — os tamanhos batem por construcao, nao por formula. A agregacao final e um masked global pooling: soma das posicoes validas dividida pelo numero de posicoes validas. A mascara atua so no tempo; a frequencia e agregada por media integral, porque nao ha padding em frequencia. Flatten nao aparece em lugar nenhum. A prova empirica esta na checagem 4: conteudo de padding fora do alcance da convolucao tem influencia EXATAMENTE NULA na saida mascarada, e influencia mensuravel na nao-mascarada — com as estatisticas de normalizacao fixas (modelo em eval), ver ressalva_batchnorm.",
   "semente": 42,
   "versoes": {
     "torch": "2.11.0+cu128"

@@ -50,6 +50,91 @@ NOME = "cnn_baseline"
 
 
 # =============================================================================
+# Limitacoes registradas do marco
+# =============================================================================
+# Regra de escopo (17/09): achado que NAO impede a validade do experimento
+# principal vira limitacao registrada, nao investigacao. As duas abaixo foram
+# levantadas na revisao do B4.4, reprovam o teste "isso impede a validade do
+# experimento principal?" com um NAO, e vao para o texto no B6.1. Ficam no
+# codigo — e nao so no JSON — para que qualquer reexecucao do marco as carregue.
+LIMITACOES_REGISTRADAS = [
+    {
+        "id": "L1-batchnorm-ve-o-padding",
+        "titulo": "O masked pooling protege a AGREGACAO, nao a NORMALIZACAO",
+        "descricao": (
+            "O BatchNorm2d de cada bloco calcula media e variancia por canal sobre o "
+            "LOTE inteiro (N, F, T), com o padding incluido, e essas estatisticas "
+            "normalizam tambem as posicoes validas. O masked global pooling garante "
+            "que o padding nao entra na AGREGACAO final; ele nao impede que o padding "
+            "participe da NORMALIZACAO intermediaria."
+        ),
+        "por_que_nao_invalida": (
+            "A estatistica do BatchNorm e do LOTE, nao do exemplo: desloca e escala "
+            "todos os exemplos do lote da mesma forma e, portanto, NAO cria um canal "
+            "por exemplo que codifique onde o audio termina — que e exatamente a "
+            "variavel espuria (prop_fala) que o Bloco 1 tirou do X do ramo classico. "
+            "Alem disso o padding e um plato constante, produzido pelo mesmo pipeline "
+            "para bonafide e para spoof, logo nao e informativo de classe. O unico "
+            "vazamento POR EXEMPLO que de fato existe e o da borda da convolucao, "
+            "medido em ate 27 frames originais na checagem 3 de "
+            "checagem_mascara_cnn.json, e ja esta documentado."
+        ),
+        "consequencia_para_a_checagem_da_mascara": (
+            "A checagem 4 roda com o modelo em eval(), onde o BatchNorm usa running "
+            "stats fixas — e por isso que ali a diferenca COM mascara e ZERO EXATO. "
+            "Em train() a mesma invariancia bit a bit nao vale. A afirmacao precisa e: "
+            "sob masked pooling e com as estatisticas de normalizacao fixas, o "
+            "conteudo do padding fora do alcance da convolucao tem influencia "
+            "exatamente nula na saida."
+        ),
+        "teste_da_regra_de_escopo": "NAO impede a validade do experimento principal",
+        "destino": "limitacao no texto (B6.1)",
+        "trabalho_futuro": (
+            "BatchNorm mascarado (estatisticas so sobre frames validos), ou "
+            "LayerNorm/GroupNorm no lugar do BatchNorm"
+        ),
+        "custo_para_corrigir_agora": (
+            "re-treino de todo o Bloco 4 (B4.4 a B4.7); nao cabe no cronograma"
+        ),
+    },
+    {
+        "id": "L2-semantica-de-teto-na-fronteira",
+        "titulo": "A reducao da mascara usa semantica de TETO, e a posicao de fronteira e parcialmente padding",
+        "descricao": (
+            "A mascara e reduzida por F.max_pool1d, entao uma posicao reduzida conta "
+            "como VALIDA se QUALQUER frame original dela era valido. Depois dos 4 "
+            "blocos cada posicao reduzida agrega 16 frames originais "
+            "(251 -> 125 -> 62 -> 31 -> 15), logo a posicao de FRONTEIRA pode ser "
+            "majoritariamente padding e ainda assim entrar no masked pooling com "
+            "peso 1."
+        ),
+        "magnitude": (
+            "No maximo UMA posicao entre as validas, e o erro nao cresce com a "
+            "profundidade: 1 de 15 (~7%) num exemplo sem padding e 1 de 7 (~14%) num "
+            "exemplo com 100 frames validos, que e o caso usado nas checagens."
+        ),
+        "por_que_foi_escolhida": (
+            "A alternativa e a semantica de PISO (a posicao reduzida so conta se "
+            "TODOS os frames originais dela eram validos), que descartaria a fronteira "
+            "do audio — informacao real, nao padding — e encurtaria mais o sinal "
+            "justamente nos audios curtos, que ja sao os que tem menos frames "
+            "validos. O teto e coerente com o ceil de n_frames_validos do Bloco 1."
+        ),
+        "teste_da_regra_de_escopo": "NAO impede a validade do experimento principal",
+        "destino": (
+            "convencao declarada no texto (B6.1), junto com a resposta de banca sobre "
+            "a mascara temporal"
+        ),
+        "custo_para_corrigir_agora": (
+            "trocar a semantica exigiria re-treinar e re-medir o Bloco 4; nao cabe no "
+            "cronograma"
+        ),
+    },
+]
+
+
+
+# =============================================================================
 # Dataset
 # =============================================================================
 class EspectrogramaDataset(torch.utils.data.Dataset):
@@ -407,6 +492,8 @@ def treinar(cfg: dict, raiz: Path, epocas: int = 30, batch: int = 128,
             "scores, que e o que EER e AUC medem. Por isso o criterio de parada deste "
             "projeto e o f1_macro, nao a loss."),
     }
+
+    m["limitacoes_registradas"] = LIMITACOES_REGISTRADAS
 
     m["arquitetura"] = modelo.descricao()
     m["hiperparametros"] = {

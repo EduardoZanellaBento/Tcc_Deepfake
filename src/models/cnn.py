@@ -59,6 +59,27 @@ class CnnDeepfake(nn.Module):
        que torna o teste de invariancia ao padding CONCLUSIVO: sem esse modo, o
        teste mediria um numero pequeno sem ter contra o que compara-lo. Ver
        `scripts/checar_mascara_cnn.py`.
+
+    LIMITACOES CONHECIDAS E REGISTRADAS (nenhuma impede a validade do
+    experimento principal — ver `limitacoes_registradas` em
+    results/metricas/cnn_baseline.json):
+
+    6. O masked pooling protege a AGREGACAO, nao a NORMALIZACAO. O
+       `BatchNorm2d` de cada bloco calcula media e variancia por canal sobre o
+       LOTE inteiro (N, F, T), padding incluido, e normaliza com isso tambem as
+       posicoes validas. Nao e vazamento POR EXEMPLO — a estatistica e do lote e
+       desloca todos os exemplos igualmente, logo nao codifica onde o audio
+       termina. O unico vazamento por exemplo e o da borda da convolucao, medido
+       em ate 27 frames originais (checagem 3 de checagem_mascara_cnn.json).
+
+    7. A reducao da mascara usa semantica de TETO: `max_pool1d` marca a posicao
+       reduzida como valida se QUALQUER frame original dela era valido. Depois
+       dos 4 blocos cada posicao reduzida agrega 16 frames (251 -> 125 -> 62 ->
+       31 -> 15), entao a posicao de FRONTEIRA pode ser majoritariamente padding
+       e ainda entrar no pooling com peso 1 — no maximo 1 posicao entre as
+       validas. A alternativa (semantica de piso) descartaria a fronteira do
+       audio, que e informacao real. Convencao declarada, coerente com o `ceil`
+       de `n_frames_validos` do Bloco 1.
     """
 
     def __init__(self, n_mels: int = 128, canais=(32, 64, 128, 128),
