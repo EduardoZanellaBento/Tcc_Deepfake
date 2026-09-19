@@ -1,0 +1,223 @@
+{
+  "modelo": "cnn_final_30k",
+  "marco": "B4.6 — refit final nos 30 mil completos (P6)",
+  "braco": "principal",
+  "n_treino": 30000,
+  "n_bonafide_treino": 3000,
+  "n_spoof_treino": 27000,
+  "por_que_o_refit_existe": "o early stopping precisa de um conjunto que o modelo nao veja, e ele saiu dos 30k, deixando 27.000 para treinar. Sem refit, a CNN final teria sido treinada em 27.000 exemplos enquanto RF e SVM treinaram em 30.000, e a comparacao carregaria um fator escondido de 3.000 amostras ALEM do modelo. Com o refit, a CNN final ve as MESMAS 30 mil amostras que RF e SVM. RF e SVM nunca precisaram separar um pedaco do treino para decidir quando parar (o RF nao tem «quando parar»; o SVM converge); a CNN precisou, e o refit paga essa divida.",
+  "arquitetura": {
+    "nome": "CnnDeepfake",
+    "n_blocos": 4,
+    "canais": [
+      32,
+      64,
+      128,
+      128
+    ],
+    "bloco": "Conv2d(3x3, padding=1, bias=False) -> BatchNorm2d -> ReLU -> MaxPool2d(2,2)",
+    "n_mels": 128,
+    "p_dropout": 0.0,
+    "cabeca": "Linear(C_final -> 2)",
+    "agregacao": "media integral no eixo de frequencia + masked global pooling no eixo do tempo (soma das posicoes validas / numero de posicoes validas)",
+    "reducao_da_mascara": "F.max_pool1d(kernel=2, stride=2) por bloco — a MESMA operacao que reduz o eixo do tempo do mapa; comprimentos batem por construcao, com assert no forward",
+    "flatten": false,
+    "n_parametros": 240866,
+    "reducao_temporal": [
+      251,
+      125,
+      62,
+      31,
+      15
+    ],
+    "frames_originais_por_posicao_final": 16
+  },
+  "origem_da_arquitetura": "results/metricas/cnn_definida.json -> arquitetura (config vencedora A4-32x64x128x128|drop0.0|lr0.001); copiada integralmente, nao redigitada",
+  "hiperparametros": {
+    "lr": 0.001,
+    "batch": 128,
+    "dropout": 0.0,
+    "otimizador": "Adam",
+    "weight_decay": 0.0,
+    "scheduler": null,
+    "amp_autocast": false
+  },
+  "pesos_loss": {
+    "bonafide": 5.0,
+    "spoof": 0.5556,
+    "razao": 9.0,
+    "formula": "n / (k * n_c), mesma logica do class_weight='balanced'",
+    "contagens_usadas": {
+      "bonafide": 3000,
+      "spoof": 27000
+    },
+    "nota": "DERIVADOS das contagens reais do conjunto de refit, nao reaproveitados dos 27k. A razao continua 9:1 e na pratica nao muda nada — mas reaproveitar faria o JSON registrar numeros que nao correspondem ao conjunto, e isso e erro de registro",
+    "reamostragem": "nenhuma — sem undersampling e sem oversampling (P7)"
+  },
+  "n_epocas_fixas": 37,
+  "origem_n_epocas": "results/metricas/cnn_definida.json -> melhor_epoca (early stopping nos 3k internos)",
+  "nota_epocas": "mesmo NUMERO DE EPOCAS da fase de early stopping; como os 30k sao 11,1% maiores que os 27k, corresponde a 11,1% mais atualizacoes de gradiente — limitacao registrada",
+  "early_stopping": {
+    "usado": false,
+    "conjunto_de_acompanhamento": null,
+    "nota": "nenhum. O refit e por numero FIXO de epocas (P6), e por isso a curva deste marco tem uma serie so — nao ha conjunto de acompanhamento para desenhar a segunda"
+  },
+  "normalizacao": "data/espectrogramas/normalizacao_cnn_30k.json (estagio 30k_refit)",
+  "normalizacao_detalhe": {
+    "estagio": "30k_refit",
+    "n_exemplos": 30000,
+    "eixo": "por_faixa_mel",
+    "faixas_com_desvio_clampado": 0,
+    "hash_lista_ids": "e759da860c822f6828ae26e2fd349b1f61dec609ab8e0b7dcc201e32d960e8c6",
+    "artefato_dos_27k_preservado": "data/espectrogramas/normalizacao_cnn.json",
+    "md5_dos_27k_agora": "5f5603343d4b06ee2078bcb7f9b6cf8a",
+    "md5_dos_27k_registrado_no_b45": "5f5603343d4b06ee2078bcb7f9b6cf8a",
+    "md5_dos_27k_confere_com_o_b45": true,
+    "por_que_dois_artefatos": "P3: estatisticas globais do treino EFETIVAMENTE DISPONIVEL naquele estagio. No early stopping eram os 27k; no refit sao os 30k. Os dois coexistem — o dos 27k documenta a fase que escolheu a melhor epoca, o dos 30k documenta a CNN final — e o campo `estagio` e o que impede alguem de pegar o errado. A inferencia do B4.7 e do B5.1 usa o dos 30k"
+  },
+  "sem_avaliacao": "nenhum conjunto de avaliacao foi tocado neste marco: a validacao externa e B4.7 e o teste e B5.1",
+  "isolamento_validacao": {
+    "verificado_por": "leitura do codigo-fonte (AST) dos modulos do caminho de treino do refit, nao por memoria nem por afirmacao escrita a mao",
+    "arquivos_auditados": {
+      "src/models/cnn.py": {
+        "md5": "6f08d179f88a70841f0a9ec9b528d487",
+        "md5_registrado_no_b45": "6f08d179f88a70841f0a9ec9b528d487",
+        "confere_com_o_b45": true,
+        "chamadas_selecionar_limiar": []
+      },
+      "src/models/treinar_cnn.py": {
+        "md5": "57fc545948eba78f33a57d90158e39b4",
+        "md5_registrado_no_b45": "57fc545948eba78f33a57d90158e39b4",
+        "confere_com_o_b45": true,
+        "chamadas_selecionar_limiar": [
+          {
+            "linha": 555,
+            "conjunto_declarado": "early_stopping_interno",
+            "explicito": true
+          },
+          {
+            "linha": 475,
+            "conjunto_declarado": "early_stopping_interno",
+            "explicito": true
+          }
+        ]
+      },
+      "src/models/definir_cnn.py": {
+        "md5": "50ce6bae483f608f66719fe1bc540856",
+        "md5_registrado_no_b45": "50ce6bae483f608f66719fe1bc540856",
+        "confere_com_o_b45": true,
+        "chamadas_selecionar_limiar": [
+          {
+            "linha": 398,
+            "conjunto_declarado": "early_stopping_interno",
+            "explicito": true
+          }
+        ]
+      },
+      "src/models/refit_cnn.py": {
+        "md5": "1bfa0860100d9c2c716e891c3d7131a1",
+        "md5_registrado_no_b45": null,
+        "confere_com_o_b45": null,
+        "chamadas_selecionar_limiar": []
+      }
+    },
+    "nomes_de_dados_proibidos": [
+      "validacao.npy",
+      "indice_validacao",
+      "teste.npy",
+      "indice_teste",
+      "carregar_dados_split",
+      "filtrar_treino_braco"
+    ],
+    "o_que_foi_checado": [
+      "nenhum identificador nem string de codigo dos modulos auditados contem qualquer um dos nomes listados em `nomes_de_dados_proibidos`",
+      "toda chamada a selecionar_limiar nos modulos auditados declara o conjunto EXPLICITAMENTE, e declara o conjunto interno — nunca herda o default da assinatura. Em src/models/refit_cnn.py nao ha nenhuma: o refit nao seleciona limiar, porque nao avalia nada",
+      "o md5 dos tres modulos auditados pelo B4.5 continua identico ao registrado em cnn_definida.json -> isolamento_validacao"
+    ],
+    "o_que_NAO_e_checado": "docstrings e comentarios sao ignorados de proposito — e neles que o projeto DOCUMENTA a proibicao, e uma guarda que dispara com a propria documentacao seria ruido que ensina a ignorar o alarme",
+    "dados_efetivamente_lidos": [
+      "data/espectrogramas/treino_30k.npy (a subamostra de 30k)",
+      "data/espectrogramas/indice_treino_30k.csv (as 30.000 linhas, sem filtro)",
+      "data/espectrogramas/normalizacao_cnn_30k.json (estatisticas do refit)",
+      "results/metricas/cnn_definida.json (arquitetura e melhor epoca)",
+      "results/metricas/curvas_busca_cnn.csv (a loss de TREINO do B4.5 na mesma epoca, unica conferencia permitida antes do B4.7)"
+    ],
+    "resultado": "nenhum conjunto de avaliacao foi aberto: nem a validacao externa (22.226), que e B4.7, nem o teste (22.227), lacrado ate B5.1"
+  },
+  "conferencia_loss_treino": {
+    "loss_treino_final_refit": 0.013622655656933784,
+    "loss_treino_b45_na_mesma_epoca": 0.0049202334213036,
+    "epoca": 37,
+    "config_id_b45": "A4-32x64x128x128|drop0.0|lr0.001",
+    "razao": 2.768701094129088,
+    "por_que_esta_e_a_unica_conferencia_legitima": "a validacao externa nao pode ser olhada antes do B4.7 — «dar uma olhadinha» transformaria o limiar do B4.7 num limiar escolhido depois de espiar, e o protocolo de RF/SVM e o da CNN deixariam de ser o mesmo. A loss de TREINO do refit comparada com a do B4.5 na mesma epoca nao toca conjunto nenhum de avaliacao. Mesma ordem de grandeza e o esperado; muito diferente sugere normalizacao errada no passo 1, e ainda assim vira NOTA, nao re-treino"
+  },
+  "loss_treino_final": 0.013622655656933784,
+  "loss_treino_primeira_epoca": 0.5257379062652587,
+  "curva_loss_treino": "results/metricas/curva_refit_cnn.csv",
+  "nota_curva": "so a loss de TREINO, porque nao ha conjunto de acompanhamento — e isso e de proposito",
+  "tempo_treino_s": 887.52,
+  "tempo_por_epoca_s_mediana": 23.94,
+  "semente": 42,
+  "determinismo": {
+    "fixar_seeds_torch": true,
+    "estrito": true,
+    "limitacao": null,
+    "num_workers": 0
+  },
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1,
+    "torch": "2.11.0+cu128",
+    "cuda_disponivel": true,
+    "cuda_versao": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "compute_capability": [
+      12,
+      0
+    ],
+    "dispositivo_treino": "cuda"
+  },
+  "delta_max_media_por_mel": 0.016364968287174264,
+  "delta_max_desvio_por_mel": 0.011753922373667791,
+  "nota_deltas": "em dB, entre as estatisticas dos 27k e as dos 30k, faixa a faixa. Esperado PEQUENO: os 3.000 exemplos a mais sao 10% do conjunto e vieram de um split estratificado. Valor grande apontaria erro no split interno ou na leitura do memmap, nao diferenca real entre os conjuntos",
+  "limitacoes_registradas": [
+    {
+      "id": "L3-epocas-fixas-nao-sao-passos-fixos",
+      "titulo": "37 epocas em 27000 exemplos NAO e 37 epocas em 30000 exemplos",
+      "descricao": "O refit do B4.6 vai treinar pelo MESMO NUMERO DE EPOCAS selecionado aqui, mas sobre 30000 exemplos em vez de 27000. Com o mesmo batch size, uma epoca no conjunto de refit tem 11.1% MAIS passos de gradiente que uma epoca aqui. «Mesmo numero de epocas» NAO e «mesmo numero de atualizacoes».",
+      "alternativa_considerada": "Fixar os PASSOS: treinar por melhor_epoca x passos_por_epoca do conjunto interno, o que igualaria o numero de atualizacoes.",
+      "por_que_foi_descartada": "Simplicidade de descricao. Epocas fixas e o que o orientador escreveu («treina a arquitetura escolhida por numero FIXO de epocas»), e e a forma como a literatura reporta. A alternativa usa um numero quebrado de epocas e complica a descricao sem mudar a conclusao.",
+      "razao_de_tamanho": 1.1111,
+      "percentual_a_mais_de_atualizacoes": 11.1,
+      "teste_da_regra_de_escopo": "NAO impede a validade do experimento principal",
+      "destino": "limitacao no texto (B6.1), no mesmo paragrafo da L3",
+      "redacao_para_o_texto": "O refit foi executado pelo mesmo numero de epocas selecionado na fase de early stopping. Como o conjunto de refit e 11,1% maior, isso corresponde a 11,1% mais atualizacoes de gradiente; alem disso, a configuracao selecionada nao emprega dropout nem weight decay, de modo que a parada antecipada era o unico mecanismo de regularizacao em operacao naquela fase e o refit, por definicao, nao o reproduz. A alternativa — fixar o numero de atualizacoes, ou reintroduzir regularizacao explicita no refit — foi considerada e descartada por fidelidade ao protocolo aprovado, e a diferenca fica registrada como limitacao.",
+      "complemento_b46": "A configuracao vencedora do B4.5 tem dropout 0.0 e weight decay 0, entao na fase de early stopping o UNICO regularizador em operacao era a propria parada antecipada, medida nos 3k: na epoca 37 a loss de treino era 0,0049 contra 0,2536 nos 3k. O refit remove esse mecanismo — treina por numero fixo de epocas, sem conjunto de acompanhamento — e ao mesmo tempo aumenta em 11,1% o numero de atualizacoes por epoca. Os dois efeitos vao na mesma direcao: o modelo final passa um pouco mais de tempo em regime de ajuste do que o modelo cuja epoca foi selecionada.",
+      "por_que_nao_invalida": "A epoca foi selecionada em dado que o modelo NAO viu, e o refit apenas a aplica — nao ha escolha nova sendo feita com dado contaminado, e a validacao externa continua intocada. O protocolo e o aprovado na P6, e o refit existe justamente para que a CNN final veja as mesmas 30 mil amostras que RF e SVM. O risco residual e de grau, nao de validade: 37 epocas podem passar um pouco do ponto otimo no conjunto maior.",
+      "alternativa_considerada_para_o_complemento": "Reduzir proporcionalmente o numero de epocas (37 / 1,111 = 33,3) para igualar as atualizacoes, ou reintroduzir dropout no refit.",
+      "por_que_foi_descartada_o_complemento": "A primeira usa um numero quebrado de epocas e contraria a letra da P6 («numero FIXO de epocas»); a segunda mudaria a arquitetura entre a selecao e o modelo final, que e exatamente o que o refit existe para NAO fazer. Ambas custariam re-executar o B4.5.",
+      "nota_de_montagem": "herdada integralmente de cnn_definida.json -> limitacoes_registradas e acrescida do complemento do B4.6. `por_que_foi_descartada` e a herdada, sobre a alternativa da L3 (fixar os passos); a razao de descarte das alternativas do COMPLEMENTO esta em `por_que_foi_descartada_o_complemento`. `destino` e `redacao_para_o_texto` sao os do B4.6, que contem os do B4.5 e os ampliam. Nada do B4.5 foi editado para isto: o complemento mora aqui, no artefato do B4.6, e nao em cnn_definida.json, porque editar aquele arquivo invalidaria a evidencia de md5 do isolamento da grade.",
+      "onde_o_complemento_foi_escrito": "docs/execucao/B4.6_refit_final.md, secao «Limitacao a registrar no refit_cnn.json — complemento da L3» (18/09/2026)"
+    }
+  ],
+  "hash_md5_indice_treino_csv": "b431e1113dd748da03eca87f3d725221",
+  "hash_md5_split_interno_csv": "4dd2246cf8b24e4a06517d4a3b2b37b7",
+  "hash_md5_normalizacao_30k_json": "348d1df7f1251ab7670dbee2b180ea14",
+  "hash_md5_normalizacao_27k_json": "5f5603343d4b06ee2078bcb7f9b6cf8a",
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d",
+  "hash_md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+  "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+  "nota_hashes": "os hashes dos tres artefatos congelados (features.csv, split.csv, subamostra_30k.csv) aparecem aqui pelo mesmo motivo que aparecem em rf_tuned_principal.json: sem eles, o JSON nao diz SOBRE QUAIS DADOS o modelo foi treinado",
+  "divergencias_declaradas": [
+    "o preparo dos dados (`preparar_dados_refit`) e proprio deste modulo em vez de reusar `preparar_treino`, porque aquele esta amarrado ao split interno 27k/3k e as estatisticas dos 27k — as duas coisas que o refit tem de trocar. O que NAO podia divergir foi importado: a rede (CnnDeepfake), a formula dos pesos (pesos_balanced), o Dataset com a normalizacao em tempo de carga (EspectrogramaDataset) e o passo de uma epoca (_uma_epoca). Os tres modulos do B4.5 nao foram editados, e o md5 deles esta reconferido em `isolamento_validacao`"
+  ]
+}

@@ -57,13 +57,30 @@ ONDE A NORMALIZAÇÃO É APLICADA:
     a parte válida criaria uma descontinuidade artificial na fronteira, que a
     convolução leria como borda.
 
-SAÍDA:
-    data/espectrogramas/normalizacao_cnn.json   (VERSIONADO — é o que torna a
-                                                 inferência reproduzível)
+OS DOIS ESTÁGIOS, E POR QUE ESTE SCRIPT ATENDE AOS DOIS:
+    O B4.6 (refit) tem de recomputar as MESMAS estatísticas sobre os 30.000. A
+    precisão 2 acima já previa isso, e a forma certa de atender é PARAMETRIZAR
+    este script — não copiá-lo. Uma cópia divergiria em silêncio (uma correção
+    numérica aplicada num lado só), e as duas estatísticas deixariam de ser
+    comparáveis; a diferença entre elas é justamente o número que o B4.6 grava
+    como conferência. O que muda entre os estágios é UMA COISA: quais linhas do
+    `indice_treino_30k.csv` entram. O resto do caminho — máscara, float64, duas
+    passadas, ordem de acumulação, guardas — é literalmente o mesmo código.
 
-Rode a partir da raiz:  python -m scripts.calcular_normalizacao_cnn
+SAÍDA:
+    data/espectrogramas/normalizacao_cnn.json       (estágio 27k, B4.3)
+    data/espectrogramas/normalizacao_cnn_30k.json   (estágio 30k, B4.6)
+    Os dois VERSIONADOS e os dois COEXISTEM: o dos 27k documenta a fase de early
+    stopping (e é o que torna a melhor época reproduzível), o dos 30k documenta a
+    CNN final. O campo `estagio` é o que impede alguém de pegar o errado — a
+    inferência do B4.7 e do B5.1 usa o dos 30k.
+
+Rode a partir da raiz:
+    python -m scripts.calcular_normalizacao_cnn                      # 27k (B4.3)
+    python -m scripts.calcular_normalizacao_cnn --estagio 30k_refit  # 30k (B4.6)
 """
 
+import argparse
 import hashlib
 import json
 import subprocess
@@ -86,6 +103,29 @@ SPLIT_INTERNO = "data/processed/split_interno_cnn.csv"
 SAIDA = "data/espectrogramas/normalizacao_cnn.json"
 
 ESTAGIO = "27k_early_stopping"
+
+# O que distingue um estágio do outro — e só isto. `particao_interna=None`
+# significa «não filtre»: no refit o treino efetivamente disponível são as 30.000
+# linhas inteiras do índice, e a armadilha listada no marco («esquecer de
+# recomputar o n_valid dos 3.000 novos exemplos») se resolve exatamente assim,
+# NÃO filtrando — o `n_frames_validos` deles já está no índice desde o B4.2.
+ESTAGIOS = {
+    "27k_early_stopping": {
+        "particao_interna": "treino_interno",
+        "saida": "data/espectrogramas/normalizacao_cnn.json",
+        "conjunto_de_origem": ("treino_interno (27.000 de 30.000 da subamostra do "
+                               "braco principal)"),
+        "n_esperado": 27000,
+    },
+    "30k_refit": {
+        "particao_interna": None,
+        "saida": "data/espectrogramas/normalizacao_cnn_30k.json",
+        "conjunto_de_origem": ("subamostra completa do braco principal (30.000) — o "
+                               "treino efetivamente disponivel no refit do B4.6"),
+        "n_esperado": 30000,
+    },
+}
+
 EPSILON = 1e-8
 # Abaixo disto um desvio não é "pequeno", é suspeito: ver a previsão registrada
 # no marco B4.3 — nenhuma faixa deve chegar perto de zero, nem no topo morto dos
@@ -114,7 +154,46 @@ def _git() -> tuple[str, bool | None]:
     return commit, dirty
 
 
-def main() -> int:
+def _delta_vs_27k(raiz: Path, media: np.ndarray, desvio: np.ndarray) -> dict | None:
+    """Maior afastamento, faixa a faixa, entre as estatísticas dos 30k e as dos 27k.
+
+    Conferência pedida pelo B4.6, e ela é um DIAGNÓSTICO, não uma formalidade: os
+    3.000 exemplos a mais são 10% do conjunto e foram separados de forma
+    estratificada, então as duas médias têm de ficar próximas. Um afastamento grande
+    não significa «os 3k são diferentes» — significa que uma das duas varreduras leu
+    linha errada do memmap, ou que o split interno não é o que se pensa. É mais
+    barato descobrir isso aqui do que depois de 16 minutos de GPU.
+    """
+    caminho = raiz / SAIDA
+    if not caminho.exists():
+        return None
+    ref = json.loads(caminho.read_text(encoding="utf-8"))
+    m27 = np.array(ref["media_por_mel"], dtype=np.float64)
+    d27 = np.array(ref["desvio_por_mel"], dtype=np.float64)
+    if m27.shape != media.shape or d27.shape != desvio.shape:
+        return None
+    return {
+        "artefato_comparado": SAIDA,
+        "estagio_comparado": ref["estagio"],
+        "delta_max_media_por_mel": float(np.abs(media - m27).max()),
+        "delta_max_desvio_por_mel": float(np.abs(desvio - d27).max()),
+        "faixa_do_maior_delta_media": int(np.argmax(np.abs(media - m27))),
+        "faixa_do_maior_delta_desvio": int(np.argmax(np.abs(desvio - d27))),
+        "nota": ("em dB. Esperado PEQUENO: os 3.000 exemplos a mais sao 10% do "
+                 "conjunto e vieram de um split estratificado. Valor grande e sinal "
+                 "de leitura errada do memmap ou de split interno inconsistente, "
+                 "nao de diferenca real entre os conjuntos"),
+    }
+
+
+def main(estagio: str = ESTAGIO) -> int:
+    if estagio not in ESTAGIOS:
+        print(f"FALHA: estagio {estagio!r} desconhecido; use um de "
+              f"{sorted(ESTAGIOS)}.", file=sys.stderr)
+        return 1
+    plano = ESTAGIOS[estagio]
+    saida = plano["saida"]
+
     cfg = carregar_config(RAIZ)
     semente = int(cfg["semente"])
     esp = cfg["espectrograma"]
@@ -139,12 +218,24 @@ def main() -> int:
 
     indice = pd.read_csv(caminho_indice)
     split = pd.read_csv(caminho_split)
-    ti = split[split["particao_interna"] == "treino_interno"][["arquivo"]]
 
-    alvo = indice.merge(ti, on="arquivo", how="inner")
-    if len(alvo) != len(ti):
-        print(f"FALHA: {len(ti) - len(alvo)} arquivos do treino_interno não "
-              f"estão no índice do memmap.", file=sys.stderr)
+    if plano["particao_interna"] is None:
+        # Refit: NÃO se filtra nada. O treino disponível neste estágio é o índice
+        # inteiro, e os `n_frames_validos` dos 3.000 que antes eram early stopping
+        # já estão lá — é a armadilha listada no B4.6, e o jeito de não cair nela
+        # é este: não filtrar.
+        alvo = indice.copy()
+    else:
+        ti = split[split["particao_interna"] == plano["particao_interna"]][["arquivo"]]
+        alvo = indice.merge(ti, on="arquivo", how="inner")
+        if len(alvo) != len(ti):
+            print(f"FALHA: {len(ti) - len(alvo)} arquivos de "
+                  f"{plano['particao_interna']} não estão no índice do memmap.",
+                  file=sys.stderr)
+            return 1
+    if len(alvo) != plano["n_esperado"]:
+        print(f"FALHA: estagio {estagio} esperava {plano['n_esperado']} exemplos, "
+              f"encontrou {len(alvo)}.", file=sys.stderr)
         return 1
     # Ordem por `linha`: leitura sequencial no memmap (rápida) e ordem de
     # acumulação FIXA — soma de float não é associativa, então a ordem faz parte
@@ -167,7 +258,7 @@ def main() -> int:
 
     linhas = alvo["linha"].to_numpy()
     n_ex = len(alvo)
-    print(f"Estágio {ESTAGIO}: {n_ex} exemplos | memmap {mm.shape} | "
+    print(f"Estágio {estagio}: {n_ex} exemplos | memmap {mm.shape} | "
           f"n_frames_validos: mín {nv.min()}, mediana {int(np.median(nv))}, "
           f"máx {nv.max()}")
     print(f"frames válidos a acumular: {int(nv.sum())} de {n_ex * largura} "
@@ -225,9 +316,8 @@ def main() -> int:
     commit, dirty = _git()
 
     registro = {
-        "estagio": ESTAGIO,
-        "conjunto_de_origem": "treino_interno (27.000 de 30.000 da subamostra do "
-                              "braco principal)",
+        "estagio": estagio,
+        "conjunto_de_origem": plano["conjunto_de_origem"],
         "n_exemplos": n_ex,
         "n_frames_validos_acumulados": n_frames,
         "n_frames_totais_se_nao_mascarasse": int(n_ex * largura),
@@ -267,9 +357,23 @@ def main() -> int:
         "git_dirty": dirty,
         "versoes": {"numpy": np.__version__, "pandas": pd.__version__},
     }
-    with open(RAIZ / SAIDA, "w", encoding="utf-8") as f:
+
+    if estagio != ESTAGIO:
+        delta = _delta_vs_27k(RAIZ, media, desvio)
+        registro["delta_vs_27k"] = delta
+        if delta is None:
+            print("AVISO: artefato dos 27k ausente ou com formato incompatível — "
+                  "os deltas não foram calculados.", file=sys.stderr)
+        else:
+            print(f"delta máximo vs {delta['estagio_comparado']}: "
+                  f"média {delta['delta_max_media_por_mel']:.4f} dB "
+                  f"(faixa {delta['faixa_do_maior_delta_media']}) | "
+                  f"desvio {delta['delta_max_desvio_por_mel']:.4f} dB "
+                  f"(faixa {delta['faixa_do_maior_delta_desvio']})")
+
+    with open(RAIZ / saida, "w", encoding="utf-8") as f:
         json.dump(registro, f, indent=2, ensure_ascii=False)
-    print(f"\nArtefato: {RAIZ / SAIDA}")
+    print(f"\nArtefato: {RAIZ / saida}")
     print(f"hash_lista_ids: {hash_ids}")
 
     if clampadas or bruto_min < LIMIAR_SUSPEITO:
@@ -288,4 +392,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    _p = argparse.ArgumentParser(
+        description="Estatísticas de normalização da CNN (P3), por estágio")
+    _p.add_argument("--estagio", choices=sorted(ESTAGIOS), default=ESTAGIO,
+                    help="27k_early_stopping (B4.3, padrão) ou 30k_refit (B4.6)")
+    raise SystemExit(main(_p.parse_args().estagio))

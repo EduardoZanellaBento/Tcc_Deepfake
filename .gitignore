@@ -37,6 +37,13 @@ data/espectrogramas/*
 # reproduzivel". Sem ele versionado, os tensores crus do lote nao bastam para
 # reconstruir a entrada que a rede viu.
 !data/espectrogramas/normalizacao_cnn.json
+# Estatisticas do REFIT (B4.6): recomputadas sobre os 30.000 completos, porque a
+# P3 manda usar "o treino efetivamente disponivel naquele estagio" e no refit ele
+# e o conjunto inteiro. Os DOIS artefatos coexistem de proposito — o dos 27k
+# documenta a fase de early stopping (sem ele a melhor epoca deixa de ser
+# reproduzivel) e o dos 30k documenta a CNN final, que e a que o B4.7 e o B5.1
+# usam na inferencia. O campo `estagio` dentro de cada um impede a troca.
+!data/espectrogramas/normalizacao_cnn_30k.json
 
 # Modelos treinados (regeneraveis pelo pipeline)
 models/*
