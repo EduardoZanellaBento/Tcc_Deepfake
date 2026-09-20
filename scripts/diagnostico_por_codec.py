@@ -1,11 +1,11 @@
 """
-Diagnóstico por codec — RF e SVM AJUSTADOS
-===========================================
+Diagnóstico por codec — RF, SVM e CNN AJUSTADOS
+================================================
 
-SÓ LÊ E REPORTA. Nenhum modelo é treinado aqui: os dois modelos do braço
-principal são CARREGADOS de models/*.joblib e cada um decide com o SEU limiar,
-lido de `selecao_limiar.limiar` no JSON companheiro. Avaliação na VALIDAÇÃO.
-O split de teste continua LACRADO.
+SÓ LÊ E REPORTA. Nenhum modelo é treinado aqui: os três modelos do braço
+principal são CARREGADOS de models/ (dois .joblib e um .pt) e cada um decide com
+o SEU limiar, lido de `selecao_limiar.limiar` no JSON companheiro. Avaliação na
+VALIDAÇÃO. O split de teste continua LACRADO.
 
 HIPÓTESE (a mesma desde 13/08/2026):
     Os 7 codecs do ASVspoof 2021 LA dividem-se em banda estreita (alaw, ulaw,
@@ -26,11 +26,25 @@ POR QUE ESTA VERSÃO EXISTE (revisão de 03/09/2026):
     se sustenta com o MODELO DO BRAÇO PRINCIPAL, sob o limiar do protocolo?
 
     Além disso, a versão anterior não tocava no SVM — que é o modelo VENCEDOR
-    do braço principal. Agora os dois são medidos com o mesmo código.
+    do braço principal entre os clássicos. Agora os três são medidos com o mesmo
+    código.
+
+A CNN ENTROU NO B4.7 (20/09/2026), SEM TRABALHO NOVO:
+    ela passou a existir em `MODELOS_PRINCIPAIS`, e este script a carrega pelo
+    mesmo `carregar_modelo_ajustado` — com as mesmas duas guardas (limiar
+    presente; limiar vindo da validação). A única diferença é a ENTRADA: a CNN
+    come um Dataset de espectrogramas em vez da matriz de 44 features, e
+    `entrada_de_validacao` resolve isso num lugar só, reordenando o Dataset para
+    casar linha a linha com a tabela deste script.
+
+    E a CNN torna a hipótese da banda ALTA testável de um jeito que RF e SVM não
+    tornavam: ela não usa ZCR nem centróide — vê o espectrograma inteiro até
+    8 kHz. Se o contraste por banda aparecer nela também, a evidência passa a ser
+    sobre o SINAL, não sobre aquelas duas features.
 
 SAÍDAS:
-    results/metricas/diagnostico_por_codec_{rf,svm}_tuned_principal.csv
-    results/figuras/diagnostico_por_codec_{rf,svm}_tuned_principal.png
+    results/metricas/diagnostico_por_codec_{rf_tuned,svm_tuned,cnn_final}_principal.csv
+    results/figuras/diagnostico_por_codec_{rf_tuned,svm_tuned,cnn_final}_principal.png
     results/metricas/diagnostico_por_codec_resumo.json
     + leitura crítica no stdout
 
@@ -53,7 +67,8 @@ from src.utils.serializacao import json_seguro
 from src.data.split import carregar_dados_split, colunas_features
 from src.models.avaliacao import aplicar_limiar, calcular_eer, REGRA_DECISAO
 from src.models.modelos_ajustados import (
-    MODELOS_PRINCIPAIS, carregar_modelo_ajustado, hashes_congelados, scores_de,
+    MODELOS_PRINCIPAIS, carregar_modelo_ajustado, entrada_de_validacao,
+    hashes_congelados, scores_de,
 )
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -65,7 +80,8 @@ BANDA = {
 ORDEM_CODECS = ["alaw", "ulaw", "gsm", "pstn", "g722", "opus", "none"]
 
 ESCALA = {"rf": "probabilidade [0,1] (predict_proba)",
-          "svm": "decision_function (real, centrado em zero)"}
+          "svm": "decision_function (real, centrado em zero)",
+          "cnn": "probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"}
 
 
 def preparar_validacao() -> tuple[pd.DataFrame, list[str]]:
@@ -97,7 +113,10 @@ def diagnosticar(chave: str, validacao: pd.DataFrame, cols: list[str]) -> dict:
     print(f"\n=== {carregado['rotulo']} | limiar {limiar:.4f} "
           f"({REGRA_DECISAO}) | fonte: {carregado['origem_limiar']} ===")
 
-    scores = scores_de(carregado, validacao[cols].values)
+    # `entrada_de_validacao` entrega a matriz de features para RF/SVM e o
+    # Dataset de espectrogramas REORDENADO para a CNN — ver a docstring dela.
+    scores = scores_de(carregado, entrada_de_validacao(carregado, RAIZ,
+                                                       validacao, cols))
     # Regra única do protocolo — nada de modelo.predict().
     y_pred = aplicar_limiar(scores, limiar)
     y_va = validacao["classe_binaria"].values
@@ -200,7 +219,11 @@ def main() -> None:
     print(f"{len(cols)} features | validação {validacao.shape} "
           f"| modelos: {sorted(MODELOS_PRINCIPAIS)}")
 
-    resumos = {c: diagnosticar(c, validacao, cols) for c in ("rf", "svm")}
+    # Os TRÊS modelos do braço principal. A CNN entrou em MODELOS_PRINCIPAIS
+    # no B4.7, e este script não mudou de natureza por isso: continua CARREGANDO
+    # o artefato e lendo o limiar do JSON que o acompanha — nada é re-treinado, e
+    # o limiar da CNN veio da validação como o dos outros dois.
+    resumos = {c: diagnosticar(c, validacao, cols) for c in ("rf", "svm", "cnn")}
 
     # ---- Leitura crítica ----------------------------------------------------
     print("\n" + "=" * 74)
@@ -222,28 +245,35 @@ def main() -> None:
         print(f"  hipótese da banda alta sustentada? "
               f"{'SIM' if r['hipotese_banda_alta_sustentada'] else 'NÃO'}")
 
-    ambos = all(r["hipotese_banda_alta_sustentada"] for r in resumos.values())
+    todos = all(r["hipotese_banda_alta_sustentada"] for r in resumos.values())
     algum = any(r["hipotese_banda_alta_sustentada"] for r in resumos.values())
-    if ambos:
+    if todos:
         veredito = (
-            "HIPÓTESE SUSTENTADA NOS DOIS MODELOS, agora com o limiar do "
+            "HIPÓTESE SUSTENTADA NOS TRÊS MODELOS DO BRAÇO PRINCIPAL, com o limiar do "
             "protocolo e não em 0,50: o desempenho é sistematicamente melhor nos "
             "codecs de banda larga (f1_macro maior E EER menor). Como o EER é "
             "independente de limiar, o contraste NÃO era artefato do limiar 0,50 "
             "da versão baseline. A evidência sustenta que os artefatos "
-            "discriminativos capturados por ZCR/centróide vivem acima de 4 kHz, "
-            "faixa que os codecs telefônicos removem — e REJEITA um fmax=4000 "
-            "global, que destruiria os 43% de áudio em banda larga (decisão "
-            "ratificada pelo orientador; ver o bloco `features` do config.yaml).")
+            "discriminativos vivem acima de 4 kHz, faixa que os codecs telefônicos "
+            "removem — e REJEITA um fmax=4000 global, que destruiria os 43% de "
+            "áudio em banda larga (decisão ratificada pelo orientador; ver o "
+            "bloco `features` do config.yaml). QUE A CNN ACOMPANHE RF E SVM "
+            "REFORÇA a leitura em vez de repeti-la: a CNN não usa ZCR nem "
+            "centróide — ela vê o espectrograma inteiro até 8 kHz. O contraste "
+            "aparecer nos dois ramos aponta para uma propriedade DO SINAL "
+            "(a banda que o codec remove), e não para uma peculiaridade "
+            "daquelas duas features.")
     elif algum:
         veredito = (
-            "HIPÓTESE SUSTENTADA EM APENAS UM DOS MODELOS. O contraste por banda "
-            "não é estável entre RF e SVM sob o limiar do protocolo — logo ele "
-            "não pode ser apresentado como propriedade DAS FEATURES sem "
-            "ressalva. Reportar por modelo, e não como conclusão geral.")
+            "HIPÓTESE SUSTENTADA EM APENAS PARTE DOS MODELOS. O contraste por "
+            "banda não é estável entre os três sob o limiar do protocolo — "
+            "logo ele não pode ser apresentado como propriedade DO SINAL nem "
+            "DAS FEATURES sem ressalva. Reportar por modelo, e não como "
+            "conclusão geral.")
     else:
         veredito = (
-            "HIPÓTESE NÃO SUSTENTADA em nenhum dos dois modelos ajustados. O "
+            "HIPÓTESE NÃO SUSTENTADA em nenhum dos três modelos do braço "
+            "principal. O "
             "contraste por banda observado no baseline de 13/08/2026 era, "
             "portanto, artefato do limiar 0,50 (que satura o modelo em 'spoof' "
             "e faz o recall_bonafide colapsar de modo desigual entre codecs), e "
@@ -263,8 +293,9 @@ def main() -> None:
                      "estreita (alaw, ulaw, gsm, pstn) os destroem, logo o "
                      "desempenho deve ser melhor em banda larga (g722, opus, none)"),
         "observacao_metodo": (
-            "nenhum modelo é treinado aqui: os dois são carregados de "
-            "models/*.joblib e decidem com o limiar selecionado na validação. A "
+            "nenhum modelo é treinado aqui: os três são carregados de models/ "
+            "(rf/svm em .joblib, cnn em .pt) e decidem com o limiar selecionado "
+            "na validação. A "
             "versão de 13/08/2026 re-treinava um RF baseline e decidia em 0,50 — "
             "ver *_baseline_2026-08-13.csv"),
         "leitura_critica": veredito,

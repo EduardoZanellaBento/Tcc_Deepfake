@@ -1,11 +1,21 @@
 """
-Diagnóstico por sistema de ataque (A07–A19) — RF e SVM AJUSTADOS
-=================================================================
+Diagnóstico por sistema de ataque (A07–A19) — RF, SVM e CNN AJUSTADOS
+=======================================================================
 
-SÓ LÊ E REPORTA. Nenhum modelo é treinado aqui: os dois modelos do braço
-principal são CARREGADOS de models/*.joblib e cada um decide com o SEU limiar,
-lido de `selecao_limiar.limiar` no JSON companheiro. Avaliação na VALIDAÇÃO.
-O split de teste continua LACRADO.
+SÓ LÊ E REPORTA. Nenhum modelo é treinado aqui: os três modelos do braço
+principal são CARREGADOS de models/ (dois .joblib e um .pt) e cada um decide com
+o SEU limiar, lido de `selecao_limiar.limiar` no JSON companheiro. Avaliação na
+VALIDAÇÃO. O split de teste continua LACRADO.
+
+A CNN ENTROU NO B4.7 (20/09/2026), SEM TRABALHO NOVO:
+    ela passou a existir em `MODELOS_PRINCIPAIS`, e este script a carrega pelo
+    mesmo `carregar_modelo_ajustado`, com as mesmas duas guardas (limiar
+    presente; limiar vindo da validação). A única diferença é a ENTRADA: a CNN
+    come um Dataset de espectrogramas em vez da matriz de 44 features, e
+    `entrada_de_validacao` resolve isso num lugar só, reordenando o Dataset para
+    casar linha a linha com a tabela deste script — porque a ordem de
+    features.csv não é a de indice_validacao.csv, e um score na ordem errada
+    cruzaria com o ataque errado sem levantar exceção nenhuma.
 
 POR QUE ESTA VERSÃO EXISTE (revisão de 03/09/2026):
     A versão de 13/08/2026 (preservada em *_baseline_2026-08-13.csv/png)
@@ -37,7 +47,10 @@ POR QUE ISTO IMPORTA (não é métrica decorativa):
       - amplitude PEQUENA -> evidência a favor de generalização entre sistemas.
 
     O que não se pode é seguir sem a medida. Por isso a amplitude sai impressa
-    e gravada no JSON, para RF e para SVM.
+    e gravada no JSON, para os três modelos. E a CNN amplia a leitura: se o
+    risco fosse «o modelo decorou a assinatura do vocoder», uma rede com muito
+    mais capacidade que o RF teria MAIS facilidade de decorar, não menos — de
+    modo que a amplitude dela é a medida mais exigente das três.
 
 MÉTRICAS POR ATAQUE:
     Para cada A07–A19: n na validação, recall (fração de spoofs daquele sistema
@@ -80,13 +93,15 @@ from src.utils.serializacao import json_seguro
 from src.data.split import carregar_dados_split, colunas_features
 from src.models.avaliacao import aplicar_limiar, calcular_eer, REGRA_DECISAO
 from src.models.modelos_ajustados import (
-    MODELOS_PRINCIPAIS, carregar_modelo_ajustado, hashes_congelados, scores_de,
+    MODELOS_PRINCIPAIS, carregar_modelo_ajustado, entrada_de_validacao,
+    hashes_congelados, scores_de,
 )
 
 RAIZ = Path(__file__).resolve().parents[1]
 
 ESCALA = {"rf": "probabilidade [0,1] (predict_proba)",
-          "svm": "decision_function (real, centrado em zero)"}
+          "svm": "decision_function (real, centrado em zero)",
+          "cnn": "probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"}
 
 # Referência de grandeza para a leitura automática: a distância RF x SVM em EER
 # agregado é ~0,047 (bootstrap pareado, estabilidade_rf_svm.json). Uma amplitude
@@ -125,7 +140,10 @@ def diagnosticar(chave: str, validacao: pd.DataFrame, cols: list[str]) -> dict:
     print(f"\n=== {carregado['rotulo']} | limiar {limiar:.4f} "
           f"({REGRA_DECISAO}) | fonte: {carregado['origem_limiar']} ===")
 
-    scores = scores_de(carregado, validacao[cols].values)
+    # `entrada_de_validacao` entrega a matriz de features para RF/SVM e o
+    # Dataset de espectrogramas REORDENADO para a CNN — ver a docstring dela.
+    scores = scores_de(carregado, entrada_de_validacao(carregado, RAIZ,
+                                                       validacao, cols))
     # A regra de decisão é a MESMA de todo o Bloco 3 — nada de modelo.predict().
     va = validacao.assign(score=scores, y_pred=aplicar_limiar(scores, limiar))
     bona = va[va["classe_binaria"] == 0]
@@ -231,7 +249,11 @@ def main() -> None:
     print(f"{len(cols)} features | validação {validacao.shape} "
           f"| modelos: {sorted(MODELOS_PRINCIPAIS)}")
 
-    resumos = {c: diagnosticar(c, validacao, cols) for c in ("rf", "svm")}
+    # Os TRÊS modelos do braço principal. A CNN entrou em MODELOS_PRINCIPAIS
+    # no B4.7, e este script não mudou de natureza por isso: continua CARREGANDO
+    # o artefato e lendo o limiar do JSON que o acompanha — nada é re-treinado, e
+    # o limiar da CNN veio da validação como o dos outros dois.
+    resumos = {c: diagnosticar(c, validacao, cols) for c in ("rf", "svm", "cnn")}
 
     # ---- Leitura crítica ----------------------------------------------------
     print("\n" + "=" * 74)
@@ -248,15 +270,16 @@ def main() -> None:
               f"(razão {r['razao_eer_dificil_facil']}x)")
         print(f"  recall saturado em 1,0 em todos os ataques? {saturado}")
 
-    amp_rf = resumos["rf"]["amplitude_eer"]
-    amp_svm = resumos["svm"]["amplitude_eer"]
-    maior = max(amp_rf, amp_svm)
+    amplitudes = {c: r["amplitude_eer"] for c, r in resumos.items()}
+    amp_rf, amp_svm = amplitudes["rf"], amplitudes["svm"]
+    maior = max(amplitudes.values())
     if maior >= LIMITE_AMPLITUDE_GRANDE:
         veredito = (
             "AMPLITUDE GRANDE: a dificuldade varia muito mais entre sistemas de "
             "síntese (amplitude de EER até "
-            f"{maior:.4f}) do que entre os dois modelos (delta EER agregado "
-            "0,0466, bootstrap pareado). É evidência A FAVOR do risco declarado "
+            f"{maior:.4f}) do que entre os modelos comparados (delta EER "
+            "agregado RF x SVM = 0,0466, bootstrap pareado; o equivalente "
+            "envolvendo a CNN é o B5.2). É evidência A FAVOR do risco declarado "
             "no README: o número agregado depende de QUAIS ataques compõem o "
             "conjunto, e o split por utterance deixa o modelo ver a assinatura "
             "de cada vocoder já no treino. O agregado é, portanto, "
@@ -267,7 +290,8 @@ def main() -> None:
         veredito = (
             "AMPLITUDE PEQUENA: os 13 sistemas são detectados com dificuldade "
             f"semelhante (amplitude de EER no máximo {maior:.4f}, contra um "
-            "delta EER de 0,0466 entre os dois modelos). É evidência A FAVOR de "
+            "delta EER de 0,0466 entre RF e SVM; o equivalente envolvendo a CNN "
+            "é o B5.2). É evidência A FAVOR de "
             "generalização entre sistemas de síntese e ENFRAQUECE a hipótese de "
             "que o modelo decorou a assinatura de um vocoder específico. A "
             "limitação do split continua declarada — mas agora com uma medida "
@@ -281,11 +305,13 @@ def main() -> None:
         "teste_lacrado": True,
         "regra_decisao": REGRA_DECISAO,
         "observacao_metodo": (
-            "nenhum modelo é treinado aqui: os dois são carregados de "
-            "models/*.joblib e decidem com o limiar selecionado na validação, "
+            "nenhum modelo é treinado aqui: os três são carregados de models/ "
+            "(rf/svm em .joblib, cnn em .pt) e decidem com o limiar selecionado "
+            "na validação, "
             "lido do JSON companheiro. A versão de 13/08/2026 re-treinava um RF "
             "baseline e decidia em 0,50 — ver *_baseline_2026-08-13.csv"),
         "limite_amplitude_grande": LIMITE_AMPLITUDE_GRANDE,
+        "amplitude_eer_por_modelo": amplitudes,
         "amplitude_eer_rf": amp_rf,
         "amplitude_eer_svm": amp_svm,
         "leitura_critica": veredito,

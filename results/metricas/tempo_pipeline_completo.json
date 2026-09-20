@@ -1,12 +1,12 @@
 {
   "analise": "tempo_pipeline_completo",
-  "data": "2026-09-03",
+  "data": "2026-09-20",
   "pergunta": "qual a fração do custo real de inferência que cabe ao classificador, e qual cabe ao pré-processamento?",
   "conjunto": "validacao",
   "teste_lacrado": true,
   "n_amostra": 200,
   "semente": 42,
-  "escopo": "pipeline COMPLETO por áudio (batch=1): carregar .flac + normalizar -> VAD + padding -> extrair 44 features -> predizer. Complementa src/models/tempo.py, que mede SÓ a última etapa (ver protocolo.escopo nos JSONs de RF e SVM).",
+  "escopo": "pipeline COMPLETO por áudio (batch=1). Ramo clássico: carregar .flac + normalizar -> VAD + padding -> extrair 44 features -> predizer. Ramo CNN: carregar .flac + normalizar -> VAD + padding -> gerar log-Mel (128x251) -> normalizar por faixa Mel + forward. Complementa src/models/tempo.py, que mede SÓ a última etapa (ver protocolo.escopo nos JSONs de RF, SVM e CNN).",
   "fidelidade_do_pipeline": {
     "n_arquivos_conferidos": 10,
     "n_features_por_arquivo": 44,
@@ -14,28 +14,37 @@
     "precisao_da_comparacao": "float32 — o dtype que extrair_vetor produz e que o CSV grava; comparar em float64 exigiria do CSV uma precisão que ele nunca teve (ver docstring de conferir_fidelidade)",
     "resultado": "o vetor recalculado é IDÊNTICO ao features.csv congelado, feature a feature, sem tolerância"
   },
+  "fidelidade_do_pipeline_cnn": {
+    "n_arquivos_conferidos": 10,
+    "formato": "(128, 251) float32",
+    "n_posicoes_divergentes": 0,
+    "n_mascaras_divergentes": 0,
+    "comparado_contra": "data/espectrogramas/validacao.npy (memmap do B4.2)",
+    "precisao_da_comparacao": "igualdade EXATA em float32 — o memmap guarda os bits, não um repr decimal, então não há perda de gravação a tolerar",
+    "resultado": "o tensor recalculado é IDÊNTICO ao memmap congelado, posição a posição, e a máscara bate com o índice"
+  },
   "base_compartilhada": {
     "etapas": {
       "carregar_audio": {
-        "ms_por_audio_mediana": 0.6385,
-        "ms_por_audio_min": 0.6244,
-        "ms_por_audio_max": 0.6526,
-        "percentual_do_total": 13.54
+        "ms_por_audio_mediana": 0.5735,
+        "ms_por_audio_min": 0.5652,
+        "ms_por_audio_max": 0.5945,
+        "percentual_do_total": 13.19
       },
       "vad_e_padding": {
-        "ms_por_audio_mediana": 0.3711,
-        "ms_por_audio_min": 0.3621,
-        "ms_por_audio_max": 0.3903,
-        "percentual_do_total": 7.87
+        "ms_por_audio_mediana": 0.3394,
+        "ms_por_audio_min": 0.3296,
+        "ms_por_audio_max": 0.3441,
+        "percentual_do_total": 7.81
       },
       "extrair_features": {
-        "ms_por_audio_mediana": 3.7054,
-        "ms_por_audio_min": 3.6429,
-        "ms_por_audio_max": 3.7791,
-        "percentual_do_total": 78.59
+        "ms_por_audio_mediana": 3.4345,
+        "ms_por_audio_min": 3.3697,
+        "ms_por_audio_max": 3.4601,
+        "percentual_do_total": 79.0
       }
     },
-    "total_ms_por_audio": 4.715,
+    "total_ms_por_audio": 4.3474,
     "n_audios": 200,
     "protocolo": {
       "repeticoes": 10,
@@ -44,36 +53,81 @@
       "fonte": "config.yaml -> tempo"
     }
   },
+  "base_cnn": {
+    "etapas": {
+      "carregar_audio": {
+        "ms_por_audio_mediana": 0.5815,
+        "ms_por_audio_min": 0.5685,
+        "ms_por_audio_max": 0.5979,
+        "percentual_do_total": 17.06
+      },
+      "vad_e_padding": {
+        "ms_por_audio_mediana": 0.3497,
+        "ms_por_audio_min": 0.346,
+        "ms_por_audio_max": 0.3612,
+        "percentual_do_total": 10.26
+      },
+      "gerar_melspectrograma": {
+        "ms_por_audio_mediana": 2.4775,
+        "ms_por_audio_min": 2.4263,
+        "ms_por_audio_max": 2.5155,
+        "percentual_do_total": 72.68
+      }
+    },
+    "total_ms_por_audio": 3.4087,
+    "n_audios": 200,
+    "protocolo": {
+      "repeticoes": 10,
+      "descartar_aquecimento": 3,
+      "batch": 1,
+      "fonte": "config.yaml -> tempo"
+    }
+  },
+  "consistencia_das_etapas_comuns": {
+    "etapas": {
+      "carregar_audio": {
+        "na_base_classica_ms": 0.5735,
+        "na_base_cnn_ms": 0.5815,
+        "diferenca_relativa_pct": 1.38
+      },
+      "vad_e_padding": {
+        "na_base_classica_ms": 0.3394,
+        "na_base_cnn_ms": 0.3497,
+        "diferenca_relativa_pct": 2.95
+      }
+    },
+    "por_que_existe": "carregar_audio e vad_e_padding são o MESMO código nos dois ramos, mas foram cronometrados duas vezes, em contextos de cache diferentes. Reportar as duas medidas lado a lado deixa visível quanto da diferença entre os totais dos dois ramos é artefato de medição e quanto é diferença real — e é a mesma precaução que `nota_metodo` descreve para RF x SVM."
+  },
   "nota_metodo": "a base (carregar + VAD/padding + featurização) é medida UMA vez e somada à predição de cada modelo. Medi-la dentro do laço de cada modelo dava 5,51 ms/áudio no laço do RF contra 3,79 ms no do SVM para código IDÊNTICO (efeito reprodutível entre execuções): a predição do RF, com 300 árvores, despeja o cache da CPU e contamina a etapa vizinha. RF e SVM consomem o MESMO vetor de features, então a base é a mesma por construção e toda a diferença entre eles está na etapa de predição.",
   "por_modelo": {
     "rf": {
       "etapas": {
         "carregar_audio": {
-          "ms_por_audio_mediana": 0.6385,
-          "ms_por_audio_min": 0.6244,
-          "ms_por_audio_max": 0.6526,
-          "percentual_do_total": 5.74
+          "ms_por_audio_mediana": 0.5735,
+          "ms_por_audio_min": 0.5652,
+          "ms_por_audio_max": 0.5945,
+          "percentual_do_total": 5.61
         },
         "vad_e_padding": {
-          "ms_por_audio_mediana": 0.3711,
-          "ms_por_audio_min": 0.3621,
-          "ms_por_audio_max": 0.3903,
-          "percentual_do_total": 3.34
+          "ms_por_audio_mediana": 0.3394,
+          "ms_por_audio_min": 0.3296,
+          "ms_por_audio_max": 0.3441,
+          "percentual_do_total": 3.32
         },
         "extrair_features": {
-          "ms_por_audio_mediana": 3.7054,
-          "ms_por_audio_min": 3.6429,
-          "ms_por_audio_max": 3.7791,
-          "percentual_do_total": 33.32
+          "ms_por_audio_mediana": 3.4345,
+          "ms_por_audio_min": 3.3697,
+          "ms_por_audio_max": 3.4601,
+          "percentual_do_total": 33.58
         },
         "predizer": {
-          "ms_por_audio_mediana": 6.405,
-          "ms_por_audio_min": 6.2801,
-          "ms_por_audio_max": 6.9173,
-          "percentual_do_total": 57.6
+          "ms_por_audio_mediana": 5.8819,
+          "ms_por_audio_min": 5.659,
+          "ms_por_audio_max": 5.9787,
+          "percentual_do_total": 57.5
         }
       },
-      "total_ms_por_audio": 11.12,
+      "total_ms_por_audio": 10.2293,
       "n_audios": 200,
       "protocolo": {
         "repeticoes": 10,
@@ -87,31 +141,31 @@
     "svm": {
       "etapas": {
         "carregar_audio": {
-          "ms_por_audio_mediana": 0.6385,
-          "ms_por_audio_min": 0.6244,
-          "ms_por_audio_max": 0.6526,
-          "percentual_do_total": 11.98
+          "ms_por_audio_mediana": 0.5735,
+          "ms_por_audio_min": 0.5652,
+          "ms_por_audio_max": 0.5945,
+          "percentual_do_total": 11.66
         },
         "vad_e_padding": {
-          "ms_por_audio_mediana": 0.3711,
-          "ms_por_audio_min": 0.3621,
-          "ms_por_audio_max": 0.3903,
-          "percentual_do_total": 6.96
+          "ms_por_audio_mediana": 0.3394,
+          "ms_por_audio_min": 0.3296,
+          "ms_por_audio_max": 0.3441,
+          "percentual_do_total": 6.9
         },
         "extrair_features": {
-          "ms_por_audio_mediana": 3.7054,
-          "ms_por_audio_min": 3.6429,
-          "ms_por_audio_max": 3.7791,
-          "percentual_do_total": 69.54
+          "ms_por_audio_mediana": 3.4345,
+          "ms_por_audio_min": 3.3697,
+          "ms_por_audio_max": 3.4601,
+          "percentual_do_total": 69.82
         },
         "predizer": {
-          "ms_por_audio_mediana": 0.6133,
-          "ms_por_audio_min": 0.5971,
-          "ms_por_audio_max": 0.6911,
-          "percentual_do_total": 11.51
+          "ms_por_audio_mediana": 0.5717,
+          "ms_por_audio_min": 0.5589,
+          "ms_por_audio_max": 0.6085,
+          "percentual_do_total": 11.62
         }
       },
-      "total_ms_por_audio": 5.3283,
+      "total_ms_por_audio": 4.9191,
       "n_audios": 200,
       "protocolo": {
         "repeticoes": 10,
@@ -121,10 +175,111 @@
       },
       "modelo": "svm_tuned_principal",
       "rotulo": "SVM ajustado (braço principal)"
+    },
+    "cnn_gpu": {
+      "etapas": {
+        "carregar_audio": {
+          "ms_por_audio_mediana": 0.5815,
+          "ms_por_audio_min": 0.5685,
+          "ms_por_audio_max": 0.5979,
+          "percentual_do_total": 12.71
+        },
+        "vad_e_padding": {
+          "ms_por_audio_mediana": 0.3497,
+          "ms_por_audio_min": 0.346,
+          "ms_por_audio_max": 0.3612,
+          "percentual_do_total": 7.64
+        },
+        "gerar_melspectrograma": {
+          "ms_por_audio_mediana": 2.4775,
+          "ms_por_audio_min": 2.4263,
+          "ms_por_audio_max": 2.5155,
+          "percentual_do_total": 54.14
+        },
+        "predizer": {
+          "ms_por_audio_mediana": 1.1678,
+          "ms_por_audio_min": 1.0688,
+          "ms_por_audio_max": 1.2751,
+          "percentual_do_total": 25.52
+        }
+      },
+      "total_ms_por_audio": 4.5765,
+      "n_audios": 200,
+      "protocolo": {
+        "repeticoes": 10,
+        "descartar_aquecimento": 3,
+        "batch": 1,
+        "fonte": "config.yaml -> tempo"
+      },
+      "modelo": "cnn_final_principal",
+      "rotulo": "CNN final (braço principal, refit 30k) — CUDA",
+      "dispositivo": "cuda",
+      "torch_num_threads": 6,
+      "normalizacao": "data/espectrogramas/normalizacao_cnn_30k.json (30k_refit)",
+      "nota_sincronizacao": "torch.cuda.synchronize() antes e depois do trecho cronometrado, DENTRO do callable — sem isso mede-se o enfileiramento do kernel, não a execução",
+      "nota_normalizacao": "a normalização por faixa Mel está DENTRO da etapa `predizer`, porque é lá que ela mora no pipeline real (os tensores em disco não estão normalizados; o EspectrogramaDataset aplica média/desvio em tempo de carga)"
+    },
+    "cnn_cpu": {
+      "etapas": {
+        "carregar_audio": {
+          "ms_por_audio_mediana": 0.5815,
+          "ms_por_audio_min": 0.5685,
+          "ms_por_audio_max": 0.5979,
+          "percentual_do_total": 3.46
+        },
+        "vad_e_padding": {
+          "ms_por_audio_mediana": 0.3497,
+          "ms_por_audio_min": 0.346,
+          "ms_por_audio_max": 0.3612,
+          "percentual_do_total": 2.08
+        },
+        "gerar_melspectrograma": {
+          "ms_por_audio_mediana": 2.4775,
+          "ms_por_audio_min": 2.4263,
+          "ms_por_audio_max": 2.5155,
+          "percentual_do_total": 14.75
+        },
+        "predizer": {
+          "ms_por_audio_mediana": 13.3881,
+          "ms_por_audio_min": 13.2857,
+          "ms_por_audio_max": 13.6848,
+          "percentual_do_total": 79.71
+        }
+      },
+      "total_ms_por_audio": 16.7968,
+      "n_audios": 200,
+      "protocolo": {
+        "repeticoes": 10,
+        "descartar_aquecimento": 3,
+        "batch": 1,
+        "fonte": "config.yaml -> tempo"
+      },
+      "modelo": "cnn_final_principal",
+      "rotulo": "CNN final (braço principal, refit 30k) — CPU",
+      "dispositivo": "cpu",
+      "torch_num_threads": 1,
+      "normalizacao": "data/espectrogramas/normalizacao_cnn_30k.json (30k_refit)",
+      "nota_sincronizacao": "não se aplica: execução em CPU é síncrona",
+      "nota_normalizacao": "a normalização por faixa Mel está DENTRO da etapa `predizer`, porque é lá que ela mora no pipeline real (os tensores em disco não estão normalizados; o EspectrogramaDataset aplica média/desvio em tempo de carga)"
     }
   },
-  "leitura_critica": "A predição responde por até 57.60% do custo real de inferência — fração NÃO desprezível. A hipótese registrada no config.yaml (de que o pré-processamento dominaria a ponto de tornar a escolha do classificador irrelevante) NÃO se confirma nesta medição: a diferença entre RF e SVM sobrevive ao pipeline completo (5.79 ms por áudio, razão 2.09x). A comparação de custo entre modelos continua sendo uma comparação com significado prático.",
-  "extensao_bloco4": "medir_pipeline recebe uma lista de etapas nomeadas; a CNN entra acrescentando ['gerar_melspectrograma', 'forward_cnn'] no lugar de ['extrair_features', 'predizer'] — MESMO código, MESMO protocolo, para que os três modelos sejam comparáveis",
+  "leitura_critica": "A predição responde por até 57.50% do custo real de inferência — fração NÃO desprezível. A hipótese registrada no config.yaml (de que o pré-processamento dominaria a ponto de tornar a escolha do classificador irrelevante) NÃO se confirma nesta medição: a diferença entre RF e SVM sobrevive ao pipeline completo (5.31 ms por áudio, razão 2.08x). A comparação de custo entre modelos continua sendo uma comparação com significado prático.",
+  "leitura_critica_cnn": {
+    "cnn_gpu": "CNN final (braço principal, refit 30k) — CUDA: total 4.58 ms/áudio. Espectrograma = 54.14%, forward = 25.52%. Etapa dominante: gerar_melspectrograma. A hipótese do B4.7 SE CONFIRMA neste cenário: a geração da representação domina o custo, e não a rede. É um achado de engenharia, não ruído — a alavanca de otimização está na featurização, como no ramo clássico.",
+    "cnn_cpu": "CNN final (braço principal, refit 30k) — CPU: total 16.80 ms/áudio. Espectrograma = 14.75%, forward = 79.71%. Etapa dominante: predizer. A hipótese do B4.7 NÃO se confirma neste cenário: o forward da rede domina o custo. É aqui que a exigência de hardware da CNN aparece no tempo, e não só na memória.",
+    "gpu_x_cpu": "O forward da CNN custa 13.39 ms/áudio em CPU (1 thread) contra 1.17 ms em GPU — razão 11.5x. Somado ao pipeline, o total vai de 4.58 ms para 16.80 ms. É ESTE o par que sustenta a afirmação central do trabalho: a vantagem dos modelos clássicos não é serem mais rápidos em igualdade de hardware — é não exigirem GPU. Comparar a CNN-GPU com um RF em CPU compararia hardware, não modelo; a coluna CNN-CPU é o que torna a comparação honesta."
+  },
+  "extensao_bloco4": "FEITA no B4.7 (20/09/2026), exatamente como a amarra previa: medir_pipeline recebe uma lista de etapas nomeadas, e a CNN entrou trocando ['extrair_features', 'predizer'] por ['gerar_melspectrograma', 'predizer'] — MESMO cronômetro, MESMO protocolo, MESMA amostra. `gerar_um` de src/features/gerar_espectrogramas.py é reusada, não reimplementada, e a guarda de fidelidade compara o tensor recalculado contra o memmap congelado do B4.2.",
+  "precisao_numerica_cnn": {
+    "tf32_desligado": true,
+    "estado_anterior": {
+      "cudnn_allow_tf32": true,
+      "matmul_allow_tf32": false
+    },
+    "motivo": "TF32 (mantissa de 10 bits) faz o score depender do tamanho do lote e difere do float32 em até 2,3e-03 — mesma ordem do espaçamento entre scores vizinhos, logo mexe em n_candidatos e pode deslocar o limiar publicado",
+    "medido_em": "B4.7, 20/09/2026, RTX 5060 Ti / torch 2.11 / cuDNN 9.19, sobre os 256 primeiros exemplos da validação"
+  },
+  "nota_re_medicao": "RF e SVM foram RE-MEDIDOS nesta execução, junto com a CNN. O método não mudou — mudou a data. Um tempo de RF de agosto comparado a um tempo de CNN de setembro compararia também o estado da máquina; os três saem do mesmo processo, com o mesmo cache e a mesma amostra.",
   "hashes_md5": {
     "features": "51b2f439bf6f1e10237acbc620bb92d9",
     "split": "9143f0c7b83ec2db4aa144ed5deb3402",
@@ -140,6 +295,9 @@
       "sklearn": "1.7.2",
       "pandas": "2.3.3"
     },
-    "n_jobs_inferencia": 1
+    "n_jobs_inferencia": 1,
+    "torch": "2.11.0+cu128",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "cuda_versao": "12.8"
   }
 }

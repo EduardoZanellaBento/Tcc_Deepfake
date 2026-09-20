@@ -1,6 +1,6 @@
 """
-Tempo do pipeline COMPLETO de inferência (R4b) — RF e SVM
-==========================================================
+Tempo do pipeline COMPLETO de inferência (R4b) — RF, SVM e CNN
+===============================================================
 
 O QUE ESTE SCRIPT RESPONDE, E POR QUE ELE MUDA UMA CONCLUSÃO DO TC II:
     `src/models/tempo.py` cronometra SÓ a predição, a partir do vetor de
@@ -44,12 +44,28 @@ PROTOCOLO:
     unitário (um arquivo por vez), então compará-lo ao throughput em lote do
     classificador seria comparar coisas diferentes.
 
-AMARRA PARA O BLOCO 4 (CNN):
-    `medir_pipeline` é genérica: recebe uma LISTA de etapas nomeadas e cronometra
-    cada uma. Quando a CNN existir, ela entra como mais uma coluna, com as etapas
-    [carregar, VAD+padding, gerar mel-espectrograma, forward da CNN] — MESMO
-    código, mesmo protocolo, como manda a docstring de src/models/tempo.py. Não
-    reescreva o cronômetro para a CNN: acrescente etapas aqui.
+A CNN ENTROU NO B4.7 (20/09/2026), PELA AMARRA QUE ESTAVA ESCRITA AQUI:
+    `medir_pipeline` é genérica — recebe uma LISTA de etapas nomeadas e cronometra
+    cada uma —, e foi exatamente assim que a CNN entrou: como mais uma coluna,
+    com as etapas [carregar, VAD+padding, gerar mel-espectrograma, forward]. O
+    cronômetro não foi reescrito, e a geração do espectrograma reusa
+    `gerar_espectrogramas.gerar_um`, a MESMA função que produziu os tensores do
+    B4.2 — com guarda de fidelidade contra o memmap congelado, igual à que já
+    existia contra o features.csv.
+
+    A CNN aparece em DOIS cenários, cnn_gpu e cnn_cpu, porque é o par que
+    responde à pergunta de pesquisa: a vantagem dos modelos clássicos não é
+    serem mais rápidos em igualdade de hardware — é não exigirem GPU.
+
+    A PERGUNTA QUE ESTE NÚMERO RESOLVE: no RF a predição é 57,6% do custo. Na
+    CNN, a geração do espectrograma pode dominar. Se dominar, isso é RESULTADO —
+    a alavanca de engenharia muda de lugar conforme o ramo.
+
+POR QUE RF E SVM SÃO RE-MEDIDOS JUNTO COM A CNN:
+    o artefato é um só, e comparar um tempo de RF medido em agosto com um tempo
+    de CNN medido em setembro compara também o estado da máquina. Os três saem
+    da MESMA execução, com o mesmo cache, a mesma amostra e o mesmo protocolo.
+    O método de medição de RF e SVM não mudou — só a data.
 
 SAÍDA:
     results/metricas/tempo_pipeline_completo.json
@@ -72,8 +88,11 @@ from src.data.preprocessamento import (
     aplicar_vad, carregar_audio, normalizar_amplitude, padronizar_duracao,
 )
 from src.features.extrair_features import extrair_vetor, nomes_features
+from src.features.gerar_espectrogramas import (
+    frames_validos_espectrograma, gerar_um,
+)
 from src.models.modelos_ajustados import (
-    carregar_modelo_ajustado, hashes_congelados,
+    carregar_modelo_ajustado, fixar_precisao_fp32_cnn, hashes_congelados,
 )
 from src.models.tempo import ambiente
 
@@ -194,6 +213,125 @@ def conferir_fidelidade(cfg: dict, amostra: pd.DataFrame) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# As etapas da CNN — `gerar_um` REUSADA, não reimplementada
+# ---------------------------------------------------------------------------
+def etapa_gerar_espectrograma(entrada, cfg: dict):
+    """log-Mel em dB `(128, 251)` + o n_frames_validos da máscara.
+
+    `gerar_um` é a MESMA função que gerou os 74.453 tensores do B4.2, e
+    `frames_validos_espectrograma` é a mesma que produziu a coluna
+    `n_frames_validos` dos índices. Nenhuma aritmética nova: recontar frames aqui
+    produziria uma máscara divergindo por ±1 do que a rede viu no treino.
+    """
+    y, n_validas = entrada
+    e = cfg["espectrograma"]
+    S_db = gerar_um(y, e["sample_rate"], e)
+    n_frames = frames_validos_espectrograma(n_validas, e, int(S_db.shape[1]))
+    return S_db, n_frames
+
+
+def carregar_normalizacao_cnn(cfg: dict) -> tuple[np.ndarray, np.ndarray, str]:
+    """As estatísticas DOS 30k — as do refit, não as dos 27k do early stopping."""
+    caminho = RAIZ / "data" / "espectrogramas" / "normalizacao_cnn_30k.json"
+    with open(caminho, encoding="utf-8") as f:
+        norm = json.load(f)
+    if norm["estagio"] != "30k_refit":
+        raise RuntimeError(f"{caminho.name} está no estágio {norm['estagio']!r}, "
+                           "esperado '30k_refit'.")
+    media = np.array(norm["media_por_mel"], dtype=np.float32)[:, None]
+    desvio = np.array(norm["desvio_por_mel"], dtype=np.float32)[:, None]
+    return media, desvio, f"{caminho.relative_to(RAIZ).as_posix()} ({norm['estagio']})"
+
+
+def preditor_cnn(modelo, media, desvio, dispositivo):
+    """Callable de PREDIÇÃO da CNN para `medir_pipeline` — normalização incluída.
+
+    A NORMALIZAÇÃO ENTRA AQUI, E NÃO NA ETAPA DO ESPECTROGRAMA, porque é aqui que
+    ela mora no pipeline real: os tensores em disco NÃO estão normalizados (ver
+    espectrogramas.meta.json -> nota_normalizacao), e o `EspectrogramaDataset`
+    aplica média/desvio em tempo de carga, imediatamente antes do forward. Pôr a
+    normalização na etapa anterior mudaria de lugar um custo de microssegundos e,
+    pior, faria a etapa "gerar_melspectrograma" deixar de ser comparável ao que
+    `gerar_um` produz e grava.
+
+    `torch.cuda.synchronize()` antes e depois pelo motivo de sempre: sem isso
+    mede-se o enfileiramento do kernel, não a execução.
+    """
+    import torch
+
+    cuda = dispositivo.type == "cuda"
+
+    def predizer(entrada):
+        S_db, n_frames = entrada
+        X = (S_db - media) / desvio               # normalização em tempo de carga
+        x = torch.from_numpy(X)[None, None]       # (1, 1, 128, 251)
+        m = torch.zeros(1, X.shape[1], dtype=torch.float32)
+        m[0, :n_frames] = 1.0
+        if cuda:
+            torch.cuda.synchronize()
+        with torch.no_grad():
+            logits = modelo(x.to(dispositivo), m.to(dispositivo))
+            s = torch.softmax(logits, dim=1)[:, 1]
+        if cuda:
+            torch.cuda.synchronize()
+        return s.cpu().numpy()
+
+    return predizer
+
+
+def conferir_fidelidade_cnn(cfg: dict, amostra: pd.DataFrame) -> dict:
+    """GUARDA: o espectrograma produzido aqui é o mesmo do memmap CONGELADO?
+
+    Exatamente a mesma ideia de `conferir_fidelidade`, um ramo adiante: se o
+    tensor recalculado divergir do que está em `validacao.npy`, o que este script
+    cronometra não é o caminho que gerou os dados com que a CNN foi treinada e
+    avaliada.
+
+    Aqui a exigência é IGUALDADE EXATA sem ressalva nenhuma — e a diferença para
+    o caso do features.csv é que o memmap guarda os float32 em BINÁRIO, não um
+    repr decimal curto. Não há precisão perdida na gravação para desculpar
+    divergência alguma.
+    """
+    dir_esp = RAIZ / "data" / "espectrogramas"
+    indice = pd.read_csv(dir_esp / "indice_validacao.csv").set_index("arquivo")
+    mm = np.load(dir_esp / "validacao.npy", mmap_mode="r")
+
+    n_conferidos, n_divergentes, n_mascaras_divergentes = 0, 0, 0
+    for _, r in amostra.head(10).iterrows():
+        if r["arquivo"] not in indice.index:
+            continue
+        S_db, n_frames = etapa_gerar_espectrograma(
+            etapa_vad_padding(etapa_carregar(r["caminho"], cfg), cfg), cfg)
+        linha = int(indice.loc[r["arquivo"], "linha"])
+        esperado = np.asarray(mm[linha])
+        n_divergentes += int(np.sum(S_db != esperado))
+        n_mascaras_divergentes += int(
+            n_frames != int(indice.loc[r["arquivo"], "n_frames_validos"]))
+        n_conferidos += 1
+
+    if n_conferidos == 0:
+        raise RuntimeError("Nenhum arquivo da amostra foi encontrado em "
+                           "indice_validacao.csv — a guarda de fidelidade da "
+                           "CNN não pôde rodar.")
+    if n_divergentes or n_mascaras_divergentes:
+        raise RuntimeError(
+            f"O espectrograma recalculado DIVERGE do memmap congelado: "
+            f"{n_divergentes} posição(ões) em {n_conferidos} arquivos, e "
+            f"{n_mascaras_divergentes} máscara(s) divergentes. O que este script "
+            "cronometraria não é o caminho que gerou os tensores do B4.2. PARE.")
+    return {"n_arquivos_conferidos": n_conferidos,
+            "formato": "(128, 251) float32",
+            "n_posicoes_divergentes": n_divergentes,
+            "n_mascaras_divergentes": n_mascaras_divergentes,
+            "comparado_contra": "data/espectrogramas/validacao.npy (memmap do B4.2)",
+            "precisao_da_comparacao": (
+                "igualdade EXATA em float32 — o memmap guarda os bits, não um "
+                "repr decimal, então não há perda de gravação a tolerar"),
+            "resultado": ("o tensor recalculado é IDÊNTICO ao memmap congelado, "
+                          "posição a posição, e a máscara bate com o índice")}
+
+
+# ---------------------------------------------------------------------------
 # Cronômetro genérico — o mesmo que a CNN vai usar no Bloco 4
 # ---------------------------------------------------------------------------
 def medir_pipeline(etapas: list[tuple[str, Callable]], itens: list,
@@ -263,6 +401,12 @@ def main() -> None:
           f"{fidelidade['n_features_por_arquivo']} features, "
           f"{fidelidade['n_features_divergentes']} divergentes (float32)")
 
+    print("Guarda de fidelidade da CNN (tensor recalculado x validacao.npy)...")
+    fidelidade_cnn = conferir_fidelidade_cnn(cfg, amostra)
+    print(f"  OK — {fidelidade_cnn['n_arquivos_conferidos']} arquivos, "
+          f"{fidelidade_cnn['n_posicoes_divergentes']} posições divergentes, "
+          f"{fidelidade_cnn['n_mascaras_divergentes']} máscaras divergentes")
+
     caminhos = amostra["caminho"].tolist()
 
     # ---- Base COMPARTILHADA, medida UMA vez ---------------------------------
@@ -329,6 +473,93 @@ def main() -> None:
                   f"({v['percentual_do_total']:>5.2f}%)")
         print(f"  {'TOTAL':<18} {total:>9.4f} ms/áudio")
 
+    # ---- O ramo da CNN ------------------------------------------------------
+    # A base da CNN é MEDIDA À PARTE, e não reaproveitada da base clássica: as
+    # duas primeiras etapas são o mesmo código, mas a terceira é outra
+    # (espectrograma x 44 features) e a cadeia é cronometrada inteira, no mesmo
+    # contexto de cache — que é a razão pela qual a base clássica também é medida
+    # isolada (ver nota_metodo). Os dois valores de `carregar_audio` e
+    # `vad_e_padding` saem no JSON e devem concordar; a concordância é reportada
+    # em `consistencia_das_etapas_comuns`.
+    base_cnn, resultados_cnn = None, {}
+    carregado_cnn = carregar_modelo_ajustado(RAIZ, "cnn")
+    modelo_cnn = carregado_cnn["modelo"]
+    media, desvio, origem_norm = carregar_normalizacao_cnn(cfg)
+    precisao = fixar_precisao_fp32_cnn()
+
+    etapas_cnn = [
+        ("carregar_audio", lambda c: etapa_carregar(c, cfg)),
+        ("vad_e_padding", lambda y: etapa_vad_padding(y, cfg)),
+        ("gerar_melspectrograma", lambda e: etapa_gerar_espectrograma(e, cfg)),
+    ]
+    print("\nMedindo a base da CNN (carregar -> VAD/padding -> espectrograma)...")
+    base_cnn = medir_pipeline(etapas_cnn, caminhos, cfg["tempo"])
+    for nome, v in base_cnn["etapas"].items():
+        print(f"  {nome:<22} {v['ms_por_audio_mediana']:>9.4f} ms/áudio")
+    print(f"  {'BASE CNN':<22} {base_cnn['total_ms_por_audio']:>9.4f} ms/áudio")
+
+    espectrogramas = [etapa_gerar_espectrograma(
+        etapa_vad_padding(etapa_carregar(c, cfg), cfg), cfg) for c in caminhos]
+
+    import torch
+    cenarios = [("cnn_gpu", "cuda")] if torch.cuda.is_available() else []
+    # torch.set_num_threads(1): paridade com o n_jobs=1 do RF. Uma CNN em CPU com
+    # 12 threads contra um RF com n_jobs=1 não é comparação, é ruído.
+    cenarios.append(("cnn_cpu", "cpu"))
+    threads_originais = torch.get_num_threads()
+    for chave, nome_dev in cenarios:
+        dispositivo = torch.device(nome_dev)
+        torch.set_num_threads(1 if nome_dev == "cpu" else threads_originais)
+        modelo_cnn = modelo_cnn.to(dispositivo).eval()
+        rotulo = f"{carregado_cnn['rotulo']} — {nome_dev.upper()}"
+        print(f"\nMedindo a predição de {rotulo}...")
+        r = medir_pipeline([("predizer", preditor_cnn(modelo_cnn, media, desvio,
+                                                      dispositivo))],
+                           espectrogramas, cfg["tempo"])
+        ms_pred = r["etapas"]["predizer"]["ms_por_audio_mediana"]
+        total = round(base_cnn["total_ms_por_audio"] + ms_pred, 4)
+        etapas = {**{k: dict(v) for k, v in base_cnn["etapas"].items()},
+                  "predizer": dict(r["etapas"]["predizer"])}
+        for v in etapas.values():
+            v["percentual_do_total"] = round(100 * v["ms_por_audio_mediana"]
+                                             / total, 2)
+        resultados_cnn[chave] = {
+            "etapas": etapas, "total_ms_por_audio": total,
+            "n_audios": len(caminhos), "protocolo": base_cnn["protocolo"],
+            "modelo": carregado_cnn["nome_arquivo"], "rotulo": rotulo,
+            "dispositivo": nome_dev,
+            "torch_num_threads": 1 if nome_dev == "cpu" else threads_originais,
+            "normalizacao": origem_norm,
+            "nota_sincronizacao": (
+                "torch.cuda.synchronize() antes e depois do trecho cronometrado, "
+                "DENTRO do callable — sem isso mede-se o enfileiramento do "
+                "kernel, não a execução" if nome_dev == "cuda"
+                else "não se aplica: execução em CPU é síncrona"),
+            "nota_normalizacao": (
+                "a normalização por faixa Mel está DENTRO da etapa `predizer`, "
+                "porque é lá que ela mora no pipeline real (os tensores em disco "
+                "não estão normalizados; o EspectrogramaDataset aplica "
+                "média/desvio em tempo de carga)"),
+        }
+        for nome, v in etapas.items():
+            print(f"  {nome:<22} {v['ms_por_audio_mediana']:>9.4f} ms/áudio "
+                  f"({v['percentual_do_total']:>5.2f}%)")
+        print(f"  {'TOTAL':<22} {total:>9.4f} ms/áudio")
+    torch.set_num_threads(threads_originais)
+    resultados.update(resultados_cnn)
+
+    # As duas etapas comuns aos dois ramos foram medidas duas vezes, em contextos
+    # de cache diferentes. Se divergirem muito, a comparação entre os totais dos
+    # dois ramos está carregando um artefato de medição, não uma diferença real.
+    consistencia = {}
+    for etapa in ("carregar_audio", "vad_e_padding"):
+        a = base["etapas"][etapa]["ms_por_audio_mediana"]
+        b = base_cnn["etapas"][etapa]["ms_por_audio_mediana"]
+        consistencia[etapa] = {
+            "na_base_classica_ms": a, "na_base_cnn_ms": b,
+            "diferenca_relativa_pct": round(100 * abs(a - b) / max(a, b), 2),
+        }
+
     # ---- Leitura crítica ----------------------------------------------------
     print("\n" + "=" * 74)
     print("LEITURA CRÍTICA — o classificador importa para o custo de inferência?")
@@ -337,20 +568,27 @@ def main() -> None:
     for chave, r in resultados.items():
         pct_pred = r["etapas"]["predizer"]["percentual_do_total"]
         pct_pre = 100 - pct_pred
+        # "representação" e não "featurização": no ramo clássico a etapa é o
+        # vetor de 44 features, no da CNN é o log-Mel. Dizer "featurização" para
+        # os três descreveria errado um terço da tabela.
         linhas.append(
             f"{r['rotulo']}: predizer = {r['etapas']['predizer']['ms_por_audio_mediana']:.4f} "
             f"ms/áudio ({pct_pred:.2f}% do total de "
             f"{r['total_ms_por_audio']:.2f} ms); pré-processamento + "
-            f"featurização = {pct_pre:.2f}%.")
+            f"construção da representação = {pct_pre:.2f}%.")
     for l in linhas:
         print(l)
 
+    # O veredito abaixo é sobre o RAMO CLÁSSICO, e por isso é calculado SÓ sobre
+    # rf/svm: ele responde «a escolha entre RF e SVM importa para o custo?». A
+    # CNN tem a sua leitura logo a seguir, porque a pergunta dela é outra.
+    classicos = {k: resultados[k] for k in ("rf", "svm")}
     pct_max_pred = max(r["etapas"]["predizer"]["percentual_do_total"]
-                       for r in resultados.values())
+                       for r in classicos.values())
     dif_total = abs(resultados["rf"]["total_ms_por_audio"]
                     - resultados["svm"]["total_ms_por_audio"])
-    razao_totais = (max(r["total_ms_por_audio"] for r in resultados.values())
-                    / min(r["total_ms_por_audio"] for r in resultados.values()))
+    razao_totais = (max(r["total_ms_por_audio"] for r in classicos.values())
+                    / min(r["total_ms_por_audio"] for r in classicos.values()))
     if pct_max_pred < 5.0:
         veredito = (
             f"A predição responde por no máximo {pct_max_pred:.2f}% do custo real "
@@ -376,6 +614,51 @@ def main() -> None:
             "com significado prático.")
     print(f"\n{veredito}\n")
 
+    # ---- A leitura do ramo da CNN (pergunta diferente) ----------------------
+    # No RF a predição é a maior fatia do custo. Na CNN a hipótese do marco é que
+    # a GERAÇÃO DO ESPECTROGRAMA domine — e, se dominar, isso é RESULTADO: a
+    # alavanca de engenharia muda de lugar conforme o ramo.
+    print("=" * 74)
+    print("LEITURA CRÍTICA — no ramo da CNN, o que domina o custo?")
+    print("=" * 74)
+    veredito_cnn = {}
+    for chave, r in resultados_cnn.items():
+        e = r["etapas"]
+        pct_esp = e["gerar_melspectrograma"]["percentual_do_total"]
+        pct_pred = e["predizer"]["percentual_do_total"]
+        dominante = max(e, key=lambda k: e[k]["ms_por_audio_mediana"])
+        texto = (
+            f"{r['rotulo']}: total {r['total_ms_por_audio']:.2f} ms/áudio. "
+            f"Espectrograma = {pct_esp:.2f}%, forward = {pct_pred:.2f}%. "
+            f"Etapa dominante: {dominante}.")
+        if dominante == "gerar_melspectrograma":
+            texto += (" A hipótese do B4.7 SE CONFIRMA neste cenário: a geração "
+                      "da representação domina o custo, e não a rede. É um "
+                      "achado de engenharia, não ruído — a alavanca de "
+                      "otimização está na featurização, como no ramo clássico.")
+        else:
+            texto += (" A hipótese do B4.7 NÃO se confirma neste cenário: o "
+                      "forward da rede domina o custo. É aqui que a exigência de "
+                      "hardware da CNN aparece no tempo, e não só na memória.")
+        veredito_cnn[chave] = texto
+        print(texto)
+
+    if "cnn_gpu" in resultados_cnn and "cnn_cpu" in resultados_cnn:
+        g = resultados_cnn["cnn_gpu"]["etapas"]["predizer"]["ms_por_audio_mediana"]
+        c = resultados_cnn["cnn_cpu"]["etapas"]["predizer"]["ms_por_audio_mediana"]
+        veredito_cnn["gpu_x_cpu"] = (
+            f"O forward da CNN custa {c:.2f} ms/áudio em CPU (1 thread) contra "
+            f"{g:.2f} ms em GPU — razão {c / g:.1f}x. Somado ao pipeline, o total "
+            f"vai de {resultados_cnn['cnn_gpu']['total_ms_por_audio']:.2f} ms "
+            f"para {resultados_cnn['cnn_cpu']['total_ms_por_audio']:.2f} ms. É "
+            "ESTE o par que sustenta a afirmação central do trabalho: a vantagem "
+            "dos modelos clássicos não é serem mais rápidos em igualdade de "
+            "hardware — é não exigirem GPU. Comparar a CNN-GPU com um RF em CPU "
+            "compararia hardware, não modelo; a coluna CNN-CPU é o que torna a "
+            "comparação honesta.")
+        print(f"\n{veredito_cnn['gpu_x_cpu']}")
+    print()
+
     registro = {
         "analise": "tempo_pipeline_completo",
         "data": date.today().isoformat(),
@@ -385,12 +668,27 @@ def main() -> None:
         "teste_lacrado": True,
         "n_amostra": N_AMOSTRA,
         "semente": cfg["semente"],
-        "escopo": ("pipeline COMPLETO por áudio (batch=1): carregar .flac + "
-                   "normalizar -> VAD + padding -> extrair 44 features -> "
-                   "predizer. Complementa src/models/tempo.py, que mede SÓ a "
-                   "última etapa (ver protocolo.escopo nos JSONs de RF e SVM)."),
+        "escopo": ("pipeline COMPLETO por áudio (batch=1). Ramo clássico: "
+                   "carregar .flac + normalizar -> VAD + padding -> extrair 44 "
+                   "features -> predizer. Ramo CNN: carregar .flac + normalizar "
+                   "-> VAD + padding -> gerar log-Mel (128x251) -> normalizar "
+                   "por faixa Mel + forward. Complementa src/models/tempo.py, "
+                   "que mede SÓ a última etapa (ver protocolo.escopo nos JSONs "
+                   "de RF, SVM e CNN)."),
         "fidelidade_do_pipeline": fidelidade,
+        "fidelidade_do_pipeline_cnn": fidelidade_cnn,
         "base_compartilhada": base,
+        "base_cnn": base_cnn,
+        "consistencia_das_etapas_comuns": {
+            "etapas": consistencia,
+            "por_que_existe": (
+                "carregar_audio e vad_e_padding são o MESMO código nos dois "
+                "ramos, mas foram cronometrados duas vezes, em contextos de "
+                "cache diferentes. Reportar as duas medidas lado a lado deixa "
+                "visível quanto da diferença entre os totais dos dois ramos é "
+                "artefato de medição e quanto é diferença real — e é a mesma "
+                "precaução que `nota_metodo` descreve para RF x SVM."),
+        },
         "nota_metodo": (
             "a base (carregar + VAD/padding + featurização) é medida UMA vez e "
             "somada à predição de cada modelo. Medi-la dentro do laço de cada "
@@ -402,15 +700,30 @@ def main() -> None:
             "entre eles está na etapa de predição."),
         "por_modelo": resultados,
         "leitura_critica": veredito,
+        "leitura_critica_cnn": veredito_cnn,
         "extensao_bloco4": (
-            "medir_pipeline recebe uma lista de etapas nomeadas; a CNN entra "
-            "acrescentando ['gerar_melspectrograma', 'forward_cnn'] no lugar de "
-            "['extrair_features', 'predizer'] — MESMO código, MESMO protocolo, "
-            "para que os três modelos sejam comparáveis"),
+            "FEITA no B4.7 (20/09/2026), exatamente como a amarra previa: "
+            "medir_pipeline recebe uma lista de etapas nomeadas, e a CNN entrou "
+            "trocando ['extrair_features', 'predizer'] por "
+            "['gerar_melspectrograma', 'predizer'] — MESMO cronômetro, MESMO "
+            "protocolo, MESMA amostra. `gerar_um` de "
+            "src/features/gerar_espectrogramas.py é reusada, não reimplementada, "
+            "e a guarda de fidelidade compara o tensor recalculado contra o "
+            "memmap congelado do B4.2."),
+        "precisao_numerica_cnn": precisao,
+        "nota_re_medicao": (
+            "RF e SVM foram RE-MEDIDOS nesta execução, junto com a CNN. O método "
+            "não mudou — mudou a data. Um tempo de RF de agosto comparado a um "
+            "tempo de CNN de setembro compararia também o estado da máquina; os "
+            "três saem do mesmo processo, com o mesmo cache e a mesma amostra."),
         "hashes_md5": hashes_congelados(
             RAIZ, cfg["experimento"]["caminho_subamostra"]),
         "ambiente": ambiente(n_jobs_inferencia=1),
     }
+    registro["ambiente"]["torch"] = torch.__version__
+    registro["ambiente"]["gpu"] = (torch.cuda.get_device_name(0)
+                                   if torch.cuda.is_available() else None)
+    registro["ambiente"]["cuda_versao"] = torch.version.cuda
     caminho = RAIZ / "results" / "metricas" / "tempo_pipeline_completo.json"
     with open(caminho, "w", encoding="utf-8") as f:
         json.dump(registro, f, indent=2, ensure_ascii=False,

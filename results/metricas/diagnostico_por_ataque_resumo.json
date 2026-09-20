@@ -1,14 +1,19 @@
 {
   "analise": "diagnostico_por_ataque",
-  "data": "2026-09-03",
+  "data": "2026-09-20",
   "conjunto": "validacao",
   "teste_lacrado": true,
   "regra_decisao": "score >= limiar",
-  "observacao_metodo": "nenhum modelo é treinado aqui: os dois são carregados de models/*.joblib e decidem com o limiar selecionado na validação, lido do JSON companheiro. A versão de 13/08/2026 re-treinava um RF baseline e decidia em 0,50 — ver *_baseline_2026-08-13.csv",
+  "observacao_metodo": "nenhum modelo é treinado aqui: os três são carregados de models/ (rf/svm em .joblib, cnn em .pt) e decidem com o limiar selecionado na validação, lido do JSON companheiro. A versão de 13/08/2026 re-treinava um RF baseline e decidia em 0,50 — ver *_baseline_2026-08-13.csv",
   "limite_amplitude_grande": 0.1,
+  "amplitude_eer_por_modelo": {
+    "rf": 0.292,
+    "svm": 0.1981,
+    "cnn": 0.1171
+  },
   "amplitude_eer_rf": 0.292,
   "amplitude_eer_svm": 0.1981,
-  "leitura_critica": "AMPLITUDE GRANDE: a dificuldade varia muito mais entre sistemas de síntese (amplitude de EER até 0.2920) do que entre os dois modelos (delta EER agregado 0,0466, bootstrap pareado). É evidência A FAVOR do risco declarado no README: o número agregado depende de QUAIS ataques compõem o conjunto, e o split por utterance deixa o modelo ver a assinatura de cada vocoder já no treino. O agregado é, portanto, potencialmente otimista, e o experimento cross-attack (leave-one-attack-out) segue sendo a análise complementar necessária.",
+  "leitura_critica": "AMPLITUDE GRANDE: a dificuldade varia muito mais entre sistemas de síntese (amplitude de EER até 0.2920) do que entre os modelos comparados (delta EER agregado RF x SVM = 0,0466, bootstrap pareado; o equivalente envolvendo a CNN é o B5.2). É evidência A FAVOR do risco declarado no README: o número agregado depende de QUAIS ataques compõem o conjunto, e o split por utterance deixa o modelo ver a assinatura de cada vocoder já no treino. O agregado é, portanto, potencialmente otimista, e o experimento cross-attack (leave-one-attack-out) segue sendo a análise complementar necessária.",
   "por_modelo": {
     "rf": {
       "modelo": "rf_tuned_principal",
@@ -87,6 +92,45 @@
       "recall_saturado_em_1": false,
       "csv": "results/metricas/diagnostico_por_ataque_svm_tuned_principal.csv",
       "figura": "results/figuras/diagnostico_por_ataque_svm_tuned_principal.png"
+    },
+    "cnn": {
+      "modelo": "cnn_final_principal",
+      "rotulo": "CNN final (braço principal, refit 30k)",
+      "limiar": 0.32524311542510986,
+      "regra": "score >= limiar",
+      "criterio_limiar": "f1_macro",
+      "origem_limiar": "results/metricas/cnn_final_principal.json -> selecao_limiar.limiar",
+      "escala_score": "probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))",
+      "n_validacao": 22226,
+      "recall_bonafide": 0.8101,
+      "ataque_mais_facil": {
+        "ataque": "A09",
+        "eer_vs_bonafide": 0.0116
+      },
+      "ataque_mais_dificil": {
+        "ataque": "A19",
+        "eer_vs_bonafide": 0.1287
+      },
+      "amplitude_eer": 0.1171,
+      "razao_eer_dificil_facil": 11.09,
+      "eer_por_ataque": {
+        "A07": 0.0418,
+        "A08": 0.0383,
+        "A09": 0.0116,
+        "A10": 0.1016,
+        "A11": 0.0526,
+        "A12": 0.0726,
+        "A13": 0.0196,
+        "A14": 0.0416,
+        "A15": 0.0493,
+        "A16": 0.1221,
+        "A17": 0.0863,
+        "A18": 0.0632,
+        "A19": 0.1287
+      },
+      "recall_saturado_em_1": false,
+      "csv": "results/metricas/diagnostico_por_ataque_cnn_final_principal.csv",
+      "figura": "results/figuras/diagnostico_por_ataque_cnn_final_principal.png"
     }
   },
   "referencia_baseline": {

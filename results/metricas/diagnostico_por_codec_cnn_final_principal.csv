@@ -1,0 +1,8 @@
+codec,banda,n,n_bonafide,f1_macro,recall_bonafide,recall_spoof,eer,limiar,escala_score
+alaw,estreita,2936,306,0.9098,0.8301,0.9825,0.0693,0.325243,"probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"
+ulaw,estreita,3523,320,0.8988,0.8656,0.9747,0.0682,0.325243,"probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"
+gsm,estreita,3459,323,0.8429,0.7059,0.9723,0.1107,0.325243,"probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"
+pstn,estreita,2966,295,0.8472,0.6814,0.9775,0.0914,0.325243,"probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"
+g722,larga,2905,294,0.9403,0.9082,0.9858,0.0403,0.325243,"probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"
+opus,larga,3540,360,0.8959,0.7806,0.984,0.0835,0.325243,"probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"
+none,larga,2897,324,0.9452,0.9012,0.988,0.0368,0.325243,"probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"

@@ -1,12 +1,12 @@
 {
   "analise": "diagnostico_por_codec",
-  "data": "2026-09-03",
+  "data": "2026-09-20",
   "conjunto": "validacao",
   "teste_lacrado": true,
   "regra_decisao": "score >= limiar",
   "hipotese": "artefatos de síntese vivem acima de 4 kHz; codecs de banda estreita (alaw, ulaw, gsm, pstn) os destroem, logo o desempenho deve ser melhor em banda larga (g722, opus, none)",
-  "observacao_metodo": "nenhum modelo é treinado aqui: os dois são carregados de models/*.joblib e decidem com o limiar selecionado na validação. A versão de 13/08/2026 re-treinava um RF baseline e decidia em 0,50 — ver *_baseline_2026-08-13.csv",
-  "leitura_critica": "HIPÓTESE SUSTENTADA NOS DOIS MODELOS, agora com o limiar do protocolo e não em 0,50: o desempenho é sistematicamente melhor nos codecs de banda larga (f1_macro maior E EER menor). Como o EER é independente de limiar, o contraste NÃO era artefato do limiar 0,50 da versão baseline. A evidência sustenta que os artefatos discriminativos capturados por ZCR/centróide vivem acima de 4 kHz, faixa que os codecs telefônicos removem — e REJEITA um fmax=4000 global, que destruiria os 43% de áudio em banda larga (decisão ratificada pelo orientador; ver o bloco `features` do config.yaml).",
+  "observacao_metodo": "nenhum modelo é treinado aqui: os três são carregados de models/ (rf/svm em .joblib, cnn em .pt) e decidem com o limiar selecionado na validação. A versão de 13/08/2026 re-treinava um RF baseline e decidia em 0,50 — ver *_baseline_2026-08-13.csv",
+  "leitura_critica": "HIPÓTESE SUSTENTADA NOS TRÊS MODELOS DO BRAÇO PRINCIPAL, com o limiar do protocolo e não em 0,50: o desempenho é sistematicamente melhor nos codecs de banda larga (f1_macro maior E EER menor). Como o EER é independente de limiar, o contraste NÃO era artefato do limiar 0,50 da versão baseline. A evidência sustenta que os artefatos discriminativos vivem acima de 4 kHz, faixa que os codecs telefônicos removem — e REJEITA um fmax=4000 global, que destruiria os 43% de áudio em banda larga (decisão ratificada pelo orientador; ver o bloco `features` do config.yaml). QUE A CNN ACOMPANHE RF E SVM REFORÇA a leitura em vez de repeti-la: a CNN não usa ZCR nem centróide — ela vê o espectrograma inteiro até 8 kHz. O contraste aparecer nos dois ramos aponta para uma propriedade DO SINAL (a banda que o codec remove), e não para uma peculiaridade daquelas duas features.",
   "por_modelo": {
     "rf": {
       "modelo": "rf_tuned_principal",
@@ -91,6 +91,48 @@
       "amplitude_eer": 0.1078,
       "csv": "results/metricas/diagnostico_por_codec_svm_tuned_principal.csv",
       "figura": "results/figuras/diagnostico_por_codec_svm_tuned_principal.png"
+    },
+    "cnn": {
+      "modelo": "cnn_final_principal",
+      "rotulo": "CNN final (braço principal, refit 30k)",
+      "limiar": 0.32524311542510986,
+      "regra": "score >= limiar",
+      "criterio_limiar": "f1_macro",
+      "origem_limiar": "results/metricas/cnn_final_principal.json -> selecao_limiar.limiar",
+      "escala_score": "probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))",
+      "n_validacao": 22226,
+      "por_banda": {
+        "estreita": {
+          "f1_macro": 0.8747,
+          "recall_bonafide": 0.7708,
+          "eer": 0.0849
+        },
+        "larga": {
+          "f1_macro": 0.9271,
+          "recall_bonafide": 0.8633,
+          "eer": 0.0535
+        }
+      },
+      "delta_larga_menos_estreita": {
+        "f1_macro": 0.0524,
+        "recall_bonafide": 0.0925,
+        "eer": -0.0314
+      },
+      "hipotese_banda_alta_sustentada": true,
+      "eer_por_codec": {
+        "alaw": 0.0693,
+        "ulaw": 0.0682,
+        "gsm": 0.1107,
+        "pstn": 0.0914,
+        "g722": 0.0403,
+        "opus": 0.0835,
+        "none": 0.0368
+      },
+      "codec_melhor_eer": "none",
+      "codec_pior_eer": "gsm",
+      "amplitude_eer": 0.0739,
+      "csv": "results/metricas/diagnostico_por_codec_cnn_final_principal.csv",
+      "figura": "results/figuras/diagnostico_por_codec_cnn_final_principal.png"
     }
   },
   "referencia_baseline": {
