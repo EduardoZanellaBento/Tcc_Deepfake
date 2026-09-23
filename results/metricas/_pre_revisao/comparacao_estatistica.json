@@ -1,0 +1,728 @@
+{
+  "analise": "comparacao_final",
+  "data": "2026-09-23",
+  "conjuntos": {
+    "validacao": 22226,
+    "teste": 22227
+  },
+  "teste_pontuado_aqui": false,
+  "origem_dos_scores": {
+    "validacao": "results/metricas/scores_validacao.csv",
+    "teste": "results/metricas/scores_teste_lacrado.csv"
+  },
+  "delta_validacao_teste": {
+    "rotulo": "HEURÍSTICA — ruído da diferença entre duas amostras independentes, 1,96·√(dp_val² + dp_teste²), aproximação normal",
+    "por_modelo": {
+      "rf_tuned_principal": {
+        "f1_macro_validacao": 0.7224981574471296,
+        "f1_macro_teste": 0.7209849166036708,
+        "delta_f1_macro": -0.0015132408434588296,
+        "delta_eer": 0.0016061434764796934,
+        "ruido_da_diferenca_f1_macro": 0.0133,
+        "ruido_da_diferenca_eer": 0.0115,
+        "delta_f1_dentro_do_ruido": true,
+        "delta_eer_dentro_do_ruido": true,
+        "fracao_do_ruido_f1": 0.11
+      },
+      "rf_tuned_referencia": {
+        "f1_macro_validacao": 0.7722680621707658,
+        "f1_macro_teste": 0.7601590396961105,
+        "delta_f1_macro": -0.012109022474655284,
+        "delta_eer": 0.004963099285284878,
+        "ruido_da_diferenca_f1_macro": 0.0132,
+        "ruido_da_diferenca_eer": 0.0105,
+        "delta_f1_dentro_do_ruido": true,
+        "delta_eer_dentro_do_ruido": true,
+        "fracao_do_ruido_f1": 0.92
+      },
+      "svm_tuned_principal": {
+        "f1_macro_validacao": 0.7987278595323215,
+        "f1_macro_teste": 0.79805565926813,
+        "delta_f1_macro": -0.0006722002641914582,
+        "delta_eer": -0.005056522181705769,
+        "ruido_da_diferenca_f1_macro": 0.0126,
+        "ruido_da_diferenca_eer": 0.0108,
+        "delta_f1_dentro_do_ruido": true,
+        "delta_eer_dentro_do_ruido": true,
+        "fracao_do_ruido_f1": 0.05
+      },
+      "cnn_final_principal": {
+        "f1_macro_validacao": 0.8975229339814239,
+        "f1_macro_teste": 0.8882973563874836,
+        "delta_f1_macro": -0.00922557759394027,
+        "delta_eer": -6.659085236800089e-05,
+        "ruido_da_diferenca_f1_macro": 0.0098,
+        "ruido_da_diferenca_eer": 0.0079,
+        "delta_f1_dentro_do_ruido": true,
+        "delta_eer_dentro_do_ruido": true,
+        "fracao_do_ruido_f1": 0.94
+      }
+    },
+    "ordem_f1_macro_validacao": [
+      "CNN",
+      "SVM",
+      "RF"
+    ],
+    "ordem_f1_macro_teste": [
+      "CNN",
+      "SVM",
+      "RF"
+    ],
+    "ordem_preservada": true,
+    "leitura": "Os quatro deltas validação→teste (f1_macro e EER) cabem no ruído de amostragem dos dois conjuntos: a seleção de limiar sobre 22 mil amostras não sobreajustou a validação — evidência de que o protocolo funcionou. Mais perto do limite do ruído: RF (referência) e CNN (Δf1 -0,0121 para um ruído de ±0,0132 e -0,0092 para um ruído de ±0,0098). Para CNN, o EER praticamente não muda (-0,0001) enquanto o f1_macro cai: como o EER não depende de limiar, o teste não ficou mais difícil para esse modelo — o que se perdeu foi um pouco do ponto de corte transportado. A ordem dos três modelos principais é a mesma na validação e no teste."
+  },
+  "heuristicas": {
+    "rotulo": "HEURÍSTICA — contexto, NÃO é o teste",
+    "por_que_nao_e_o_teste": "IC individual e dispersão por semente ignoram a correlação entre os erros dos modelos nas MESMAS amostras; comparar a diferença contra a maior dispersão individual superestima o ruído da comparação. O teste é o IC da diferença pareada (bloco `bootstrap_pareado`)",
+    "ic_individual": {
+      "validacao": {
+        "rf_tuned_principal": {
+          "f1_macro": {
+            "media": 0.7225,
+            "desvio": 0.0048,
+            "ic95": [
+              0.7124,
+              0.7315
+            ]
+          },
+          "eer": {
+            "media": 0.1924,
+            "desvio": 0.0041,
+            "ic95": [
+              0.1845,
+              0.2005
+            ]
+          }
+        },
+        "rf_tuned_referencia": {
+          "f1_macro": {
+            "media": 0.7724,
+            "desvio": 0.0048,
+            "ic95": [
+              0.7629,
+              0.7814
+            ]
+          },
+          "eer": {
+            "media": 0.1573,
+            "desvio": 0.0036,
+            "ic95": [
+              0.1503,
+              0.1641
+            ]
+          }
+        },
+        "svm_tuned_principal": {
+          "f1_macro": {
+            "media": 0.7987,
+            "desvio": 0.0046,
+            "ic95": [
+              0.7898,
+              0.8074
+            ]
+          },
+          "eer": {
+            "media": 0.1458,
+            "desvio": 0.0039,
+            "ic95": [
+              0.1376,
+              0.1533
+            ]
+          }
+        },
+        "cnn_final_principal": {
+          "f1_macro": {
+            "media": 0.8975,
+            "desvio": 0.0035,
+            "ic95": [
+              0.8905,
+              0.9043
+            ]
+          },
+          "eer": {
+            "media": 0.0735,
+            "desvio": 0.0029,
+            "ic95": [
+              0.0678,
+              0.0791
+            ]
+          }
+        }
+      },
+      "teste": {
+        "rf_tuned_principal": {
+          "f1_macro": {
+            "media": 0.7209,
+            "desvio": 0.0048,
+            "ic95": [
+              0.7114,
+              0.73
+            ]
+          },
+          "eer": {
+            "media": 0.1941,
+            "desvio": 0.0042,
+            "ic95": [
+              0.1862,
+              0.2019
+            ]
+          }
+        },
+        "rf_tuned_referencia": {
+          "f1_macro": {
+            "media": 0.76,
+            "desvio": 0.0047,
+            "ic95": [
+              0.7512,
+              0.7689
+            ]
+          },
+          "eer": {
+            "media": 0.163,
+            "desvio": 0.004,
+            "ic95": [
+              0.1557,
+              0.1714
+            ]
+          }
+        },
+        "svm_tuned_principal": {
+          "f1_macro": {
+            "media": 0.7978,
+            "desvio": 0.0045,
+            "ic95": [
+              0.789,
+              0.8062
+            ]
+          },
+          "eer": {
+            "media": 0.1407,
+            "desvio": 0.0039,
+            "ic95": [
+              0.133,
+              0.1482
+            ]
+          }
+        },
+        "cnn_final_principal": {
+          "f1_macro": {
+            "media": 0.8882,
+            "desvio": 0.0036,
+            "ic95": [
+              0.8812,
+              0.8949
+            ]
+          },
+          "eer": {
+            "media": 0.0732,
+            "desvio": 0.0028,
+            "ic95": [
+              0.0671,
+              0.0787
+            ]
+          }
+        }
+      }
+    },
+    "nota_ic_individual": "calculados a partir das MESMAS 1.000 reamostragens do pareado; por isso diferem na 4ª casa dos IC individuais de estabilidade_rf_svm.json, que usou outra sequência de índices",
+    "variancia_de_treino": {
+      "rf": {
+        "f1_macro_5_sementes": {
+          "media": 0.722,
+          "desvio": 0.0004,
+          "min": 0.7214,
+          "max": 0.7225
+        },
+        "eer_5_sementes": {
+          "media": 0.1933,
+          "desvio": 0.0012,
+          "min": 0.1918,
+          "max": 0.1948
+        },
+        "fonte": "estabilidade_rf_svm.json -> rf_sementes"
+      },
+      "svm": "não existe: SVC com probability=False é determinístico",
+      "cnn": "não medida: a CNN final é um treino único (refit do B4.6, semente 42); re-treinar com outras sementes está fora do escopo do B5"
+    },
+    "diferenca_x_maior_dispersao_individual": {
+      "validacao.svm_menos_rf": {
+        "abs_delta_f1_macro": 0.0762,
+        "maior_dispersao_individual_f1": 0.0048,
+        "abs_delta_eer": 0.0468,
+        "maior_dispersao_individual_eer": 0.0041
+      },
+      "validacao.cnn_menos_rf": {
+        "abs_delta_f1_macro": 0.175,
+        "maior_dispersao_individual_f1": 0.0048,
+        "abs_delta_eer": 0.1192,
+        "maior_dispersao_individual_eer": 0.0041
+      },
+      "validacao.cnn_menos_svm": {
+        "abs_delta_f1_macro": 0.0988,
+        "maior_dispersao_individual_f1": 0.0046,
+        "abs_delta_eer": 0.0724,
+        "maior_dispersao_individual_eer": 0.0039
+      },
+      "teste.svm_menos_rf": {
+        "abs_delta_f1_macro": 0.0771,
+        "maior_dispersao_individual_f1": 0.0048,
+        "abs_delta_eer": 0.0535,
+        "maior_dispersao_individual_eer": 0.0042
+      },
+      "teste.cnn_menos_rf": {
+        "abs_delta_f1_macro": 0.1673,
+        "maior_dispersao_individual_f1": 0.0048,
+        "abs_delta_eer": 0.1209,
+        "maior_dispersao_individual_eer": 0.0042
+      },
+      "teste.cnn_menos_svm": {
+        "abs_delta_f1_macro": 0.0902,
+        "maior_dispersao_individual_f1": 0.0045,
+        "abs_delta_eer": 0.0674,
+        "maior_dispersao_individual_eer": 0.0039
+      }
+    }
+  },
+  "bootstrap_pareado": {
+    "validacao": {
+      "n": 22226,
+      "n_reamostragens": 1000,
+      "semente": 42,
+      "limiares_fixos": {
+        "rf_tuned_principal": 0.6515677318576931,
+        "rf_tuned_referencia": 0.6195519477166891,
+        "svm_tuned_principal": -0.032941668297628235,
+        "cnn_final_principal": 0.32524311542510986
+      },
+      "pares": {
+        "svm_menos_rf": {
+          "diferenca": "svm_tuned_principal - rf_tuned_principal",
+          "rotulo": "SVM − RF",
+          "delta_observado": {
+            "f1_macro": 0.07622970208519186,
+            "eer": -0.04684765117183584
+          },
+          "delta_f1_macro": {
+            "media": 0.0762,
+            "desvio": 0.0051,
+            "ic95": [
+              0.0663,
+              0.0856
+            ]
+          },
+          "delta_eer": {
+            "media": -0.0466,
+            "desvio": 0.0047,
+            "ic95": [
+              -0.056,
+              -0.0377
+            ]
+          },
+          "fracao_reamostragens_svm_melhor_f1": 1.0,
+          "fracao_reamostragens_svm_melhor_eer": 1.0,
+          "leitura_f1_macro": "SVM melhor em f1_macro: o IC95 da diferença [0,0663; 0,0856] não contém zero — diferença real neste protocolo",
+          "leitura_eer": "SVM melhor em EER: o IC95 da diferença [-0,0560; -0,0377] não contém zero — diferença real neste protocolo",
+          "veredito_f1_macro": "SVM melhor (real)",
+          "veredito_eer": "SVM melhor (real)"
+        },
+        "cnn_menos_rf": {
+          "diferenca": "cnn_final_principal - rf_tuned_principal",
+          "rotulo": "CNN − RF",
+          "delta_observado": {
+            "f1_macro": 0.17502477653429427,
+            "eer": -0.11924404048083273
+          },
+          "delta_f1_macro": {
+            "media": 0.175,
+            "desvio": 0.0052,
+            "ic95": [
+              0.165,
+              0.1853
+            ]
+          },
+          "delta_eer": {
+            "media": -0.1189,
+            "desvio": 0.0044,
+            "ic95": [
+              -0.1275,
+              -0.1102
+            ]
+          },
+          "fracao_reamostragens_cnn_melhor_f1": 1.0,
+          "fracao_reamostragens_cnn_melhor_eer": 1.0,
+          "leitura_f1_macro": "CNN melhor em f1_macro: o IC95 da diferença [0,1650; 0,1853] não contém zero — diferença real neste protocolo",
+          "leitura_eer": "CNN melhor em EER: o IC95 da diferença [-0,1275; -0,1102] não contém zero — diferença real neste protocolo",
+          "veredito_f1_macro": "CNN melhor (real)",
+          "veredito_eer": "CNN melhor (real)"
+        },
+        "cnn_menos_svm": {
+          "diferenca": "cnn_final_principal - svm_tuned_principal",
+          "rotulo": "CNN − SVM",
+          "delta_observado": {
+            "f1_macro": 0.0987950744491024,
+            "eer": -0.07239638930899689
+          },
+          "delta_f1_macro": {
+            "media": 0.0988,
+            "desvio": 0.0052,
+            "ic95": [
+              0.0887,
+              0.1093
+            ]
+          },
+          "delta_eer": {
+            "media": -0.0723,
+            "desvio": 0.0044,
+            "ic95": [
+              -0.0812,
+              -0.0635
+            ]
+          },
+          "fracao_reamostragens_cnn_melhor_f1": 1.0,
+          "fracao_reamostragens_cnn_melhor_eer": 1.0,
+          "leitura_f1_macro": "CNN melhor em f1_macro: o IC95 da diferença [0,0887; 0,1093] não contém zero — diferença real neste protocolo",
+          "leitura_eer": "CNN melhor em EER: o IC95 da diferença [-0,0812; -0,0635] não contém zero — diferença real neste protocolo",
+          "veredito_f1_macro": "CNN melhor (real)",
+          "veredito_eer": "CNN melhor (real)"
+        }
+      },
+      "custo_da_subamostragem": {
+        "diferenca": "rf_tuned_referencia - rf_tuned_principal",
+        "rotulo": "RF (referência) − RF",
+        "delta_observado": {
+          "f1_macro": 0.04976990472363618,
+          "eer": -0.03507325087637739
+        },
+        "delta_f1_macro": {
+          "media": 0.0499,
+          "desvio": 0.0032,
+          "ic95": [
+            0.0438,
+            0.0561
+          ]
+        },
+        "delta_eer": {
+          "media": -0.0351,
+          "desvio": 0.003,
+          "ic95": [
+            -0.0406,
+            -0.0292
+          ]
+        },
+        "fracao_reamostragens_rf_ref_melhor_f1": 1.0,
+        "fracao_reamostragens_rf_ref_melhor_eer": 1.0,
+        "leitura_f1_macro": "RF (referência) melhor em f1_macro: o IC95 da diferença [0,0438; 0,0561] não contém zero — diferença real neste protocolo",
+        "leitura_eer": "RF (referência) melhor em EER: o IC95 da diferença [-0,0406; -0,0292] não contém zero — diferença real neste protocolo",
+        "veredito_f1_macro": "RF (referência) melhor (real)",
+        "veredito_eer": "RF (referência) melhor (real)",
+        "o_que_mede": "custo da subamostragem de 30k para o RF: mesmo algoritmo e hiperparâmetros, treino completo (103.723) contra a subamostra (30.000). NÃO é um par da comparação entre modelos"
+      }
+    },
+    "teste": {
+      "n": 22227,
+      "n_reamostragens": 1000,
+      "semente": 42,
+      "limiares_fixos": {
+        "rf_tuned_principal": 0.6515677318576931,
+        "rf_tuned_referencia": 0.6195519477166891,
+        "svm_tuned_principal": -0.032941668297628235,
+        "cnn_final_principal": 0.32524311542510986
+      },
+      "pares": {
+        "svm_menos_rf": {
+          "diferenca": "svm_tuned_principal - rf_tuned_principal",
+          "rotulo": "SVM − RF",
+          "delta_observado": {
+            "f1_macro": 0.07707074266445924,
+            "eer": -0.053510316830021304
+          },
+          "delta_f1_macro": {
+            "media": 0.0769,
+            "desvio": 0.0051,
+            "ic95": [
+              0.0671,
+              0.0868
+            ]
+          },
+          "delta_eer": {
+            "media": -0.0534,
+            "desvio": 0.0047,
+            "ic95": [
+              -0.063,
+              -0.0444
+            ]
+          },
+          "fracao_reamostragens_svm_melhor_f1": 1.0,
+          "fracao_reamostragens_svm_melhor_eer": 1.0,
+          "leitura_f1_macro": "SVM melhor em f1_macro: o IC95 da diferença [0,0671; 0,0868] não contém zero — diferença real neste protocolo",
+          "leitura_eer": "SVM melhor em EER: o IC95 da diferença [-0,0630; -0,0444] não contém zero — diferença real neste protocolo",
+          "veredito_f1_macro": "SVM melhor (real)",
+          "veredito_eer": "SVM melhor (real)"
+        },
+        "cnn_menos_rf": {
+          "diferenca": "cnn_final_principal - rf_tuned_principal",
+          "rotulo": "CNN − RF",
+          "delta_observado": {
+            "f1_macro": 0.16731243978381283,
+            "eer": -0.12091677480968042
+          },
+          "delta_f1_macro": {
+            "media": 0.1673,
+            "desvio": 0.0053,
+            "ic95": [
+              0.1568,
+              0.1775
+            ]
+          },
+          "delta_eer": {
+            "media": -0.1209,
+            "desvio": 0.0046,
+            "ic95": [
+              -0.1304,
+              -0.1118
+            ]
+          },
+          "fracao_reamostragens_cnn_melhor_f1": 1.0,
+          "fracao_reamostragens_cnn_melhor_eer": 1.0,
+          "leitura_f1_macro": "CNN melhor em f1_macro: o IC95 da diferença [0,1568; 0,1775] não contém zero — diferença real neste protocolo",
+          "leitura_eer": "CNN melhor em EER: o IC95 da diferença [-0,1304; -0,1118] não contém zero — diferença real neste protocolo",
+          "veredito_f1_macro": "CNN melhor (real)",
+          "veredito_eer": "CNN melhor (real)"
+        },
+        "cnn_menos_svm": {
+          "diferenca": "cnn_final_principal - svm_tuned_principal",
+          "rotulo": "CNN − SVM",
+          "delta_observado": {
+            "f1_macro": 0.09024169711935359,
+            "eer": -0.06740645797965912
+          },
+          "delta_f1_macro": {
+            "media": 0.0904,
+            "desvio": 0.0052,
+            "ic95": [
+              0.0801,
+              0.1005
+            ]
+          },
+          "delta_eer": {
+            "media": -0.0675,
+            "desvio": 0.0046,
+            "ic95": [
+              -0.0763,
+              -0.0582
+            ]
+          },
+          "fracao_reamostragens_cnn_melhor_f1": 1.0,
+          "fracao_reamostragens_cnn_melhor_eer": 1.0,
+          "leitura_f1_macro": "CNN melhor em f1_macro: o IC95 da diferença [0,0801; 0,1005] não contém zero — diferença real neste protocolo",
+          "leitura_eer": "CNN melhor em EER: o IC95 da diferença [-0,0763; -0,0582] não contém zero — diferença real neste protocolo",
+          "veredito_f1_macro": "CNN melhor (real)",
+          "veredito_eer": "CNN melhor (real)"
+        }
+      },
+      "custo_da_subamostragem": {
+        "diferenca": "rf_tuned_referencia - rf_tuned_principal",
+        "rotulo": "RF (referência) − RF",
+        "delta_observado": {
+          "f1_macro": 0.03917412309243973,
+          "eer": -0.0317162950675722
+        },
+        "delta_f1_macro": {
+          "media": 0.0391,
+          "desvio": 0.0031,
+          "ic95": [
+            0.0329,
+            0.0451
+          ]
+        },
+        "delta_eer": {
+          "media": -0.031,
+          "desvio": 0.0029,
+          "ic95": [
+            -0.0368,
+            -0.0252
+          ]
+        },
+        "fracao_reamostragens_rf_ref_melhor_f1": 1.0,
+        "fracao_reamostragens_rf_ref_melhor_eer": 1.0,
+        "leitura_f1_macro": "RF (referência) melhor em f1_macro: o IC95 da diferença [0,0329; 0,0451] não contém zero — diferença real neste protocolo",
+        "leitura_eer": "RF (referência) melhor em EER: o IC95 da diferença [-0,0368; -0,0252] não contém zero — diferença real neste protocolo",
+        "veredito_f1_macro": "RF (referência) melhor (real)",
+        "veredito_eer": "RF (referência) melhor (real)",
+        "o_que_mede": "custo da subamostragem de 30k para o RF: mesmo algoritmo e hiperparâmetros, treino completo (103.723) contra a subamostra (30.000). NÃO é um par da comparação entre modelos"
+      }
+    }
+  },
+  "conferencia_bloco3": {
+    "referencia": "estabilidade_rf_svm.json -> bootstrap_pareado_svm_menos_rf",
+    "reproduziu": true,
+    "o_que_prova": "a extensão para três modelos não mudou o teste: mesmo sorteio de índices, mesmas linhas, mesmos scores — o par SVM−RF sai idêntico ao do Bloco 3"
+  },
+  "por_ataque": {
+    "conjunto": "validacao (o diagnóstico por ataque não abre o teste)",
+    "delta_eer_agregado_entre_modelos": {
+      "svm_menos_rf": -0.04684765117183584,
+      "cnn_menos_rf": -0.11924404048083273,
+      "cnn_menos_svm": -0.07239638930899689
+    },
+    "maior_abs_delta_eer_entre_modelos": 0.11924404048083273,
+    "por_modelo": {
+      "rf_tuned_principal": {
+        "amplitude_eer_entre_ataques": 0.292,
+        "razao_eer_dificil_facil": 5.65,
+        "ataque_mais_facil": {
+          "ataque": "A13",
+          "eer_vs_bonafide": 0.0628
+        },
+        "ataque_mais_dificil": {
+          "ataque": "A16",
+          "eer_vs_bonafide": 0.3548
+        },
+        "tres_mais_dificeis": [
+          "A16",
+          "A19",
+          "A12"
+        ],
+        "abs_delta_eer_para_os_outros_modelos": {
+          "svm_menos_rf": 0.04684765117183584,
+          "cnn_menos_rf": 0.11924404048083273
+        },
+        "amplitude_supera_a_distancia_para": {
+          "svm_menos_rf": true,
+          "cnn_menos_rf": true
+        }
+      },
+      "svm_tuned_principal": {
+        "amplitude_eer_entre_ataques": 0.1981,
+        "razao_eer_dificil_facil": 4.21,
+        "ataque_mais_facil": {
+          "ataque": "A09",
+          "eer_vs_bonafide": 0.0617
+        },
+        "ataque_mais_dificil": {
+          "ataque": "A16",
+          "eer_vs_bonafide": 0.2598
+        },
+        "tres_mais_dificeis": [
+          "A16",
+          "A12",
+          "A10"
+        ],
+        "abs_delta_eer_para_os_outros_modelos": {
+          "svm_menos_rf": 0.04684765117183584,
+          "cnn_menos_svm": 0.07239638930899689
+        },
+        "amplitude_supera_a_distancia_para": {
+          "svm_menos_rf": true,
+          "cnn_menos_svm": true
+        }
+      },
+      "cnn_final_principal": {
+        "amplitude_eer_entre_ataques": 0.1171,
+        "razao_eer_dificil_facil": 11.09,
+        "ataque_mais_facil": {
+          "ataque": "A09",
+          "eer_vs_bonafide": 0.0116
+        },
+        "ataque_mais_dificil": {
+          "ataque": "A19",
+          "eer_vs_bonafide": 0.1287
+        },
+        "tres_mais_dificeis": [
+          "A19",
+          "A16",
+          "A10"
+        ],
+        "abs_delta_eer_para_os_outros_modelos": {
+          "cnn_menos_rf": 0.11924404048083273,
+          "cnn_menos_svm": 0.07239638930899689
+        },
+        "amplitude_supera_a_distancia_para": {
+          "cnn_menos_rf": false,
+          "cnn_menos_svm": true
+        }
+      }
+    },
+    "ataques_entre_os_3_mais_dificeis_nos_tres_modelos": [
+      "A16"
+    ],
+    "leitura_registrada_bloco3": "a dificuldade varia muito mais entre sistemas de síntese (até 0,29 de EER) do que entre modelos (ΔEER 0,0466)",
+    "vale_para_os_tres": false,
+    "leitura": "RF: amplitude 0,2920 supera a distância agregada para os dois outros modelos; SVM: amplitude 0,1981 supera a distância agregada para os dois outros modelos; CNN: amplitude 0,1171 NÃO supera a distância agregada para o RF (0,1192), embora supere a distância para o SVM (0,0724). A leitura do Bloco 3 vale integralmente para RF e SVM e só em parte para a CNN: a amplitude entre ataques cai de 0,2920 (RF) para 0,1981 (SVM) e 0,1171 (CNN), enquanto a maior distância entre modelos é 0,1192. O ataque A16 está entre os três mais difíceis nos três modelos — a dificuldade é, em parte, do sistema de síntese e não do classificador. Em razão (EER do mais difícil / do mais fácil) a CNN é a mais desigual (11,09x), porque o seu ataque mais fácil fica perto de zero. A amplitude grande em qualquer dos modelos segue sendo evidência a favor do risco declarado na limitação do split (por utterance, os mesmos vocoders em treino e avaliação)."
+  },
+  "por_codec": {
+    "conjunto": "validacao (o diagnóstico por codec não abre o teste)",
+    "hipotese_do_marco": "se o ganho da banda larga for MAIOR na CNN, a representação tempo-frequência preservada (fmax 8 kHz) capta melhor os artefatos acima de 4 kHz",
+    "por_modelo": {
+      "rf_tuned_principal": {
+        "f1_macro": {
+          "estreita": 0.6958,
+          "larga": 0.751,
+          "ganho_absoluto": 0.0552
+        },
+        "eer": {
+          "estreita": 0.2056,
+          "larga": 0.1676,
+          "ganho_absoluto": 0.038,
+          "reducao_relativa": 0.1848
+        },
+        "hipotese_banda_alta_sustentada": true
+      },
+      "svm_tuned_principal": {
+        "f1_macro": {
+          "estreita": 0.7711,
+          "larga": 0.8397,
+          "ganho_absoluto": 0.0686
+        },
+        "eer": {
+          "estreita": 0.1652,
+          "larga": 0.1174,
+          "ganho_absoluto": 0.0478,
+          "reducao_relativa": 0.2893
+        },
+        "hipotese_banda_alta_sustentada": true
+      },
+      "cnn_final_principal": {
+        "f1_macro": {
+          "estreita": 0.8747,
+          "larga": 0.9271,
+          "ganho_absoluto": 0.0524
+        },
+        "eer": {
+          "estreita": 0.0849,
+          "larga": 0.0535,
+          "ganho_absoluto": 0.0314,
+          "reducao_relativa": 0.3698
+        },
+        "hipotese_banda_alta_sustentada": true
+      }
+    },
+    "cnn_ganho_maior_absoluto_f1": false,
+    "cnn_ganho_maior_absoluto_eer": false,
+    "cnn_ganho_maior_relativo_eer": true,
+    "rotulo": "leitura DESCRITIVA — não há IC para a diferença entre ganhos",
+    "leitura": "A banda larga é melhor nos três modelos (f1_macro maior E EER menor), e o EER é independente de limiar — o contraste não é artefato do limiar. Ganho larga − estreita: RF Δf1 0,0552, ΔEER -0,0380 (18,5% do EER); SVM Δf1 0,0686, ΔEER -0,0478 (28,9% do EER); CNN Δf1 0,0524, ΔEER -0,0314 (37,0% do EER). Em termos ABSOLUTOS o ganho da CNN não é o maior e em termos RELATIVOS (fração do EER da banda estreita removida) é o maior dos três. As duas escalas apontam em sentidos opostos, e sem IC para a diferença entre ganhos a hipótese do marco fica NÃO DECIDIDA: não se sustenta em escala absoluta e é compatível com os dados em escala relativa. O que a CNN acrescenta com segurança é que o contraste aparece também num modelo que não usa ZCR nem centróide — a evidência é sobre o sinal, não sobre aquelas duas features."
+  },
+  "frases_obrigatorias": {
+    "1_braco_de_referencia": "O braço de referência (RF no treino completo de 103.723) não é concorrente direto de SVM e CNN: ele existe para quantificar o custo da subamostragem de 30k, que foi imposta pela complexidade O(n²)–O(n³) do SVM-RBF. A comparação entre modelos é a do braço principal, em que os três viram as mesmas 30.000 amostras. Medido: no teste o RF de referência chega a f1_macro 0,7602 contra 0,7210 do RF principal (Δ 0,0392, IC95 [0,0329; 0,0451]); na validação, Δ 0,0498. É esse o custo da subamostragem para o RF — e, com 3,5× mais dados, ele ainda fica abaixo do SVM (0,7981) e da CNN (0,8883) treinados em 30.000.",
+    "2_eer_e_literatura": "EER no teste: RF 19,46%, SVM 14,11%, CNN 7,37%. Esses valores NÃO são comparáveis ao EER de 1,32% de Yamagishi et al. (2022): o protocolo aqui é um split interno aleatório POR UTTERANCE — os mesmos ataques (A07–A19), codecs e locutores aparecem em treino e avaliação —, enquanto o protocolo oficial do ASVspoof é deliberadamente CROSS-ATTACK. Ser independente de limiar remove a arbitrariedade do 0,50; NÃO remove a diferença de protocolo.",
+    "3_custo_por_regime": "Não existe «o modelo mais barato» sem dizer o regime: por áudio, ponta a ponta, o SVM é ~2,1× mais barato que o RF (4,92 contra 10,23 ms), mas em lote o RF é ~19,7× melhor (0,0204 contra 0,4025 ms por áudio). A CNN acrescenta a dimensão que de fato importa para a pergunta de pesquisa — exige GPU ou não? — e é o par CNN-GPU / CNN-CPU que responde: ponta a ponta, a CNN em GPU (4,58 ms) é a mais barata dos quatro cenários e a CNN em CPU (16,80 ms) a mais cara (3,7× a própria versão em GPU); em lote a diferença CPU/GPU chega a 64,7×. Em igualdade de hardware (CPU) os dois clássicos são mais baratos ponta a ponta que a CNN (4,92 e 10,23 contra 16,80 ms); o quadro só se inverte quando a CNN ganha uma GPU. A vantagem de custo dos clássicos, portanto, é NÃO EXIGIREM GPU — e é contra essa vantagem que o ganho de desempenho da CNN tem de ser pesado."
+  },
+  "fontes": [
+    "results/metricas/rf_tuned_principal.json",
+    "results/metricas/rf_tuned_referencia.json",
+    "results/metricas/svm_tuned_principal.json",
+    "results/metricas/cnn_final_principal.json",
+    "results/metricas/teste_lacrado.json",
+    "results/metricas/tempo_pipeline_completo.json",
+    "results/metricas/estabilidade_rf_svm.json",
+    "results/metricas/diagnostico_por_ataque_resumo.json",
+    "results/metricas/diagnostico_por_codec_resumo.json",
+    "results/metricas/scores_validacao.csv",
+    "results/metricas/scores_teste_lacrado.csv"
+  ],
+  "ambiente": {
+    "python": "3.10.11",
+    "sistema": "Windows 10"
+  }
+}

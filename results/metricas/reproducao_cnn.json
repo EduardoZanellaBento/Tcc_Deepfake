@@ -1,0 +1,184 @@
+{
+  "verificacao": "reproducao_cnn",
+  "data": "2026-09-23",
+  "resultado": "REPRODUZIU",
+  "pergunta": "regenerar os artefatos da CNN que dependem só de INFERÊNCIA (B4.7, diagnósticos por ataque e por codec, bootstrap pareado do B5.2) reproduz os resultados publicados?",
+  "por_que_tem_de_reproduzir": "a inferência da CNN roda com fixar_seeds_torch(estrito=True), cudnn.deterministic, TF32 desligado (fixar_precisao_fp32_cnn) e shuffle=False; o bootstrap tem semente fixa. A soma paralela do cuDNN é a fonte de não-determinismo que o marco manda vigiar — se n_candidatos variar, é ela",
+  "como_o_b47_foi_regenerado": "validar_cnn.main() com NOME trocado para 'cnn_final_principal_reexecucao' (patch.object): o MESMO código do B4.7, gravando ao lado do publicado em vez de por cima — os tempos publicados, citados no texto, não são re-medidos por esta verificação. Os tempos da regeneração estão no arquivo regenerado e NÃO são os oficiais",
+  "publicados_intocados": [
+    {
+      "arquivo": "cnn_final_principal.json",
+      "md5_publicado": "7b31dacce9a44c9e048db578f8cd8f0e",
+      "md5_referencia": "7b31dacce9a44c9e048db578f8cd8f0e",
+      "intocado": true
+    }
+  ],
+  "variacao_dos_tempos_entre_sessoes": {
+    "o_que_e": "registro, não verificação: os tempos são ignorados pela guarda; aqui só se mede quanto variaram entre a sessão do B4.7 e a da regeneração",
+    "por_campo": {
+      "gpu.latencia_ms.mediana": {
+        "publicado": 1.1093,
+        "regenerado": 1.2608,
+        "variacao_relativa": 0.1366
+      },
+      "gpu.throughput.ms_por_audio_mediana": {
+        "publicado": 0.2383,
+        "regenerado": 0.2496,
+        "variacao_relativa": 0.0474
+      },
+      "cpu.latencia_ms.mediana": {
+        "publicado": 14.211,
+        "regenerado": 14.9273,
+        "variacao_relativa": 0.0504
+      },
+      "cpu.throughput.ms_por_audio_mediana": {
+        "publicado": 15.4073,
+        "regenerado": 16.044,
+        "variacao_relativa": 0.0413
+      }
+    },
+    "maior_variacao_relativa_abs": 0.1366
+  },
+  "referencia": "results/metricas/_pre_revisao/ (cópias tiradas em 23/09/2026, antes da regeneração; as do B4.7 idênticas às publicadas no commit fbdba7d)",
+  "nao_regeneraveis": {
+    "teste_lacrado.json": "execução única do teste lacrado: reexecutar é o que o B5.1 proíbe. A reprodução dele está no próprio artefato — `conferencia_pre_teste` (os quatro modelos reproduzem exatamente os JSONs de validação antes de o teste ser aberto) — e no ensaio na validação (delta = 0).",
+    "refit_cnn.json / cnn_definida.json / cnn_baseline.json": "artefatos de TREINO da CNN: regenerá-los re-treinaria a rede e sobrescreveria os .pt, o que o B5 proíbe (nenhuma mudança nos modelos). O determinismo do treino está registrado em refit_cnn.json -> determinismo."
+  },
+  "campos_exigidos": [
+    "acuracia",
+    "f1_macro",
+    "eer",
+    "limiar",
+    "roc_auc_validacao",
+    "matriz_confusao",
+    "selecao_limiar.limiar",
+    "selecao_limiar.n_candidatos",
+    "saturacao_do_score.n_valores_distintos",
+    "por_modelo",
+    "bootstrap_pareado"
+  ],
+  "divergencias_explicadas_declaradas": {
+    "cnn_final_principal.json": {
+      "modelo": {
+        "antes": "cnn_final_principal",
+        "depois": "cnn_final_principal_reexecucao",
+        "explicacao": "a regeneração roda validar_cnn.main() com NOME trocado para não sobrescrever o artefato publicado (que re-mediria os tempos já citados no texto); `modelo` é o único campo que recebe NOME. Ver regenerar_cnn()."
+      },
+      "isolamento_teste.arquivos_auditados.src/models/avaliacao.py.md5": {
+        "antes": "b803cd4ce89346396b910650142ea301",
+        "depois": "0c0e4cabee55d891ba4c2ec84c89494c",
+        "explicacao": "commit a37eed3 (fix do título cortado): plotar_matriz_confusao passou a usar fig.suptitle + textwrap.fill + layout='constrained', com o parâmetro opcional largura_titulo. Nenhuma linha de avaliar, calcular_eer, selecionar_limiar, aplicar_limiar ou predizer_rf mudou — `git diff fbdba7d a37eed3 -- src/models/avaliacao.py` toca só a função de figura. O md5 antigo descreve o código que rodou o B4.7; o novo, o código que rodou a regeneração, e os resultados das duas execuções são idênticos."
+      },
+      "isolamento_teste.arquivos_auditados.src/models/validar_cnn.py.md5": {
+        "antes": "c8a3c9c8bde15393ba4732f0b2e100b4",
+        "depois": "de4980f42c1d822c3968afa4dd9d1e7d",
+        "explicacao": "commit a37eed3: só o COMENTÁRIO acima da chamada de plotar_matriz_confusao foi reescrito (o motivo do título curto deixou de ser técnico). Nenhuma linha executável mudou — `git diff fbdba7d a37eed3 -- src/models/validar_cnn.py` tem 4 linhas removidas e 7 acrescentadas, todas de comentário."
+      }
+    }
+  },
+  "chaves_ignoradas": [
+    "ambiente",
+    "data",
+    "projecao_horas_antes_da_busca",
+    "tempo_busca_s",
+    "tempo_treino_s",
+    "tempo_treino_s_n_jobs_1",
+    "tempo_um_fit_fold_s",
+    "tempos_inferencia"
+  ],
+  "tolerancia_float": 1e-09,
+  "arquivos": [
+    {
+      "arquivo": "cnn_final_principal.json",
+      "regenerado_em": "cnn_final_principal_reexecucao.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 135,
+      "campos_exigidos_conferidos": [
+        "acuracia",
+        "f1_macro",
+        "eer",
+        "limiar",
+        "roc_auc_validacao",
+        "matriz_confusao",
+        "selecao_limiar.limiar",
+        "selecao_limiar.n_candidatos",
+        "saturacao_do_score.n_valores_distintos"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [],
+      "divergencias_explicadas": [
+        {
+          "campo": "modelo",
+          "antes": "cnn_final_principal",
+          "depois": "cnn_final_principal_reexecucao",
+          "explicacao": "a regeneração roda validar_cnn.main() com NOME trocado para não sobrescrever o artefato publicado (que re-mediria os tempos já citados no texto); `modelo` é o único campo que recebe NOME. Ver regenerar_cnn()."
+        },
+        {
+          "campo": "isolamento_teste.arquivos_auditados.src/models/avaliacao.py.md5",
+          "antes": "b803cd4ce89346396b910650142ea301",
+          "depois": "0c0e4cabee55d891ba4c2ec84c89494c",
+          "explicacao": "commit a37eed3 (fix do título cortado): plotar_matriz_confusao passou a usar fig.suptitle + textwrap.fill + layout='constrained', com o parâmetro opcional largura_titulo. Nenhuma linha de avaliar, calcular_eer, selecionar_limiar, aplicar_limiar ou predizer_rf mudou — `git diff fbdba7d a37eed3 -- src/models/avaliacao.py` toca só a função de figura. O md5 antigo descreve o código que rodou o B4.7; o novo, o código que rodou a regeneração, e os resultados das duas execuções são idênticos."
+        },
+        {
+          "campo": "isolamento_teste.arquivos_auditados.src/models/validar_cnn.py.md5",
+          "antes": "c8a3c9c8bde15393ba4732f0b2e100b4",
+          "depois": "de4980f42c1d822c3968afa4dd9d1e7d",
+          "explicacao": "commit a37eed3: só o COMENTÁRIO acima da chamada de plotar_matriz_confusao foi reescrito (o motivo do título curto deixou de ser técnico). Nenhuma linha executável mudou — `git diff fbdba7d a37eed3 -- src/models/validar_cnn.py` tem 4 linhas removidas e 7 acrescentadas, todas de comentário."
+        }
+      ],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "diagnostico_por_ataque_resumo.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 110,
+      "campos_exigidos_conferidos": [
+        "por_modelo"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "diagnostico_por_codec_resumo.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 102,
+      "campos_exigidos_conferidos": [
+        "por_modelo"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    },
+    {
+      "arquivo": "comparacao_estatistica.json",
+      "estado": "REPRODUZIU",
+      "n_campos_comparados": 357,
+      "campos_exigidos_conferidos": [
+        "bootstrap_pareado"
+      ],
+      "campos_exigidos_nao_conferidos": [],
+      "divergencias": [],
+      "campos_removidos": [],
+      "campos_acrescentados": [],
+      "divergencias_explicadas": [],
+      "remocoes_declaradas": [],
+      "reestruturacao_declarada": []
+    }
+  ],
+  "ambiente": {
+    "python": "3.10.11",
+    "sistema": "Windows 10"
+  }
+}

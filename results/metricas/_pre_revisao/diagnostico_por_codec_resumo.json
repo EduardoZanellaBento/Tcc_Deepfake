@@ -1,6 +1,6 @@
 {
   "analise": "diagnostico_por_codec",
-  "data": "2026-09-23",
+  "data": "2026-09-20",
   "conjunto": "validacao",
   "teste_lacrado": true,
   "regra_decisao": "score >= limiar",

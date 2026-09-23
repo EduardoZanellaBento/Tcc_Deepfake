@@ -1,0 +1,5 @@
+cenario,modelo,latencia_ms,ms_por_audio_lote,n_audios_lote,pipeline_completo_ms,hardware,predicao_no_pipeline_ms
+rf_cpu,rf_tuned_principal,6.1075,0.0204,22226,10.2293,"CPU, 1 thread",5.8819
+svm_cpu,svm_tuned_principal,0.6285,0.4025,22226,4.9191,"CPU, 1 thread",0.5717
+cnn_gpu,cnn_final_principal,1.1093,0.2383,22226,4.5765,GPU NVIDIA GeForce RTX 5060 Ti,1.1678
+cnn_cpu,cnn_final_principal,14.211,15.4073,1280,16.7968,"CPU, 1 thread",13.3881

@@ -1,6 +1,6 @@
 {
   "verificacao": "reproducao_bloco3",
-  "data": "2026-09-03",
+  "data": "2026-09-23",
   "resultado": "REPRODUZIU",
   "pergunta": "a re-execução de src.models.ajustar_rf e src.models.treinar_svm, forçada pelas mudanças de esquema R2.1/R2.2/R4a, reproduz os resultados publicados antes da revisão de 03/09/2026?",
   "por_que_tem_de_reproduzir": "os dois pipelines são determinísticos: semente 42 fixada, RandomizedSearchCV com random_state=42, SVC com probability=False (determinístico), e o n_jobs do RF altera o tempo, não o resultado",
@@ -48,6 +48,7 @@
   },
   "chaves_ignoradas": [
     "ambiente",
+    "data",
     "projecao_horas_antes_da_busca",
     "tempo_busca_s",
     "tempo_treino_s",

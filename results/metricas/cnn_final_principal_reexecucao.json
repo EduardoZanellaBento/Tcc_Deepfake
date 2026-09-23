@@ -1,0 +1,392 @@
+{
+  "modelo": "cnn_final_principal_reexecucao",
+  "limiar": 0.32524311542510986,
+  "regra": "score >= limiar",
+  "acuracia": 0.9633312336902726,
+  "precisao_spoof": 0.9789347576498777,
+  "recall_spoof": 0.9803539292141572,
+  "f1_spoof": 0.9796438294577515,
+  "precisao_bonafide": 0.8207934336525308,
+  "recall_bonafide": 0.8100810081008101,
+  "f1_bonafide": 0.8154020385050963,
+  "f1_macro": 0.8975229339814239,
+  "eer": 0.07377131684374194,
+  "limiar_eer": 0.9398461580276489,
+  "selecao_limiar": {
+    "criterio": "f1_macro",
+    "regra": "score >= limiar",
+    "conjunto": "validacao",
+    "limiar": 0.32524311542510986,
+    "f1_macro": 0.8975229339814239,
+    "n_candidatos": 9322,
+    "n_empates_no_maximo": 1
+  },
+  "nota_escala_score": "score = softmax(logits)[:, 1] = P(spoof), em [0,1]. Monotonicamente equivalente a logits[:,1] - logits[:,0], portanto o limiar selecionado é o mesmo ponto de corte nas duas parametrizações. Escala comparável ao predict_proba do RF; diferente do decision_function do SVM, e selecionar_limiar é agnóstico de escala.",
+  "braco": "principal",
+  "arquitetura": {
+    "nome": "CnnDeepfake",
+    "n_blocos": 4,
+    "canais": [
+      32,
+      64,
+      128,
+      128
+    ],
+    "bloco": "Conv2d(3x3, padding=1, bias=False) -> BatchNorm2d -> ReLU -> MaxPool2d(2,2)",
+    "n_mels": 128,
+    "p_dropout": 0.0,
+    "cabeca": "Linear(C_final -> 2)",
+    "agregacao": "media integral no eixo de frequencia + masked global pooling no eixo do tempo (soma das posicoes validas / numero de posicoes validas)",
+    "reducao_da_mascara": "F.max_pool1d(kernel=2, stride=2) por bloco — a MESMA operacao que reduz o eixo do tempo do mapa; comprimentos batem por construcao, com assert no forward",
+    "flatten": false,
+    "n_parametros": 240866,
+    "reducao_temporal": [
+      251,
+      125,
+      62,
+      31,
+      15
+    ],
+    "frames_originais_por_posicao_final": 16
+  },
+  "origem_arquitetura": "models/cnn_final_30k.pt -> arquitetura, conferida contra results/metricas/refit_cnn.json -> arquitetura",
+  "hiperparametros": {
+    "lr": 0.001,
+    "batch": 128,
+    "dropout": 0.0,
+    "otimizador": "Adam",
+    "weight_decay": 0.0,
+    "scheduler": null,
+    "amp_autocast": false
+  },
+  "pesos_loss": {
+    "bonafide": 5.0,
+    "spoof": 0.5556,
+    "razao": 9.0,
+    "formula": "n / (k * n_c), mesma logica do class_weight='balanced'",
+    "contagens_usadas": {
+      "bonafide": 3000,
+      "spoof": 27000
+    },
+    "nota": "DERIVADOS das contagens reais do conjunto de refit, nao reaproveitados dos 27k. A razao continua 9:1 e na pratica nao muda nada — mas reaproveitar faria o JSON registrar numeros que nao correspondem ao conjunto, e isso e erro de registro",
+    "reamostragem": "nenhuma — sem undersampling e sem oversampling (P7)"
+  },
+  "n_parametros": 240866,
+  "n_epocas_fixas": 37,
+  "origem_n_epocas": "results/metricas/cnn_definida.json -> melhor_epoca (early stopping nos 3k internos)",
+  "n_treino": 30000,
+  "n_validacao": 22226,
+  "semente": 42,
+  "tempo_treino_s": 887.52,
+  "origem_tempo_treino": "results/metricas/refit_cnn.json -> tempo_treino_s",
+  "matriz_confusao": [
+    [
+      1800,
+      422
+    ],
+    [
+      393,
+      19611
+    ]
+  ],
+  "roc_auc_validacao": 0.9799,
+  "determinismo": {
+    "fixar_seeds_torch": true,
+    "estrito": true,
+    "limitacao": null,
+    "num_workers": 0,
+    "escopo": "a INFERÊNCIA deste marco; o determinismo do TREINO está em results/metricas/refit_cnn.json -> determinismo",
+    "determinismo_do_treino": {
+      "fixar_seeds_torch": true,
+      "estrito": true,
+      "limitacao": null,
+      "num_workers": 0
+    }
+  },
+  "precisao_numerica": {
+    "tf32_desligado": true,
+    "estado_anterior": {
+      "cudnn_allow_tf32": true,
+      "matmul_allow_tf32": false
+    },
+    "motivo": "TF32 (mantissa de 10 bits) faz o score depender do tamanho do lote e difere do float32 em até 2,3e-03 — mesma ordem do espaçamento entre scores vizinhos, logo mexe em n_candidatos e pode deslocar o limiar publicado",
+    "medido_em": "B4.7, 20/09/2026, RTX 5060 Ti / torch 2.11 / cuDNN 9.19, sobre os 256 primeiros exemplos da validação"
+  },
+  "tempos_inferencia": {
+    "gpu": {
+      "protocolo": {
+        "repeticoes": 10,
+        "descartar_aquecimento": 3,
+        "fonte": "config.yaml -> tempo",
+        "escopo": "somente o forward da CNN (softmax sobre os logits) a partir do espectrograma JÁ GERADO E NORMALIZADO — NÃO inclui carregamento do áudio, VAD, nem geração do espectrograma",
+        "incluir_extracao_features": false,
+        "onde_o_pipeline_completo_e_medido": "results/metricas/tempo_pipeline_completo.json (scripts/tempo_pipeline_completo.py)",
+        "escopo_origem": "o texto de src/models/tempo.py nomeia predict_proba/decision_function porque o helper nasceu para RF e SVM; o escopo é o mesmo (só a predição, a partir da representação já extraída) e tempo.py NÃO foi modificado — a adaptação do vocabulário é deste módulo",
+        "dispositivo": "cuda",
+        "batch_throughput": 128,
+        "inclui_transferencia_host_para_dispositivo": true,
+        "torch_num_threads": 6,
+        "aquecimento_do_dispositivo_s": 2.0,
+        "regime_deterministico": {
+          "use_deterministic_algorithms": true,
+          "cudnn_benchmark": false,
+          "efeito_no_tempo": "sem autotune do cuDNN a medida tende a ser CONSERVADORA (igual ou mais lenta); é o regime em que o resto do trabalho roda"
+        }
+      },
+      "latencia_ms": {
+        "batch": 1,
+        "mediana": 1.2608,
+        "min": 0.7991,
+        "max": 1.445
+      },
+      "throughput": {
+        "batch": 22226,
+        "total_s_mediana": 5.5479,
+        "total_s_min": 5.5243,
+        "total_s_max": 5.6363,
+        "ms_por_audio_mediana": 0.2496,
+        "audios_por_segundo_mediana": 4006.2,
+        "cobertura": {
+          "n_audios": 22226,
+          "n_audios_da_validacao": 22226,
+          "cobertura_completa": true,
+          "por_que": "em GPU a passada completa custou 5.5 s (mediana); os 22.226 cabem no orçamento das 13 passadas do protocolo, então aqui a cobertura é integral"
+        }
+      },
+      "aquecimento_do_dispositivo": {
+        "segundos_alvo": 2.0,
+        "segundos_reais": 2.0,
+        "n_iteracoes": 1822,
+        "latencia_sem_aquecer_ms": {
+          "batch": 1,
+          "mediana": 0.8931,
+          "min": 0.8403,
+          "max": 1.3189
+        },
+        "latencia_depois_de_aquecer_ms": {
+          "batch": 1,
+          "mediana": 1.2608,
+          "min": 0.7991,
+          "max": 1.445
+        },
+        "por_que": "os 3 descartes do config são 3 ITERAÇÕES (~3 ms em GPU), o que não tira o dispositivo do estado de baixo consumo depois de um trecho longo de CPU. src/models/tempo.py NÃO foi alterado — o aquecimento acontece ANTES de o callable ser entregue ao cronômetro, e o número frio fica publicado ao lado para conferência"
+      }
+    },
+    "cpu": {
+      "protocolo": {
+        "repeticoes": 10,
+        "descartar_aquecimento": 3,
+        "fonte": "config.yaml -> tempo",
+        "escopo": "somente o forward da CNN (softmax sobre os logits) a partir do espectrograma JÁ GERADO E NORMALIZADO — NÃO inclui carregamento do áudio, VAD, nem geração do espectrograma",
+        "incluir_extracao_features": false,
+        "onde_o_pipeline_completo_e_medido": "results/metricas/tempo_pipeline_completo.json (scripts/tempo_pipeline_completo.py)",
+        "escopo_origem": "o texto de src/models/tempo.py nomeia predict_proba/decision_function porque o helper nasceu para RF e SVM; o escopo é o mesmo (só a predição, a partir da representação já extraída) e tempo.py NÃO foi modificado — a adaptação do vocabulário é deste módulo",
+        "dispositivo": "cpu",
+        "batch_throughput": 128,
+        "inclui_transferencia_host_para_dispositivo": false,
+        "torch_num_threads": 1,
+        "aquecimento_do_dispositivo_s": 2.0,
+        "regime_deterministico": {
+          "use_deterministic_algorithms": true,
+          "cudnn_benchmark": false,
+          "efeito_no_tempo": "sem autotune do cuDNN a medida tende a ser CONSERVADORA (igual ou mais lenta); é o regime em que o resto do trabalho roda"
+        }
+      },
+      "latencia_ms": {
+        "batch": 1,
+        "mediana": 14.9273,
+        "min": 14.2859,
+        "max": 16.8363
+      },
+      "throughput": {
+        "batch": 1280,
+        "total_s_mediana": 20.5363,
+        "total_s_min": 19.77,
+        "total_s_max": 21.6127,
+        "ms_por_audio_mediana": 16.044,
+        "audios_por_segundo_mediana": 62.3,
+        "cobertura": {
+          "n_audios": 1280,
+          "n_audios_da_validacao": 22226,
+          "cobertura_completa": false,
+          "por_que": "a CNN em CPU com 1 thread levou 16.04 ms por áudio NESTA medição; cobrir os 22.226 exigiria 357 s por passada, e o protocolo manda 13 passadas (10 + 3 de aquecimento) — cerca de 1.3 h de CPU para refinar a terceira casa de um número que é uma TAXA e já está estável em n muito menor. O número reportado é ms por áudio, que não depende de n uma vez amortizado o início; `comparacao_gpu_cpu` mede a GPU sobre ESTA MESMA amostra, de modo que a razão entre os dois cenários sai de trabalho idêntico, e a estabilidade da taxa em n está conferida ali.",
+          "total_s_extrapolado_para_22226": 356.6,
+          "nota_extrapolacao": "EXTRAPOLAÇÃO, não medição: taxa medida x 22.226. Declarado como tal para não virar, no texto, um tempo que ninguém cronometrou."
+        }
+      },
+      "aquecimento_do_dispositivo": {
+        "segundos_alvo": 2.0,
+        "segundos_reais": 2.001,
+        "n_iteracoes": 137,
+        "latencia_sem_aquecer_ms": {
+          "batch": 1,
+          "mediana": 15.3203,
+          "min": 14.6096,
+          "max": 16.686
+        },
+        "latencia_depois_de_aquecer_ms": {
+          "batch": 1,
+          "mediana": 14.9273,
+          "min": 14.2859,
+          "max": 16.8363
+        },
+        "por_que": "os 3 descartes do config são 3 ITERAÇÕES (~3 ms em GPU), o que não tira o dispositivo do estado de baixo consumo depois de um trecho longo de CPU. src/models/tempo.py NÃO foi alterado — o aquecimento acontece ANTES de o callable ser entregue ao cronômetro, e o número frio fica publicado ao lado para conferência"
+      }
+    },
+    "nota_sincronizacao": "torch.cuda.synchronize() antes e depois do trecho cronometrado, DENTRO do callable passado a medir_tempos; sem isso mede-se o enfileiramento, nao a execucao. src/models/tempo.py NAO foi modificado — ele e o protocolo unico de RF, SVM e CNN e nao deve conhecer CUDA.",
+    "torch_num_threads_cpu": 1,
+    "comparacao_gpu_cpu": {
+      "n_audios": 1280,
+      "por_que_existe": "o throughput em GPU cobre os 22.226 e o em CPU cobre uma amostra; esta medição roda a GPU sobre A MESMA amostra da CPU, para que a razão entre os dois cenários venha de trabalho idêntico",
+      "gpu_ms_por_audio": 0.2503,
+      "cpu_ms_por_audio": 16.044,
+      "razao_cpu_sobre_gpu_throughput": 64.1,
+      "razao_cpu_sobre_gpu_latencia": 11.8,
+      "gpu_ms_por_audio_na_validacao_completa": 0.2496,
+      "estabilidade_da_taxa_em_n": "a taxa da GPU sobre 22.226 e sobre a amostra estão no mesmo campo para conferência direta; taxas próximas são o que autoriza ler o número da CPU como taxa"
+    },
+    "demonstracao_sem_sincronizacao": {
+      "aplicavel": true,
+      "batch": 128,
+      "repeticoes": 10,
+      "tensores_residentes_na_gpu": true,
+      "ms_sem_sincronizacao": 0.8199,
+      "ms_com_sincronizacao": 31.6353,
+      "fator_de_ilusao": 38.6,
+      "leitura": "o primeiro número NÃO é uma medida incompleta do segundo: é o tempo de ENFILEIRAR os kernels. Publicá-lo seria uma afirmação falsa sobre o custo da CNN em GPU"
+    },
+    "leitura_critica": "a vantagem dos modelos classicos, na pergunta de pesquisa, NAO e serem mais rapidos em igualdade de hardware — e NAO EXIGIREM GPU. O par CNN-GPU / CNN-CPU e o unico arranjo que evidencia isso, e e por isso que o config.yaml pede os dois cenarios."
+  },
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1,
+    "torch": "2.11.0+cu128",
+    "cuda_disponivel": true,
+    "cuda_versao": "12.8",
+    "cudnn": 91900,
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "compute_capability": [
+      12,
+      0
+    ],
+    "dispositivo_metricas": "cuda"
+  },
+  "normalizacao": "data/espectrogramas/normalizacao_cnn_30k.json (estagio 30k_refit)",
+  "hash_md5_features_csv": "51b2f439bf6f1e10237acbc620bb92d9",
+  "hash_md5_split_csv": "9143f0c7b83ec2db4aa144ed5deb3402",
+  "hash_md5_subamostra_csv": "654cb796b738512388b28e15ffb14a9d",
+  "hash_md5_indice_validacao_csv": "169c9c9f7ec7cef353f9765f3fa02ec9",
+  "hash_md5_normalizacao_30k_json": "348d1df7f1251ab7670dbee2b180ea14",
+  "saturacao_do_score": {
+    "n_scores": 22226,
+    "n_valores_distintos": 9322,
+    "fracao_distintos": 0.419419,
+    "n_exatamente_zero": 0,
+    "n_exatamente_um": 5101,
+    "leitura": "9322 valores distintos em 22226 scores (41.9%), com 0 exatamente 0,0 e 5101 exatamente 1,0: o softmax SATURA. A rede é superconfiante — não é erro, mas o limiar opera sobre um score de granularidade grossa e isso tem de estar no texto.",
+    "referencia": "a NOTA_LIMIAR.md faz a mesma leitura do RF: 22.207 valores distintos em 22.226 amostras foi o que provou que «o score deixou de ser degrau»"
+  },
+  "alinhamento_score_rotulo": {
+    "n_scores": 22226,
+    "shuffle": false,
+    "rotulos_conferidos_contra": "data/espectrogramas/indice_validacao.csv -> classe_binaria",
+    "n_rotulos_divergentes": 0,
+    "mascaras_conferidas_contra": "data/espectrogramas/indice_validacao.csv -> n_frames_validos",
+    "n_mascaras_divergentes": 0,
+    "conferencia_posicional": {
+      "posicoes": [
+        0,
+        1,
+        5556,
+        11113,
+        16669,
+        22224,
+        22225
+      ],
+      "metodo": "cada posição reprocessada isoladamente (lote de 1) e comparada ao score daquela posição no vetor em lote",
+      "maior_desvio_absoluto": 3.5762786865234375e-07,
+      "controle_deslocamento_de_uma_casa": 0.0010180473327636719,
+      "margem": 2846.7,
+      "margem_exigida": 100,
+      "criterio": "o desvio medido tem de ser pelo menos 100x MENOR que o que um deslocamento de uma casa produziria — pergunta se o desvio é de arredondamento ou de posição, em vez de comparar com uma constante escolhida a olho",
+      "por_que_nao_e_exato": "somas em ponto flutuante reordenam entre tamanhos de lote; em eval() o BatchNorm usa as estatísticas do treino, então a composição do lote não muda o resultado"
+    },
+    "caminho_compartilhado": {
+      "funcao": "src.models.modelos_ajustados.scores_de(chave='cnn')",
+      "maior_desvio_absoluto": 0.0,
+      "por_que_importa": "é esta a função que o B5.1 e os diagnósticos chamam; se ela divergisse, o limiar publicado aqui seria aplicado a outros scores"
+    }
+  },
+  "leitura_do_resultado": {
+    "faixa": "competitiva_ou_melhor",
+    "leitura": "a CNN é competitiva ou melhor que os modelos clássicos sob ESTE protocolo. A pergunta de pesquisa vira «e a que custo computacional?» — e aí os tempos GPU/CPU deste marco são o núcleo da discussão, não um apêndice.",
+    "referencias_na_mesma_validacao": {
+      "rf_principal": {
+        "f1_macro": 0.7224981574471296,
+        "eer": 0.19301535732457467,
+        "origem": "results/metricas/rf_tuned_principal.json"
+      },
+      "svm_principal": {
+        "f1_macro": 0.7987278595323215,
+        "eer": 0.14616770615273883,
+        "origem": "results/metricas/svm_tuned_principal.json"
+      }
+    },
+    "ressalva_obrigatoria": "estes são números PONTUAIS na mesma validação de 22.226. A comparação estatística formal (bootstrap pareado CNN x SVM x RF) é o B5.2. Nada aqui autoriza afirmar que uma diferença é real — isso se diz com o intervalo de confiança, não com o olho.",
+    "o_que_ja_esta_conferido": "que os três modelos foram avaliados sobre EXATAMENTE o mesmo conjunto: o índice desta validação e o `conjunto == 'validacao'` de split.csv têm os mesmos 22.226 arquivos e os mesmos rótulos, e o hash de split.csv está registrado nos três JSONs."
+  },
+  "isolamento_teste": {
+    "verificado_por": "leitura do código-fonte (AST) dos módulos do caminho deste marco, não por memória nem por afirmação escrita à mão",
+    "arquivos_auditados": {
+      "src/models/validar_cnn.py": {
+        "md5": "de4980f42c1d822c3968afa4dd9d1e7d",
+        "nomes_do_conjunto_lacrado_encontrados": [],
+        "chamadas_selecionar_limiar": [
+          {
+            "linha": 769,
+            "conjunto_declarado": "validacao",
+            "explicito": true
+          }
+        ]
+      },
+      "src/models/modelos_ajustados.py": {
+        "md5": "ebd55b0387b74b787589f14f2d26a5ec",
+        "nomes_do_conjunto_lacrado_encontrados": [],
+        "chamadas_selecionar_limiar": []
+      },
+      "src/models/avaliacao.py": {
+        "md5": "0c0e4cabee55d891ba4c2ec84c89494c",
+        "nomes_do_conjunto_lacrado_encontrados": [],
+        "chamadas_selecionar_limiar": []
+      },
+      "src/models/tempo.py": {
+        "md5": "294dba3cafc7f4c60d80511dc0b9cc13",
+        "nomes_do_conjunto_lacrado_encontrados": [],
+        "chamadas_selecionar_limiar": []
+      }
+    },
+    "nomes_do_conjunto_lacrado": [
+      "teste.npy",
+      "indice_teste"
+    ],
+    "por_que_os_nomes_da_validacao_nao_estao_na_lista": "abrir a validação externa é a TAREFA deste marco, ao contrário do B4.5/B4.6, onde era a violação. O que continua proibido é o conjunto lacrado, e é só ele que esta auditoria procura",
+    "o_que_NAO_e_checado": "docstrings e comentários, de propósito — é neles que o projeto documenta a proibição, e um alarme que dispara com a documentação ensina a ignorá-lo",
+    "dados_efetivamente_lidos": [
+      "data/espectrogramas/validacao.npy",
+      "data/espectrogramas/indice_validacao.csv",
+      "data/espectrogramas/normalizacao_cnn_30k.json",
+      "models/cnn_final_30k.pt",
+      "results/metricas/refit_cnn.json"
+    ],
+    "resultado": "nenhum módulo do caminho do B4.7 nomeia o conjunto lacrado, e toda seleção de limiar declara conjunto='validacao' explicitamente"
+  },
+  "teste_nao_tocado": "nenhum caminho deste módulo abre o memmap nem o índice do conjunto lacrado; os únicos dados lidos estão declarados nas constantes INDICE, MEMMAP e NORMALIZACAO deste módulo, todas da validação. O conjunto lacrado segue intocado até o B5.1"
+}
