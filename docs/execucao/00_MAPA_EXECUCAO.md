@@ -120,27 +120,49 @@ briefing seguinte.
 
 ---
 
-## 4. Estado do repositório em 17/09/2026
+## 4. Estado do repositório em 23/09/2026
+
+> **Esta seção é datada de propósito e precisa ser atualizada ao fechar cada
+> marco.** Ela existe para que uma sessão nova não precise inspecionar o
+> repositório inteiro para saber onde o trabalho está. Uma seção de estado
+> desatualizada é pior que nenhuma: manda a sessão executar o que já foi feito.
 
 | item | estado |
 |---|---|
-| Blocos 1, 2, 3 | **concluídos** |
+| **Blocos 1, 2, 3 e 4** | **concluídos** — o Bloco 4 fechou em 20/09, oito dias antes do teto |
 | `data/features/features.csv` | **CONGELADO** — MD5 `51b2f439bf6f1e10237acbc620bb92d9`, 148.176 linhas |
 | `data/processed/split.csv` | **CONGELADO** — MD5 `9143f0c7b83ec2db4aa144ed5deb3402` |
 | `data/processed/subamostra_30k.csv` | **CONGELADO** — MD5 `654cb796b738512388b28e15ffb14a9d`, n = 30.000 |
+| `data/espectrogramas/` | **CONGELADO** — 74.453 tensores `(128, 251)` float32 gerados em B4.2; `espectrogramas.meta.json` versionado |
+| `normalizacao_cnn.json` (27k) e `normalizacao_cnn_30k.json` (refit) | gravados e versionados |
 | RF e SVM ajustados | fechados; artefatos e métricas em `models/` e `results/metricas/` |
-| Conjunto de **teste** | **LACRADO** — usado uma única vez, em B5.1 |
-| `config/config.yaml` → bloco `espectrograma:` | **ainda é o rascunho bloqueado da v1** (`largura: 256`, sem `n_fft` próprio) → é exatamente o que B4.0 corrige |
-| `results/metricas/DECISOES_PENDENTES_CNN.md` | ainda marcado «BLOQUEADO, aguardando decisão do orientador» (v4) → B4.0 transcreve as respostas |
+| **CNN final** | **fechada** — refit nos 30k (37 épocas fixas, 240.866 parâmetros), validada externamente em B4.7 |
+| `MODELOS_PRINCIPAIS` | contém os **três** modelos; `scores_de` cobre RF, SVM e CNN |
+| Conjunto de **teste** | **LACRADO** — intocado; usado uma única vez, em B5.1 |
+| `config/config.yaml` → bloco `espectrograma:` | **fechado em B4.0**, com os defaults do librosa registrados explicitamente |
+| `results/metricas/DECISOES_PENDENTES_CNN.md` | **respondido** — as sete decisões transcritas em B4.0; não se reabre |
+| Figuras de matriz de confusão | regeradas em 23/09 (correção de título cortado); regeram-se com `scripts/replotar_matrizes_confusao.py`, sem retreinar |
 | ramo git | `master` (não `main`) |
-| CNN | **nada implementado ainda.** `src/models/` tem RF e SVM; não existe `src/features/gerar_espectrogramas.py` nem `src/models/treinar_cnn.py` |
+| último commit | `a37eed3` — *fix(figuras): título cortado na matriz de confusão + tempos re-medidos no A/B/README* |
+| **próximo marco** | **B5.1 + B5.2** (`B5_teste_lacrado_e_comparacao.md`) |
+
+**Resultado na validação externa (22.226), com limiar escolhido na validação:**
+
+| modelo | limiar | f1_macro | EER | ROC-AUC | recall bonafide |
+|---|---:|---:|---:|---:|---:|
+| RF ajustado — principal | 0,6516 | 0,7225 | 0,1930 | 0,8873 | 0,5441 |
+| RF ajustado — referência | 0,6196 | 0,7723 | 0,1579 | 0,9191 | 0,6008 |
+| SVM RBF ajustado — principal | −0,0329 | 0,7987 | 0,1462 | 0,9289 | 0,6625 |
+| **CNN final — principal** | 0,3252 | **0,8975** | **0,0738** | **0,9799** | **0,8101** |
+
+Se um número aqui divergir do JSON correspondente em `results/metricas/`, **o JSON
+manda** — e esta tabela se corrige no mesmo commit.
 
 > **Nota sobre o GitHub.** O espelho em
 > `github.com/EduardoZanellaBento/Tcc_Deepfake` não é consultável por ferramenta
 > automática (o GitHub bloqueia a listagem de commits por `robots.txt`). A pasta
-> `C:\dev\Tcc_Deepfake` é a fonte de verdade destes briefings, e ela está adiante
-> do que qualquer leitura do GitHub mostraria — o `DECISOES_PENDENTES_CNN.md` v4
-> e o bloco de aviso do `config.yaml` são da cópia de trabalho.
+> `C:\dev\Tcc_Deepfake` é a fonte de verdade destes briefings, e pode estar adiante
+> do que qualquer leitura do GitHub mostraria.
 
 ---
 
