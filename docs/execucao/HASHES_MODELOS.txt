@@ -1,4 +1,13 @@
-﻿153171a71ff570ab6e060aba27c5cb67  cnn_baseline.pt
+﻿# MD5 dos modelos em models/ (gerados em 23/09/2026).
+# Backup externo (Google Drive, somente leitura): 
+#   https://drive.google.com/drive/folders/1Pw9-TL8aavncpl9dNJUqXMlR7ExAfpdr?usp=drive_link
+# Link valido em 23/09/2026. Se quebrar, os MD5 abaixo identificam os arquivos
+# corretos em qualquer outra copia. O link aponta onde estao; o hash garante que
+# sao os mesmos que produziram os resultados.
+# No Git: so cnn_final_30k.pt e svm_tuned_principal.joblib (ver .gitignore).
+# Conferir: md5sum -c HASHES_MODELOS.txt (a partir de models/) ou
+#          Get-FileHash -Algorithm MD5 <arquivo> no PowerShell.
+153171a71ff570ab6e060aba27c5cb67  cnn_baseline.pt
 5874840857aa7c2d77334c1074839c5d  cnn_definida.pt
 9e91f9ca0ae5da912b4c576d995863fb  cnn_final_30k.pt
 a28833abcde79ddfc469782f96ce4829  rf_baseline.joblib

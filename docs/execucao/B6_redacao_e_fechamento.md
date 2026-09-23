@@ -225,8 +225,9 @@ parte da entrega e a banca pode pedir para ver.
 
 **Modelos** — *decidido e commitado em 23/09:* `cnn_final_30k.pt` e
 `svm_tuned_principal.joblib` estão versionados (exceção no `.gitignore`); os RF
-(37–191 MB; os maiores passam do limite de 100 MB do GitHub) ficam fora, com **backup externo**.
-Os MD5 de todos os modelos estão em `docs/execucao/HASHES_MODELOS.txt`. **Antes de
+(37–191 MB; os maiores passam do limite de 100 MB do GitHub) ficam fora, com **backup externo
+no Google Drive** — link no topo de `docs/execucao/HASHES_MODELOS.txt` e na seção «Modelos»
+do README, junto dos MD5 de todos os modelos. **Antes de
 11/10**, baixe a cópia externa dos RF e confira o MD5 contra esse arquivo — backup
 nunca restaurado é backup não verificado.
 

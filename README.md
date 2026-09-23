@@ -478,12 +478,23 @@ Tcc_Deepfake/
 │   ├── features/       # extração de features e geração de espectrogramas
 │   ├── models/         # treino/avaliação de RF, SVM e CNN
 │   └── utils/          # funções auxiliares (seeds)
-├── models/             # modelos treinados salvos (.joblib)
+├── models/             # modelos treinados — só a CNN final e o SVM no Git; ver «Modelos» abaixo
 ├── results/
 │   ├── figuras/        # matrizes de confusão, curvas, diagnósticos (PNG)
 │   └── metricas/       # tabelas (CSV), métricas (JSON) e notas técnicas (MD)
 └── scripts/            # scripts executáveis (diagnósticos, subamostra, ambiente)
 ```
+
+### Modelos
+
+Só `cnn_final_30k.pt` e `svm_tuned_principal.joblib` estão versionados: são os modelos
+pequenos que produziram o teste lacrado. Os Random Forest (37–191 MB) ficam fora do
+Git, porque os maiores passam do limite de 100 MB do GitHub, e estão no
+[backup externo](https://drive.google.com/drive/folders/1Pw9-TL8aavncpl9dNJUqXMlR7ExAfpdr?usp=drive_link)
+(Google Drive, somente leitura; link válido em 23/09/2026). Os MD5 de todos os modelos
+estão em `docs/execucao/HASHES_MODELOS.txt`: confira o hash de qualquer arquivo
+baixado antes de usá-lo. Os números do teste não dependem desse download: os scores
+estão versionados em `results/metricas/scores_teste_lacrado.csv`.
 
 ## Mapa pasta × cronograma do TC II
 
