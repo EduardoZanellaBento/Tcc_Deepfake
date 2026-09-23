@@ -445,15 +445,30 @@ cuDNN podem tornar a 1ª inferência 100× mais lenta); `torch.cuda.synchronize(
 tempo de **enfileirar**, não de executar, e a CNN pareceria milhares de vezes mais
 rápida); medir latência (`batch=1`) e throughput (lote) **separadamente**; `n_jobs`
 fixo e declarado (1) para todos; mediana + mínimo + máximo de N execuções, nunca
-medição única; hardware e versões no JSON.
+medição única; hardware e versões no JSON. E — achado de B4.7 — **aquecer o
+dispositivo antes do cronômetro**: os 3 descartes do protocolo são 3 *iterações*
+(~3 ms em GPU) e não tiram a placa do estado de baixo consumo depois de um trecho
+longo de CPU. Medimos **8,83 ms com a GPU fria contra 0,82 ms quente**. É o
+**espelho** do erro do `synchronize()`: um infla a medida, o outro a desinfla, e
+nenhum dos dois aparece na leitura do código. Os dois números ficam publicados lado a
+lado em `cnn_final_principal.json`.
 
 **Qual foi o achado?**
-A hipótese registrada de que o pré-processamento dominaria **não se confirmou** no
-ramo clássico: por áudio, carregar 0,639 ms + VAD 0,371 ms + features 3,705 ms, e a
-**predição do RF é 6,405 ms** — 57,6% do custo total de 11,12 ms. O SVM prediz em
-0,613 ms (total 5,33 ms). Mas **em lote o RF é ~19× melhor** que o SVM. Conclusão:
-**não existe «o modelo mais barato» sem dizer o regime** — latência unitária e
-throughput em lote dão respostas opostas.
+A hipótese registrada de que o pré-processamento dominaria **não se confirmou para o
+RF**, mas **se confirmou para o SVM e para a CNN em GPU**. Por áudio, batch = 1, os
+três medidos **na mesma execução** (20/09): base do ramo clássico 4,3474 ms
+(carregar 0,5735 + VAD 0,3394 + features 3,4345) e base do ramo CNN 3,4087 ms
+(carregar 0,5815 + VAD 0,3497 + log-Mel 2,4775); predição **RF 5,8819** (total
+**10,2293** — 57,5% no classificador), **SVM 0,5717** (total **4,9191** — 88,4% na
+base), **CNN-GPU 1,1678** (total **4,5765** — 74,5% na base, com o log-Mel sozinho em
+54,1%) e **CNN-CPU 13,3881** (total **16,7968** — 79,7% no classificador).
+
+Três conclusões: **a CNN em GPU é mais barata ponta a ponta que o RF** (4,58 contra
+10,23 ms) e a **CNN em CPU é a mais cara de todas** (16,80 ms), logo a resposta sobre
+custo é **condicional ao hardware**; **em lote a ordem muda outra vez** (RF 0,0204
+ms/áudio, CNN-GPU 0,2383, SVM 0,4025 — o RF é ~19,7× melhor que o SVM); e portanto
+**não existe «o modelo mais barato» sem dizer o regime** — latência unitária,
+throughput em lote e presença de GPU dão respostas diferentes.
 
 ---
 

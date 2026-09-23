@@ -869,10 +869,13 @@ def executar(cfg: dict, raiz: Path, estrito: bool = True) -> dict:
     with open(dir_met / f"{NOME}.json", "w", encoding="utf-8") as f:
         json.dump(m, f, indent=2, ensure_ascii=False)
     # Título na MESMA forma dos de RF e SVM («X (braço principal) — validação,
-    # limiar Y»), e por um motivo prático além da simetria: `plotar_matriz_confusao`
-    # é compartilhada e tem figsize fixo, então um título mais longo que o dos
-    # outros dois é CORTADO na figura. O «refit 30k» vive no JSON e no rótulo de
-    # MODELOS_PRINCIPAIS, que é onde ele precisa estar.
+    # limiar Y»). O motivo agora é SÓ a simetria: as três figuras entram lado a
+    # lado na comparação e uma com título de forma diferente destoa. A restrição
+    # técnica que existia aqui — um título mais longo que o dos outros dois era
+    # CORTADO, porque a função compartilhada tem figsize fixo — foi removida em
+    # 23/09/2026: `plotar_matriz_confusao` passou a quebrar o título em linhas e a
+    # usar layout restrito (ver a docstring dela). O «refit 30k» continua no JSON
+    # e no rótulo de MODELOS_PRINCIPAIS, que é onde ele precisa estar.
     plotar_matriz_confusao(
         cm, raiz / "results" / "figuras" / f"matriz_confusao_{NOME}.png",
         f"CNN final (braço principal) — validação, limiar {sel['limiar']:.2f}")

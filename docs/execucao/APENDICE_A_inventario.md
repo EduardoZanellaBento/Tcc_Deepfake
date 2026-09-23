@@ -241,10 +241,50 @@ Notas que importam para a comparação:
   (R² = 0,9934), o RF precisaria de ~276.116 áudios de treino para alcançar o f1 do
   SVM — 1,86× o universo eval inteiro.
 
-**Tempos** (`results/metricas/tempo_pipeline_completo.json`, por áudio, batch = 1):
-carregar 0,639 ms + VAD/padding 0,371 ms + features 3,705 ms; predição **RF 6,405 ms**
-(total 11,12) contra **SVM 0,613 ms** (total 5,33). Em lote o RF é ~19× melhor.
-A hipótese de que o pré-processamento dominaria **não se confirmou**.
+**Tempos ponta a ponta** (`results/metricas/tempo_pipeline_completo.json`, medição de
+**20/09/2026**, por áudio, batch = 1, amostra de 200 áudios da validação):
+
+| ramo | base (carregar + VAD/padding + representação) | predição | **total** |
+|---|---:|---:|---:|
+| RF ajustado (principal) | 0,5735 + 0,3394 + 3,4345 (features) = **4,3474** | 5,8819 | **10,2293** |
+| SVM RBF ajustado (principal) | mesma base: **4,3474** | 0,5717 | **4,9191** |
+| CNN final — **GPU** | 0,5815 + 0,3497 + 2,4775 (log-Mel) = **3,4087** | 1,1678 | **4,5765** |
+| CNN final — **CPU** | mesma base: **3,4087** | 13,3881 | **16,7968** |
+
+> **Estes números substituem os da medição anterior** (RF 11,12 · SVM 5,33). A
+> diferença é de ~8% e **não** vem de mudança no código de RF/SVM: os três modelos
+> foram recronometrados **na mesma execução**, em B4.7, porque comparar a CNN medida
+> hoje com RF/SVM medidos três semanas antes, noutro estado de máquina, não é
+> comparação. Se um número de tempo aparecer em outro documento com o valor antigo,
+> **este aqui manda** — e o outro se corrige.
+
+Quatro leituras, e as quatro vão para o texto:
+
+- **A hipótese de que o pré-processamento dominaria não se confirmou para o RF** (a
+  predição é 57,5% do total dele), **mas se confirma para o SVM** (a base é 88,4% do
+  total) e **para a CNN em GPU** (a base é 74,5%, com o log-Mel sozinho em 54,1%). É
+  o mesmo pipeline; o que muda é o custo do classificador no fim dele.
+- **A CNN em GPU é mais barata ponta a ponta que o RF** (4,58 contra 10,23 ms) — e a
+  CNN em CPU é a mais cara de todas (16,80 ms). **A resposta sobre custo
+  computacional é condicional ao hardware**, e tem de ser escrita assim.
+- **Em lote a ordem muda de novo** (`tempos_inferencia.throughput` nos JSONs de cada
+  modelo, batch = 22.226): RF **0,0204** ms/áudio, CNN-GPU **0,2383**, SVM **0,4025**
+  — o RF é ~19,7× melhor que o SVM. Latência e vazão **não** classificam os modelos
+  na mesma ordem; reportar só uma delas é meio resultado.
+- **Armadilha de medição registrada em B4.7:** os `descartar_aquecimento: 3` do
+  `config.yaml` são 3 *iterações* (~3 ms em GPU) e **não** tiram a placa do estado de
+  baixo consumo depois de um trecho longo de CPU. Medido: **8,83 ms com a GPU fria
+  contra 0,82 ms quente** — a primeira execução publicou o número frio e
+  superestimava a latência da CNN em ~10×. É o **espelho** da armadilha do
+  `torch.cuda.synchronize()` (0,91 ms falsos contra 28,70 ms reais): uma infla, a
+  outra desinfla, e nenhuma das duas se detecta lendo o código. As duas ficam
+  registradas em `cnn_final_principal.json`, com o número frio publicado ao lado do
+  quente.
+
+> **Não confundir escopos.** A `latencia_ms` dentro de `rf_tuned_principal.json` e
+> companhia mede **só a predição**, a partir da representação já extraída e noutra
+> execução — daí RF 6,1075 ms lá e 5,8819 ms aqui. O número que responde «quanto
+> custa classificar um áudio» é o **total** da tabela acima.
 
 ---
 

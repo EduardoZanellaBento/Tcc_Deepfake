@@ -21,6 +21,7 @@ A REGRA DE DECISÃO É UMA SÓ (protocolo do Bloco 3):
     que diverge do `>=` nos empates — ver nota_divergencia_f1.md) por acidente.
 """
 
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -212,14 +213,42 @@ def avaliar(y_true, scores, nome: str, limiar: float) -> dict:
     return m
 
 
-def plotar_matriz_confusao(cm: np.ndarray, caminho: Path, titulo: str) -> None:
+def plotar_matriz_confusao(cm: np.ndarray, caminho: Path, titulo: str,
+                           largura_titulo: int = 46) -> None:
     """Matriz de confusão com contagens absolutas E percentual por linha.
 
     Percentual POR LINHA (normalizado pelo total real de cada classe) é o que
     importa aqui: com 8,8:1, os números absolutos da linha 'spoof' esmagam
     visualmente os da 'bonafide' e escondem o erro que interessa.
+
+    TÍTULO — três decisões de layout, tomadas juntas (correção de 23/09/2026):
+
+    1. `fig.suptitle` em vez de `ax.set_title`. O `set_title` centra o texto
+       sobre os EIXOS, e os eixos são estreitos porque a colorbar rouba ~20% da
+       largura da figura. Um título mais largo que os eixos transborda para os
+       dois lados: à direita ele invade a colorbar, à esquerda ele sai da
+       figura e é CORTADO no `savefig`. O `suptitle` centra sobre a FIGURA
+       inteira (eixos + colorbar), que é a referência visual correta.
+    2. `textwrap.fill`. Centrar não basta: um título mais largo que a própria
+       figura continua sendo cortado. A quebra em linhas resolve a causa, e
+       `largura_titulo` fica como parâmetro para o caso de um título futuro
+       precisar de outra medida — ninguém tem de editar esta função.
+    3. `layout="constrained"` em vez de `fig.tight_layout()`. O `tight_layout`
+       não reserva espaço para o `suptitle` de forma confiável (o clássico
+       `rect=[0, 0, 1, 0.9x]` chutado à mão, que erra assim que o título muda
+       de número de linhas). O layout restrito mede o título e a colorbar e
+       distribui o espaço — o resultado não depende do comprimento do texto.
+       Os dois mecanismos são incompatíveis: chamar `tight_layout` aqui
+       DESLIGARIA o layout restrito e reintroduziria o corte.
+
+    POR QUE ISTO IMPORTA ALÉM DA ESTÉTICA: esta função é compartilhada por RF,
+    SVM e CNN (é a mesma régua de figura, pelo mesmo motivo que `avaliar` é a
+    mesma régua de métrica). Um defeito de layout aqui aparece igual nas três
+    figuras da comparação, e um título cortado numa figura da comparação é um
+    ponto que a banca enxerga antes do conteúdo.
     """
-    fig, ax = plt.subplots(figsize=(5.5, 4.6))
+    cm = np.asarray(cm)
+    fig, ax = plt.subplots(figsize=(5.5, 4.6), layout="constrained")
     cm_pct = cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100
 
     im = ax.imshow(cm_pct, cmap="Blues", vmin=0, vmax=100)
@@ -228,7 +257,6 @@ def plotar_matriz_confusao(cm: np.ndarray, caminho: Path, titulo: str) -> None:
     ax.set_yticks([0, 1], labels=nomes)
     ax.set_xlabel("Predito")
     ax.set_ylabel("Real")
-    ax.set_title(titulo)
 
     for i in range(2):
         for j in range(2):
@@ -238,7 +266,7 @@ def plotar_matriz_confusao(cm: np.ndarray, caminho: Path, titulo: str) -> None:
                     fontsize=11)
 
     fig.colorbar(im, ax=ax, label="% da classe real")
-    fig.tight_layout()
+    fig.suptitle(textwrap.fill(titulo, width=largura_titulo), fontsize=11)
     caminho.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(caminho, dpi=150)
     plt.close(fig)

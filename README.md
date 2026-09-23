@@ -276,13 +276,30 @@ capturados por ZCR/centróide vivem acima de 4 kHz — e reforça a rejeição d
 ### Custo de inferência ponta a ponta
 
 `tempo_pipeline_completo.json` mede o pipeline real por áudio (batch = 1,
-200 áudios da validação, mesmas funções do pipeline de produção): carregar 0,639
-ms + VAD/padding 0,371 ms + features 3,705 ms, mais a predição — **RF 6,405 ms**
-(total 11,12) contra **SVM 0,613 ms** (total 5,33). A hipótese registrada no
-`config.yaml` de que o pré-processamento dominaria **não se confirmou**: a
-predição é 57,6% do custo no RF. Por áudio o SVM é ~2,1× mais barato; em lote o
-RF continua ~19× melhor. **Não existe "o modelo mais barato" sem dizer o
-regime** — leitura completa em `NOTA_RF_VS_SVM.md` §1.1.
+200 áudios da validação, mesmas funções do pipeline de produção). Os quatro
+arranjos foram medidos **na mesma execução** (20/09/2026), que é o que torna a
+comparação legítima:
+
+| ramo | base | predição | **total** |
+|---|---:|---:|---:|
+| RF ajustado | 4,3474 (carregar 0,5735 + VAD 0,3394 + features 3,4345) | 5,8819 | **10,2293** |
+| SVM RBF ajustado | 4,3474 (mesma base) | 0,5717 | **4,9191** |
+| CNN final — GPU | 3,4087 (carregar 0,5815 + VAD 0,3497 + log-Mel 2,4775) | 1,1678 | **4,5765** |
+| CNN final — CPU | 3,4087 (mesma base) | 13,3881 | **16,7968** |
+
+A hipótese registrada no `config.yaml` de que o pré-processamento dominaria
+**não se confirmou para o RF** (a predição é 57,5% do custo dele), mas **se
+confirmou para o SVM** (base = 88,4%) e **para a CNN em GPU** (base = 74,5%, com
+o log-Mel sozinho em 54,1%). A **CNN em GPU sai mais barata ponta a ponta que o
+RF**; a **CNN em CPU é a mais cara de todas** — a resposta sobre custo é
+**condicional ao hardware**. Em lote a ordem muda outra vez: RF 0,0204 ms/áudio,
+CNN-GPU 0,2383, SVM 0,4025 (RF ~19,7× melhor que o SVM). **Não existe "o modelo
+mais barato" sem dizer o regime** — leitura completa em `NOTA_RF_VS_SVM.md` §1.1.
+
+> Os valores anteriores desta seção (RF 11,12 · SVM 5,33) foram substituídos em
+> B4.7: RF, SVM e CNN foram recronometrados juntos, porque comparar medidas
+> separadas por três semanas e por estados de máquina diferentes não é comparar.
+> A diferença ficou em ~8% e não decorre de mudança no código de RF/SVM.
 
 ### Importância das features: impureza × permutação
 
