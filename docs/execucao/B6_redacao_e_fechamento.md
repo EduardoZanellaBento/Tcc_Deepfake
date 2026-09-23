@@ -29,6 +29,8 @@
 5. as notas técnicas: `NOTA_LIMIAR.md`, `NOTA_RF_VS_SVM.md`,
    `RECOMENDACAO_MASCARAMENTO.md`, `REVISAO_BLOCO3.md`, `DOSSIE_LOTE_UNICO.md`,
    `DECISOES_PENDENTES_CNN.md` (v5)
+6. `docs/execucao/ACHADOS.md` — o que apareceu na varredura pós-B5, o teste da regra
+   de escopo aplicado a cada item e onde cada um entra no texto
 
 ---
 
@@ -73,10 +75,10 @@ escrever resultados: ela organiza o que você pode e o que não pode afirmar.
 | 1 | **Split aleatório por utterance**: cada ataque, codec e locutor aparece em treino e teste. Métricas potencialmente otimistas e **não comparáveis** ao EER de 1,32% de Yamagishi et al. (2022), cujo protocolo é cross-attack. Mitigação: métricas por ataque e por codec | `README` |
 | 2 | **Sem generalização cross-dataset**: o ASVspoof 2021 LA não fornece treino/dev próprios; usou-se o `eval` com split interno | `README` |
 | 3 | **`progress` e `hidden` excluídos** por controle metodológico (o `hidden` tem silêncio pré-cortado na origem) | config `dataset:` |
-| 4 | **Subamostra de 30k custa desempenho real**: a curva de aprendizado do RF não satura; extrapolando, o RF precisaria de ~276.116 áudios para alcançar o SVM — 1,86× o universo eval. A subamostra foi imposta pela complexidade O(n²)–O(n³) do SVM-RBF | `extrapolacao_curva_rf.json` |
+| 4 | **Subamostra de 30k custa desempenho real**: a curva de aprendizado do RF não satura; extrapolando, o RF precisaria de ~276.116 áudios para alcançar o SVM — 1,86× o universo eval. **É extrapolação log-linear fora da faixa medida (5.000–103.723), não medição: escreva como ordem de grandeza e limite otimista** — a curva tende a achatar, então o n real seria maior. A subamostra foi imposta pela complexidade O(n²)–O(n³) do SVM-RBF | `extrapolacao_curva_rf.json → limitacao` |
 | 5 | **Duração fixa em 4,0 s** não foi tratada como eixo experimental | config `audio:` |
 | 6 | **`top_db=80` é relativo ao máximo de cada exemplo**: o piso do padding é `max−80` e varia entre exemplos | P5 |
-| 7 | **A filterbank Mel do `librosa.feature.mfcc`, com o `n_fft=512` congelado, herda o mesmo regime degenerado** que motivou a P4 a usar 1024 na CNN. Não corrigido: features congeladas desde 30/08, e re-extrair abriria o Bloco 2. Atenuado pela DCT, que retém 20 de 128 coeficientes | B4.0 |
+| 7 | **A filterbank Mel do `librosa.feature.mfcc`, com o `n_fft=512` congelado, herda o mesmo regime degenerado** que motivou a P4 a usar 1024 na CNN — **61 filtros com ≤ 2 bins e 12 picos duplicados** (com 1024: ≤ 1 filtro de 2 bins e nenhum pico duplicado; não escreva «zero filtros estreitos»). Não corrigido: features congeladas desde 30/08, e re-extrair abriria o Bloco 2. Atenuado pela DCT, que retém 20 de 128 coeficientes | B4.0 · `APENDICE_A_inventario.md` §1 |
 | 8 | **Refit com o mesmo nº de épocas**, não de atualizações: os 30k são 11,1% maiores que os 27k | B4.5 |
 | 9 | **Variância entre sementes na CNN**: a CNN final é **semente única** (42) — limitação computacional declarada, salvo se o item 2 da fila do tempo excedente for executado (3 sementes, ~1 h, **avaliadas só na validação**). O bootstrap pareado reamostra a avaliação, não o treino. A fonte de variação que domina o braço principal é *qual subamostra de 30k caiu*, medida em `estabilidade_subamostra.json` | P6 · decisão 6 |
 | 10 | ~~Determinismo estrito no PyTorch~~ — **não se aplica**: `estrito=True` no refit e na inferência (`refit_cnn.json → determinismo`, `teste_lacrado.json → cnn.determinismo`). Escreva como *controle*, não como limitação | B4.4 · B4.6 |
@@ -200,9 +202,18 @@ sinalização não é, e desperdiça os três dias do orientador.
 ## B6.6 — Reprodutibilidade e simulação de banca (dentro do B6.1, sem atrasar)
 
 **Verificação de reprodutibilidade** — do zero, num diretório limpo, seguindo só o
-`README`:
+`README`, **com um `.venv` novo instalado pelo `requirements-lock.txt`** (gravado em
+23/09 no ambiente que gerou os resultados). Duas armadilhas do lock:
+
+- ele fixa `torch==2.11.0+cu128`, que **não existe no PyPI** — sem o índice do PyTorch
+  o `pip install -r requirements-lock.txt` falha. Use
+  `--extra-index-url https://download.pytorch.org/whl/cu128`;
+- ele é um `pip freeze` do ambiente inteiro (traz até `tensorflow`, que o projeto não
+  usa). Não limpe à mão: é o registro fiel do que rodou.
 
 ```bash
+pip install -r requirements-lock.txt --extra-index-url https://download.pytorch.org/whl/cu128
+python scripts/verificar_ambiente.py          # o mesmo check do «Como começar» do README
 python -m src.data.split                      # recarrega (idempotente)
 python -m scripts.validar_split_pos_lote      # hashes e IDs intactos
 python -m scripts.guarda_reproducao           # JSONs reproduzem campo a campo
@@ -212,9 +223,18 @@ python -m scripts.verificar_espectrogramas --lote
 Se algum passo do `README` não funcionar como escrito, **corrija o README** — ele é
 parte da entrega e a banca pode pedir para ver.
 
+**Modelos** — *decidido e commitado em 23/09:* `cnn_final_30k.pt` e
+`svm_tuned_principal.joblib` estão versionados (exceção no `.gitignore`); os RF
+(37–191 MB; os maiores passam do limite de 100 MB do GitHub) ficam fora, com **backup externo**.
+Os MD5 de todos os modelos estão em `docs/execucao/HASHES_MODELOS.txt`. **Antes de
+11/10**, baixe a cópia externa dos RF e confira o MD5 contra esse arquivo — backup
+nunca restaurado é backup não verificado.
+
 **`README`** — *feito em 23/09 (pós-B5):* comandos do ramo CNN e do Bloco 5, a tabela
-final do teste e a nota de que o teste foi usado uma única vez. Falta, se couber: a
-seção narrativa do Bloco 4 (hoje o README cobre o Bloco 4 só pelos tempos).
+final do teste e a nota de que o teste foi usado uma única vez. *Feito em 23/09
+(pós-varredura):* o «Como começar» ganhou o caminho de reprodução exata pelo
+`requirements-lock.txt`. Falta, se couber: a seção narrativa do Bloco 4 (hoje o
+README cobre o Bloco 4 só pelos tempos).
 
 **Simulação de banca:** use `APENDICE_B_banca.md`. Responda **em voz alta**, com o
 repositório fechado, e anote toda pergunta cuja resposta você não soube dizer em 30
@@ -236,6 +256,8 @@ de alguma, implemente e registre a divergência num parágrafo — não ignore e
 - [ ] coerência metodológica: nenhuma afirmação sem artefato
 - [ ] o repositório reflete o texto; nada não commitado
 - [ ] `git log` legível, com um commit por marco
+- [ ] backup externo dos RF restaurado e conferido contra `HASHES_MODELOS.txt`
+- [ ] `ACHADOS.md` sem linha em aberto: cada achado com destino cumprido no texto
 
 **11/10 — congelamento.** Nenhuma etapa principal pendente depois desta data.
 

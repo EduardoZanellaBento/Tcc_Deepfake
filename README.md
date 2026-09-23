@@ -507,6 +507,13 @@ pip install -r requirements.txt
 python scripts/verificar_ambiente.py
 ```
 
+**Reprodução exata** (versões do ambiente que gerou os resultados, gravadas em 23/09):
+
+```bash
+# o lock fixa torch==2.11.0+cu128, que não existe no PyPI — o índice do PyTorch é obrigatório
+pip install -r requirements-lock.txt --extra-index-url https://download.pytorch.org/whl/cu128
+```
+
 ## Preparar ambiente
 
 ```bash

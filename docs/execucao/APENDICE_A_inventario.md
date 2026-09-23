@@ -380,7 +380,9 @@ fixar_seeds_torch(semente=42, estrito=True) -> int
 Já existe regra para `data/espectrogramas/*` com exceção de
 `espectrogramas.meta.json`, acrescentada **antes** de o primeiro tensor existir. Ou
 seja: um `git add .` distraído **não** vai tentar versionar ~9,6 GB. Também ignorados:
-`data/raw/`, `data/features/*.csv`, `models/*` (exceto `.gitkeep`).
+`data/raw/`, `data/features/*.csv`, `models/*` — exceto `.gitkeep`, `cnn_final_30k.pt`
+e `svm_tuned_principal.joblib`, versionados em 23/09 por terem produzido o teste lacrado.
+Os RF ficam fora (backup externo); MD5 de todos em `docs/execucao/HASHES_MODELOS.txt`.
 
 **O que é versionado e precisa ser:** `config.yaml`, todo `src/` e `scripts/`, tudo em
 `results/`, `split.csv`, `subamostra_30k.csv`, `features.meta.json` e —
