@@ -69,7 +69,9 @@
       "RF"
     ],
     "ordem_preservada": true,
-    "leitura": "Os quatro deltas validação→teste (f1_macro e EER) cabem no ruído de amostragem dos dois conjuntos: a seleção de limiar sobre 22 mil amostras não sobreajustou a validação — evidência de que o protocolo funcionou. Mais perto do limite do ruído: RF (referência) e CNN (Δf1 -0,0121 para um ruído de ±0,0132 e -0,0092 para um ruído de ±0,0098). Para CNN, o EER praticamente não muda (-0,0001) enquanto o f1_macro cai: como o EER não depende de limiar, o teste não ficou mais difícil para esse modelo — o que se perdeu foi um pouco do ponto de corte transportado. A ordem dos três modelos principais é a mesma na validação e no teste."
+    "todos_os_delta_f1_negativos": true,
+    "otimismo_da_selecao_de_limiar": "o f1_macro da validação é o MÁXIMO sobre np.unique(scores) daquele conjunto (selecionar_limiar); aplicado a outra amostra, o mesmo limiar tende a render um pouco menos. Um Δf1 levemente negativo é o comportamento esperado de um limiar escolhido por otimização — sobreajuste seria um Δ que excede o ruído, não um Δ negativo",
+    "leitura": "Os quatro deltas validação→teste (f1_macro e EER) cabem no ruído de amostragem dos dois conjuntos: a seleção de limiar sobre 22 mil amostras não sobreajustou a validação — evidência de que o protocolo funcionou. Mais perto do limite do ruído: RF (referência) e CNN (Δf1 -0,0121 para um ruído de ±0,0132 e -0,0092 para um ruído de ±0,0098). Os quatro Δf1 são negativos — o sinal esperado quando o limiar é escolhido maximizando o f1 no próprio conjunto de validação: o f1 da validação é otimista por construção (otimismo da seleção de limiar), e recua um pouco quando o limiar é transportado. Para a CNN, o EER praticamente não muda (-0,0001) enquanto o f1_macro cai: como o EER não depende de limiar, o teste não ficou mais difícil para esse modelo — a queda do f1 é inteiramente o otimismo da seleção de limiar, não uma perda de capacidade de separar as classes. A ordem dos três modelos principais é a mesma na validação e no teste."
   },
   "heuristicas": {
     "rotulo": "HEURÍSTICA — contexto, NÃO é o teste",
@@ -590,6 +592,10 @@
         "amplitude_supera_a_distancia_para": {
           "svm_menos_rf": true,
           "cnn_menos_rf": true
+        },
+        "comparacao_com_margem": {
+          "svm_menos_rf": "supera",
+          "cnn_menos_rf": "supera"
         }
       },
       "svm_tuned_principal": {
@@ -615,6 +621,10 @@
         "amplitude_supera_a_distancia_para": {
           "svm_menos_rf": true,
           "cnn_menos_svm": true
+        },
+        "comparacao_com_margem": {
+          "svm_menos_rf": "supera",
+          "cnn_menos_svm": "supera"
         }
       },
       "cnn_final_principal": {
@@ -640,6 +650,10 @@
         "amplitude_supera_a_distancia_para": {
           "cnn_menos_rf": false,
           "cnn_menos_svm": true
+        },
+        "comparacao_com_margem": {
+          "cnn_menos_rf": "da mesma ordem",
+          "cnn_menos_svm": "supera"
         }
       }
     },
@@ -648,7 +662,20 @@
     ],
     "leitura_registrada_bloco3": "a dificuldade varia muito mais entre sistemas de síntese (até 0,29 de EER) do que entre modelos (ΔEER 0,0466)",
     "vale_para_os_tres": false,
-    "leitura": "RF: amplitude 0,2920 supera a distância agregada para os dois outros modelos; SVM: amplitude 0,1981 supera a distância agregada para os dois outros modelos; CNN: amplitude 0,1171 NÃO supera a distância agregada para o RF (0,1192), embora supere a distância para o SVM (0,0724). A leitura do Bloco 3 vale integralmente para RF e SVM e só em parte para a CNN: a amplitude entre ataques cai de 0,2920 (RF) para 0,1981 (SVM) e 0,1171 (CNN), enquanto a maior distância entre modelos é 0,1192. O ataque A16 está entre os três mais difíceis nos três modelos — a dificuldade é, em parte, do sistema de síntese e não do classificador. Em razão (EER do mais difícil / do mais fácil) a CNN é a mais desigual (11,09x), porque o seu ataque mais fácil fica perto de zero. A amplitude grande em qualquer dos modelos segue sendo evidência a favor do risco declarado na limitação do split (por utterance, os mesmos vocoders em treino e avaliação)."
+    "piso_de_ruido_da_distancia": {
+      "svm_menos_rf": 0.0092,
+      "cnn_menos_rf": 0.0086,
+      "cnn_menos_svm": 0.0086
+    },
+    "rotulo_piso_de_ruido": "HEURÍSTICA — 1,96·dp do ΔEER pareado na validação; piso, não o ruído inteiro (a amplitude por ataque vem de subconjuntos menores)",
+    "leitura_do_bloco3_vale_integralmente_para": [
+      "RF",
+      "SVM"
+    ],
+    "leitura_do_bloco3_mesma_ordem_para": [
+      "CNN"
+    ],
+    "leitura": "RF: amplitude 0,2920 supera a distância agregada para os dois outros modelos; SVM: amplitude 0,1981 supera a distância agregada para os dois outros modelos; CNN: amplitude 0,1171 é da mesma ordem da distância para o RF (0,1192; diferença 0,0021, dentro do piso de ruído de ±0,0086) e supera a distância para o SVM (0,0724). A leitura do Bloco 3 vale integralmente para o RF e o SVM; para a CNN, a variação entre ataques deixa de dominar e fica do mesmo tamanho da distância entre modelos: a amplitude entre ataques cai de 0,2920 (RF) para 0,1981 (SVM) e 0,1171 (CNN), enquanto a maior distância entre modelos é 0,1192. O ataque A16 está entre os três mais difíceis nos três modelos — a dificuldade é, em parte, do sistema de síntese e não do classificador. Em razão (EER do mais difícil / do mais fácil) a CNN é a mais desigual (11,09x), porque o seu ataque mais fácil fica perto de zero. A amplitude grande em qualquer dos modelos segue sendo evidência a favor do risco declarado na limitação do split (por utterance, os mesmos vocoders em treino e avaliação)."
   },
   "por_codec": {
     "conjunto": "validacao (o diagnóstico por codec não abre o teste)",
@@ -706,7 +733,7 @@
   "frases_obrigatorias": {
     "1_braco_de_referencia": "O braço de referência (RF no treino completo de 103.723) não é concorrente direto de SVM e CNN: ele existe para quantificar o custo da subamostragem de 30k, que foi imposta pela complexidade O(n²)–O(n³) do SVM-RBF. A comparação entre modelos é a do braço principal, em que os três viram as mesmas 30.000 amostras. Medido: no teste o RF de referência chega a f1_macro 0,7602 contra 0,7210 do RF principal (Δ 0,0392, IC95 [0,0329; 0,0451]); na validação, Δ 0,0498. É esse o custo da subamostragem para o RF — e, com 3,5× mais dados, ele ainda fica abaixo do SVM (0,7981) e da CNN (0,8883) treinados em 30.000.",
     "2_eer_e_literatura": "EER no teste: RF 19,46%, SVM 14,11%, CNN 7,37%. Esses valores NÃO são comparáveis ao EER de 1,32% de Yamagishi et al. (2022): o protocolo aqui é um split interno aleatório POR UTTERANCE — os mesmos ataques (A07–A19), codecs e locutores aparecem em treino e avaliação —, enquanto o protocolo oficial do ASVspoof é deliberadamente CROSS-ATTACK. Ser independente de limiar remove a arbitrariedade do 0,50; NÃO remove a diferença de protocolo.",
-    "3_custo_por_regime": "Não existe «o modelo mais barato» sem dizer o regime: por áudio, ponta a ponta, o SVM é ~2,1× mais barato que o RF (4,92 contra 10,23 ms), mas em lote o RF é ~19,7× melhor (0,0204 contra 0,4025 ms por áudio). A CNN acrescenta a dimensão que de fato importa para a pergunta de pesquisa — exige GPU ou não? — e é o par CNN-GPU / CNN-CPU que responde: ponta a ponta, a CNN em GPU (4,58 ms) é a mais barata dos quatro cenários e a CNN em CPU (16,80 ms) a mais cara (3,7× a própria versão em GPU); em lote a diferença CPU/GPU chega a 64,7×. Em igualdade de hardware (CPU) os dois clássicos são mais baratos ponta a ponta que a CNN (4,92 e 10,23 contra 16,80 ms); o quadro só se inverte quando a CNN ganha uma GPU. A vantagem de custo dos clássicos, portanto, é NÃO EXIGIREM GPU — e é contra essa vantagem que o ganho de desempenho da CNN tem de ser pesado."
+    "3_custo_por_regime": "Não existe «o modelo mais barato» sem dizer o regime: por áudio, ponta a ponta, o SVM é ~2,1× mais barato que o RF (4,92 contra 10,23 ms), mas em lote o RF é ~19,7× melhor (0,0204 contra 0,4025 ms por áudio). A CNN acrescenta a dimensão que de fato importa para a pergunta de pesquisa — exige GPU ou não? — e é o par CNN-GPU / CNN-CPU que responde. Ponta a ponta, a CNN em GPU (4,58 ms) e o SVM (4,92 ms) empatam na prática como os cenários mais baratos: nesta execução a diferença é de 7,5% e as faixas mín–máx (soma por etapa) não se sobrepõem, mas a diferença fica dentro da faixa de variação (4,1–13,7%) que os tempos de predição da CNN mostraram entre duas sessões da mesma máquina — a ordem entre os dois vale para esta execução, não para outra sessão ou máquina. A CNN em CPU (16,80 ms) é a mais cara (3,7× a própria versão em GPU); em lote a diferença CPU/GPU chega a 64,7×. Em igualdade de hardware (CPU) os dois clássicos são mais baratos ponta a ponta que a CNN (4,92 e 10,23 contra 16,80 ms); o quadro só se inverte quando a CNN ganha uma GPU. A vantagem de custo dos clássicos, portanto, é NÃO EXIGIREM GPU — e é contra essa vantagem que o ganho de desempenho da CNN tem de ser pesado."
   },
   "fontes": [
     "results/metricas/rf_tuned_principal.json",
@@ -719,7 +746,8 @@
     "results/metricas/diagnostico_por_ataque_resumo.json",
     "results/metricas/diagnostico_por_codec_resumo.json",
     "results/metricas/scores_validacao.csv",
-    "results/metricas/scores_teste_lacrado.csv"
+    "results/metricas/scores_teste_lacrado.csv",
+    "results/metricas/_pre_revisao/cnn_final_principal.json + cnn_final_principal_reexecucao.json (variação dos tempos entre sessões)"
   ],
   "ambiente": {
     "python": "3.10.11",

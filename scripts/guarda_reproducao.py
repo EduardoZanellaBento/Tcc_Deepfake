@@ -87,6 +87,15 @@ EXTENSÃO DO B5.2 (23/09/2026) — OS ARTEFATOS DA CNN:
     "data" entrou em CHAVES_IGNORADAS: é a data da execução (relógio), e só os
     resumos de diagnóstico a carregam — nenhum artefato do Bloco 3 tem o campo.
 
+REVISÃO DAS LEITURAS DO B5.2 (23/09/2026) — DIVERGÊNCIA DECLARADA POR ASSINATURA:
+    três frases de leitura de comparacao_estatistica.json foram corrigidas
+    (ver o docstring de scripts/comparacao_final.py) e a lista `fontes` ganhou
+    a origem da variação dos tempos. NENHUM número mudou — a guarda continua
+    comparando todos os outros campos contra a referência. Como as frases têm
+    centenas de caracteres, o par (antes, depois) é declarado pelo md5 do valor
+    serializado (`_assinatura`), não pelo texto: continua sendo o par EXATO —
+    qualquer outra redação no mesmo campo volta a derrubar a verificação.
+
 Rode a partir da raiz:
     python -m scripts.guarda_reproducao                  # compara os dois grupos
     python -m scripts.guarda_reproducao --regenerar-cnn  # antes, regenera o B4.7
@@ -192,6 +201,48 @@ REMOCOES_DECLARADAS = {
 }
 
 DIVERGENCIAS_EXPLICADAS = {
+    # Revisão das leituras do B5.2 (23/09/2026). Par exato por assinatura:
+    # _assinatura(antes) e _assinatura(depois) têm de bater os dois.
+    "comparacao_estatistica.json": {
+        "delta_validacao_teste.leitura": {
+            "antes_md5": "c9fb20cd523fc9fcc9e625cf3e153e67",
+            "depois_md5": "b24a27f3136705179bf7ead345e6ded1",
+            "explicacao": (
+                "leitura corrigida: a queda de f1 com EER parado passa a ser "
+                "nomeada como otimismo da seleção de limiar (o f1 da validação "
+                "é o máximo sobre os candidatos daquele conjunto). Os números "
+                "do bloco — deltas, ruídos, ordem — não mudaram."),
+        },
+        "por_ataque.leitura": {
+            "antes_md5": "6a5e54a8e103e436dbed871330ef7292",
+            "depois_md5": "a5d6f5e8cfb1b72b49546dc14b7bf8db",
+            "explicacao": (
+                "leitura corrigida: amplitude × distância passa a ser comparada "
+                "com margem (1,96·dp do ΔEER pareado). CNN: 0,1171 × 0,1192 "
+                "vira «da mesma ordem» em vez de «NÃO supera». O campo booleano "
+                "antigo (amplitude_supera_a_distancia_para) foi mantido e "
+                "reproduz; o novo é `comparacao_com_margem`."),
+        },
+        "frases_obrigatorias.3_custo_por_regime": {
+            "antes_md5": "f9d7eee007c2c1842e2ed023123e7848",
+            "depois_md5": "525cf6a589e6043960993a605a02b83f",
+            "explicacao": (
+                "frase de custo corrigida: CNN-GPU (4,58 ms) e SVM (4,92 ms) "
+                "deixam de ser ordenados como «a mais barata»; a folga (7,5%) "
+                "fica dentro da variação entre sessões (4,1–13,7%, "
+                "variacao_dos_tempos) e a frase passa a dizer empate prático. "
+                "Os tempos citados são os mesmos."),
+        },
+        "fontes": {
+            "antes_md5": "344d267e37500a37ec0ae7dc9f12d719",
+            "depois_md5": "d74a1ca1f659f71649a6b4817bf84fb3",
+            "explicacao": (
+                "a frase de custo passou a ler a variação dos tempos entre "
+                "sessões (_pre_revisao/cnn_final_principal.json + "
+                "cnn_final_principal_reexecucao.json), e a lista de fontes "
+                "registra isso."),
+        },
+    },
     "cnn_final_principal.json": {
         "modelo": {
             "antes": "cnn_final_principal",
@@ -355,6 +406,21 @@ def achatar(obj, prefixo: str = "") -> dict:
     return plano
 
 
+def _assinatura(v) -> str:
+    """md5 do valor serializado de forma canônica — para declarar divergência
+    de campos de texto longos pelo par exato, sem colar o texto na guarda."""
+    return hashlib.md5(json.dumps(v, ensure_ascii=False, sort_keys=True)
+                       .encode("utf-8")).hexdigest()
+
+
+def _casa_declaracao(d: dict, decl: dict) -> bool:
+    """O par (antes, depois) EXATO declarado — por valor ou por assinatura."""
+    if "antes_md5" in decl:
+        return (_assinatura(d["antes"]) == decl["antes_md5"]
+                and _assinatura(d["depois"]) == decl["depois_md5"])
+    return igual(d["antes"], decl["antes"]) and igual(d["depois"], decl["depois"])
+
+
 def igual(a, b) -> bool:
     if isinstance(a, bool) or isinstance(b, bool):
         return a is b
@@ -392,8 +458,7 @@ def comparar(nome: str, nome_novo: str | None = None,
         for d in list(divergencias):
             # Casa o par EXATO. Um valor diferente do declarado continua sendo
             # divergência — a explicação vale para aquele fato, não para o campo.
-            if (d["campo"] == campo and igual(d["antes"], decl["antes"])
-                    and igual(d["depois"], decl["depois"])):
+            if d["campo"] == campo and _casa_declaracao(d, decl):
                 divergencias.remove(d)
                 explicadas.append({**d, "explicacao": decl["explicacao"]})
 

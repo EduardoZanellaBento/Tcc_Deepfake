@@ -330,6 +330,13 @@ informativo que a acurácia, que deixaria a majoritária esconder o fracasso na
 minoritária. O **EER** vem da curva ROC: o ponto onde FNR = FPR, tomado como
 `|FNR − FPR|` mínimo, com classe positiva = spoof. `zero_division=0` nas precisões,
 para o caso de o modelo nunca prever uma classe.
+*Precisão do EER:* ele é tomado no **vértice** da ROC mais próximo de FPR = FNR, sem
+interpolação, e a ROC vem de `roc_curve` com `drop_intermediate=True`. Conferido em
+23/09 sobre os scores publicados: a diferença para o EER com todos os vértices
+(`drop_intermediate=False`) ou interpolado linearmente é **≤ 0,0003** nos quatro
+modelos, nos dois conjuntos — duas ordens de grandeza abaixo das diferenças entre
+modelos (≥ 0,046) e abaixo do desvio do bootstrap (~0,004). A régua é a mesma para os
+três, e trocar a classe positiva não muda o EER (FPR e FNR só trocam de nome).
 
 **Por que a busca de hiperparâmetros pontua por EER e não por f1_macro?**
 Porque o EER é **independente de limiar**: usar f1_macro na busca misturaria a escolha
@@ -344,7 +351,7 @@ aleatório por utterance; o do ASVspoof é cross-attack. Ser independente de lim
 remove a arbitrariedade do 0,50, **não** a diferença de protocolo.
 
 **Quando o teste foi usado?**
-**Uma vez**, em 29/09, com os limiares já escolhidos na validação e todos os modelos
+**Uma vez**, em **23/09** (B5.1, commit `498f3c8`; o teto era 29/09), com os limiares já escolhidos na validação e todos os modelos
 carregados dos artefatos persistidos. A regra mora no código:
 `carregar_modelo_ajustado` **recusa** um limiar cujo JSON não registre
 `selecao_limiar.conjunto == 'validacao'`. E o script tem guarda de execução única.
@@ -551,7 +558,52 @@ metodológica que mora num artefato gerado é destruída por qualquer re-execuç
 
 **Se você tivesse mais tempo, o que faria primeiro?**
 Leave-one-attack-out / split por ataque — porque é a limitação mais forte do trabalho
-e porque o próprio diagnóstico por ataque já mostra que a dificuldade varia **muito
-mais** entre sistemas de síntese (até 0,29 de EER) do que entre modelos (ΔEER 0,0466).
+e porque o próprio diagnóstico por ataque já mostra que, no RF e no SVM, a
+dificuldade varia **muito mais** entre sistemas de síntese (amplitude de EER de 0,29 e
+0,20) do que entre modelos (ΔEER observado SVM − RF de 0,0468). Na CNN a amplitude cai
+para 0,12 — **da mesma ordem** da distância CNN − RF (0,1192), não menor que ela.
 Depois: cross-dataset, e a CNN com o treino completo (que exigiria abrir mão da
 comparação em igualdade de n).
+
+---
+
+## 12. Teste lacrado e comparação final (B5, 23/09)
+
+Números completos, e as leituras geradas a partir deles, em
+`results/metricas/COMPARACAO_FINAL.md`.
+
+**⚑ Por que bootstrap PAREADO, e não o IC de cada modelo?**
+Porque os três modelos são avaliados **nas mesmas** 22.227 amostras: os erros são
+correlacionados, e comparar ICs individuais superestima o ruído da comparação. A cada
+uma das 1.000 reamostragens, **um** vetor de índices é sorteado e aplicado aos scores
+de **todos** os modelos; o que se resume é a **diferença**. No teste: CNN − SVM
+Δf1 +0,0902 [0,0801; 0,1005], CNN − RF +0,1673, SVM − RF +0,0771 — nenhum IC contém
+zero, em f1_macro e em EER. A ordem CNN > SVM > RF é real neste protocolo.
+
+**Por que o f1 cai da validação para o teste, e o EER não?**
+Porque o f1 da validação é um **máximo**: o limiar foi escolhido maximizando f1 sobre
+os scores daquele conjunto. Transportado para outra amostra, o mesmo limiar rende um
+pouco menos — **otimismo da seleção de limiar**. Os quatro Δf1 são negativos e todos
+cabem no ruído de duas amostras independentes. Na CNN, f1 −0,0092 com EER −0,0001: o
+EER, que não depende de limiar, mostra que o teste não ficou mais difícil.
+
+**Vocês mudaram o critério do delta depois de ver o teste?**
+Sim, e é preciso dizer. A primeira régua comparava o f1 do teste com o IC da
+validação — ignorando o ruído do **próprio teste**, o que estava errado antes de
+qualquer resultado. A correta é 1,96·√(dp_val² + dp_teste²). E o delta é
+**heurística**: o que decide a comparação é o bootstrap pareado, que não mudou.
+
+**O bootstrap cobre a aleatoriedade do treino?**
+Não: ele reamostra a **avaliação**. A variância de treino é a das sementes — RF
+±0,0004 em 5 sementes; SVM sem variância (`probability=False` é determinístico); CNN
+com semente única (limitação declarada, ou fila do tempo excedente, item 2 — avaliada
+**só na validação**). Com a distância CNN − SVM em ~0,09 de f1, uma inversão por
+semente exigiria uma variância de treino duas ordens acima da do RF.
+
+**⚑ Qual é o modelo mais barato?**
+Depende do regime, e a resposta tem de dizer qual. Ponta a ponta por áudio, CNN-GPU
+(4,58 ms) e SVM (4,92 ms) **empatam na prática**: a folga de 7,5% existe nesta
+execução, mas fica dentro da variação de 4,1–13,7% que os tempos mostraram entre duas
+sessões da mesma máquina. Em CPU, os dois clássicos são mais baratos que a CNN
+(16,80 ms); em lote, o RF é o mais barato de longe. A vantagem de custo dos clássicos é
+**não exigirem GPU**.

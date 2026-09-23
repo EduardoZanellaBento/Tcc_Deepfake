@@ -58,6 +58,28 @@
     "bootstrap_pareado"
   ],
   "divergencias_explicadas_declaradas": {
+    "comparacao_estatistica.json": {
+      "delta_validacao_teste.leitura": {
+        "antes_md5": "c9fb20cd523fc9fcc9e625cf3e153e67",
+        "depois_md5": "b24a27f3136705179bf7ead345e6ded1",
+        "explicacao": "leitura corrigida: a queda de f1 com EER parado passa a ser nomeada como otimismo da seleção de limiar (o f1 da validação é o máximo sobre os candidatos daquele conjunto). Os números do bloco — deltas, ruídos, ordem — não mudaram."
+      },
+      "por_ataque.leitura": {
+        "antes_md5": "6a5e54a8e103e436dbed871330ef7292",
+        "depois_md5": "a5d6f5e8cfb1b72b49546dc14b7bf8db",
+        "explicacao": "leitura corrigida: amplitude × distância passa a ser comparada com margem (1,96·dp do ΔEER pareado). CNN: 0,1171 × 0,1192 vira «da mesma ordem» em vez de «NÃO supera». O campo booleano antigo (amplitude_supera_a_distancia_para) foi mantido e reproduz; o novo é `comparacao_com_margem`."
+      },
+      "frases_obrigatorias.3_custo_por_regime": {
+        "antes_md5": "f9d7eee007c2c1842e2ed023123e7848",
+        "depois_md5": "525cf6a589e6043960993a605a02b83f",
+        "explicacao": "frase de custo corrigida: CNN-GPU (4,58 ms) e SVM (4,92 ms) deixam de ser ordenados como «a mais barata»; a folga (7,5%) fica dentro da variação entre sessões (4,1–13,7%, variacao_dos_tempos) e a frase passa a dizer empate prático. Os tempos citados são os mesmos."
+      },
+      "fontes": {
+        "antes_md5": "344d267e37500a37ec0ae7dc9f12d719",
+        "depois_md5": "d74a1ca1f659f71649a6b4817bf84fb3",
+        "explicacao": "a frase de custo passou a ler a variação dos tempos entre sessões (_pre_revisao/cnn_final_principal.json + cnn_final_principal_reexecucao.json), e a lista de fontes registra isso."
+      }
+    },
     "cnn_final_principal.json": {
       "modelo": {
         "antes": "cnn_final_principal",
@@ -171,8 +193,73 @@
       "campos_exigidos_nao_conferidos": [],
       "divergencias": [],
       "campos_removidos": [],
-      "campos_acrescentados": [],
-      "divergencias_explicadas": [],
+      "campos_acrescentados": [
+        "delta_validacao_teste.otimismo_da_selecao_de_limiar",
+        "delta_validacao_teste.todos_os_delta_f1_negativos",
+        "por_ataque.leitura_do_bloco3_mesma_ordem_para",
+        "por_ataque.leitura_do_bloco3_vale_integralmente_para",
+        "por_ataque.piso_de_ruido_da_distancia.cnn_menos_rf",
+        "por_ataque.piso_de_ruido_da_distancia.cnn_menos_svm",
+        "por_ataque.piso_de_ruido_da_distancia.svm_menos_rf",
+        "por_ataque.por_modelo.cnn_final_principal.comparacao_com_margem.cnn_menos_rf",
+        "por_ataque.por_modelo.cnn_final_principal.comparacao_com_margem.cnn_menos_svm",
+        "por_ataque.por_modelo.rf_tuned_principal.comparacao_com_margem.cnn_menos_rf",
+        "por_ataque.por_modelo.rf_tuned_principal.comparacao_com_margem.svm_menos_rf",
+        "por_ataque.por_modelo.svm_tuned_principal.comparacao_com_margem.cnn_menos_svm",
+        "por_ataque.por_modelo.svm_tuned_principal.comparacao_com_margem.svm_menos_rf",
+        "por_ataque.rotulo_piso_de_ruido"
+      ],
+      "divergencias_explicadas": [
+        {
+          "campo": "delta_validacao_teste.leitura",
+          "antes": "Os quatro deltas validação→teste (f1_macro e EER) cabem no ruído de amostragem dos dois conjuntos: a seleção de limiar sobre 22 mil amostras não sobreajustou a validação — evidência de que o protocolo funcionou. Mais perto do limite do ruído: RF (referência) e CNN (Δf1 -0,0121 para um ruído de ±0,0132 e -0,0092 para um ruído de ±0,0098). Para CNN, o EER praticamente não muda (-0,0001) enquanto o f1_macro cai: como o EER não depende de limiar, o teste não ficou mais difícil para esse modelo — o que se perdeu foi um pouco do ponto de corte transportado. A ordem dos três modelos principais é a mesma na validação e no teste.",
+          "depois": "Os quatro deltas validação→teste (f1_macro e EER) cabem no ruído de amostragem dos dois conjuntos: a seleção de limiar sobre 22 mil amostras não sobreajustou a validação — evidência de que o protocolo funcionou. Mais perto do limite do ruído: RF (referência) e CNN (Δf1 -0,0121 para um ruído de ±0,0132 e -0,0092 para um ruído de ±0,0098). Os quatro Δf1 são negativos — o sinal esperado quando o limiar é escolhido maximizando o f1 no próprio conjunto de validação: o f1 da validação é otimista por construção (otimismo da seleção de limiar), e recua um pouco quando o limiar é transportado. Para a CNN, o EER praticamente não muda (-0,0001) enquanto o f1_macro cai: como o EER não depende de limiar, o teste não ficou mais difícil para esse modelo — a queda do f1 é inteiramente o otimismo da seleção de limiar, não uma perda de capacidade de separar as classes. A ordem dos três modelos principais é a mesma na validação e no teste.",
+          "explicacao": "leitura corrigida: a queda de f1 com EER parado passa a ser nomeada como otimismo da seleção de limiar (o f1 da validação é o máximo sobre os candidatos daquele conjunto). Os números do bloco — deltas, ruídos, ordem — não mudaram."
+        },
+        {
+          "campo": "por_ataque.leitura",
+          "antes": "RF: amplitude 0,2920 supera a distância agregada para os dois outros modelos; SVM: amplitude 0,1981 supera a distância agregada para os dois outros modelos; CNN: amplitude 0,1171 NÃO supera a distância agregada para o RF (0,1192), embora supere a distância para o SVM (0,0724). A leitura do Bloco 3 vale integralmente para RF e SVM e só em parte para a CNN: a amplitude entre ataques cai de 0,2920 (RF) para 0,1981 (SVM) e 0,1171 (CNN), enquanto a maior distância entre modelos é 0,1192. O ataque A16 está entre os três mais difíceis nos três modelos — a dificuldade é, em parte, do sistema de síntese e não do classificador. Em razão (EER do mais difícil / do mais fácil) a CNN é a mais desigual (11,09x), porque o seu ataque mais fácil fica perto de zero. A amplitude grande em qualquer dos modelos segue sendo evidência a favor do risco declarado na limitação do split (por utterance, os mesmos vocoders em treino e avaliação).",
+          "depois": "RF: amplitude 0,2920 supera a distância agregada para os dois outros modelos; SVM: amplitude 0,1981 supera a distância agregada para os dois outros modelos; CNN: amplitude 0,1171 é da mesma ordem da distância para o RF (0,1192; diferença 0,0021, dentro do piso de ruído de ±0,0086) e supera a distância para o SVM (0,0724). A leitura do Bloco 3 vale integralmente para o RF e o SVM; para a CNN, a variação entre ataques deixa de dominar e fica do mesmo tamanho da distância entre modelos: a amplitude entre ataques cai de 0,2920 (RF) para 0,1981 (SVM) e 0,1171 (CNN), enquanto a maior distância entre modelos é 0,1192. O ataque A16 está entre os três mais difíceis nos três modelos — a dificuldade é, em parte, do sistema de síntese e não do classificador. Em razão (EER do mais difícil / do mais fácil) a CNN é a mais desigual (11,09x), porque o seu ataque mais fácil fica perto de zero. A amplitude grande em qualquer dos modelos segue sendo evidência a favor do risco declarado na limitação do split (por utterance, os mesmos vocoders em treino e avaliação).",
+          "explicacao": "leitura corrigida: amplitude × distância passa a ser comparada com margem (1,96·dp do ΔEER pareado). CNN: 0,1171 × 0,1192 vira «da mesma ordem» em vez de «NÃO supera». O campo booleano antigo (amplitude_supera_a_distancia_para) foi mantido e reproduz; o novo é `comparacao_com_margem`."
+        },
+        {
+          "campo": "frases_obrigatorias.3_custo_por_regime",
+          "antes": "Não existe «o modelo mais barato» sem dizer o regime: por áudio, ponta a ponta, o SVM é ~2,1× mais barato que o RF (4,92 contra 10,23 ms), mas em lote o RF é ~19,7× melhor (0,0204 contra 0,4025 ms por áudio). A CNN acrescenta a dimensão que de fato importa para a pergunta de pesquisa — exige GPU ou não? — e é o par CNN-GPU / CNN-CPU que responde: ponta a ponta, a CNN em GPU (4,58 ms) é a mais barata dos quatro cenários e a CNN em CPU (16,80 ms) a mais cara (3,7× a própria versão em GPU); em lote a diferença CPU/GPU chega a 64,7×. Em igualdade de hardware (CPU) os dois clássicos são mais baratos ponta a ponta que a CNN (4,92 e 10,23 contra 16,80 ms); o quadro só se inverte quando a CNN ganha uma GPU. A vantagem de custo dos clássicos, portanto, é NÃO EXIGIREM GPU — e é contra essa vantagem que o ganho de desempenho da CNN tem de ser pesado.",
+          "depois": "Não existe «o modelo mais barato» sem dizer o regime: por áudio, ponta a ponta, o SVM é ~2,1× mais barato que o RF (4,92 contra 10,23 ms), mas em lote o RF é ~19,7× melhor (0,0204 contra 0,4025 ms por áudio). A CNN acrescenta a dimensão que de fato importa para a pergunta de pesquisa — exige GPU ou não? — e é o par CNN-GPU / CNN-CPU que responde. Ponta a ponta, a CNN em GPU (4,58 ms) e o SVM (4,92 ms) empatam na prática como os cenários mais baratos: nesta execução a diferença é de 7,5% e as faixas mín–máx (soma por etapa) não se sobrepõem, mas a diferença fica dentro da faixa de variação (4,1–13,7%) que os tempos de predição da CNN mostraram entre duas sessões da mesma máquina — a ordem entre os dois vale para esta execução, não para outra sessão ou máquina. A CNN em CPU (16,80 ms) é a mais cara (3,7× a própria versão em GPU); em lote a diferença CPU/GPU chega a 64,7×. Em igualdade de hardware (CPU) os dois clássicos são mais baratos ponta a ponta que a CNN (4,92 e 10,23 contra 16,80 ms); o quadro só se inverte quando a CNN ganha uma GPU. A vantagem de custo dos clássicos, portanto, é NÃO EXIGIREM GPU — e é contra essa vantagem que o ganho de desempenho da CNN tem de ser pesado.",
+          "explicacao": "frase de custo corrigida: CNN-GPU (4,58 ms) e SVM (4,92 ms) deixam de ser ordenados como «a mais barata»; a folga (7,5%) fica dentro da variação entre sessões (4,1–13,7%, variacao_dos_tempos) e a frase passa a dizer empate prático. Os tempos citados são os mesmos."
+        },
+        {
+          "campo": "fontes",
+          "antes": [
+            "results/metricas/rf_tuned_principal.json",
+            "results/metricas/rf_tuned_referencia.json",
+            "results/metricas/svm_tuned_principal.json",
+            "results/metricas/cnn_final_principal.json",
+            "results/metricas/teste_lacrado.json",
+            "results/metricas/tempo_pipeline_completo.json",
+            "results/metricas/estabilidade_rf_svm.json",
+            "results/metricas/diagnostico_por_ataque_resumo.json",
+            "results/metricas/diagnostico_por_codec_resumo.json",
+            "results/metricas/scores_validacao.csv",
+            "results/metricas/scores_teste_lacrado.csv"
+          ],
+          "depois": [
+            "results/metricas/rf_tuned_principal.json",
+            "results/metricas/rf_tuned_referencia.json",
+            "results/metricas/svm_tuned_principal.json",
+            "results/metricas/cnn_final_principal.json",
+            "results/metricas/teste_lacrado.json",
+            "results/metricas/tempo_pipeline_completo.json",
+            "results/metricas/estabilidade_rf_svm.json",
+            "results/metricas/diagnostico_por_ataque_resumo.json",
+            "results/metricas/diagnostico_por_codec_resumo.json",
+            "results/metricas/scores_validacao.csv",
+            "results/metricas/scores_teste_lacrado.csv",
+            "results/metricas/_pre_revisao/cnn_final_principal.json + cnn_final_principal_reexecucao.json (variação dos tempos entre sessões)"
+          ],
+          "explicacao": "a frase de custo passou a ler a variação dos tempos entre sessões (_pre_revisao/cnn_final_principal.json + cnn_final_principal_reexecucao.json), e a lista de fontes registra isso."
+        }
+      ],
       "remocoes_declaradas": [],
       "reestruturacao_declarada": []
     }

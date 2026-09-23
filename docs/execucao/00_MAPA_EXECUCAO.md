@@ -129,7 +129,7 @@ briefing seguinte.
 
 | item | estado |
 |---|---|
-| **Blocos 1, 2, 3 e 4** | **concluídos** — o Bloco 4 fechou em 20/09, oito dias antes do teto |
+| **Blocos 1, 2, 3, 4 e 5** | **concluídos** — o Bloco 4 fechou em 20/09 (8 dias antes do teto) e o Bloco 5 em 23/09 (6 dias antes) |
 | `data/features/features.csv` | **CONGELADO** — MD5 `51b2f439bf6f1e10237acbc620bb92d9`, 148.176 linhas |
 | `data/processed/split.csv` | **CONGELADO** — MD5 `9143f0c7b83ec2db4aa144ed5deb3402` |
 | `data/processed/subamostra_30k.csv` | **CONGELADO** — MD5 `654cb796b738512388b28e15ffb14a9d`, n = 30.000 |
@@ -138,13 +138,29 @@ briefing seguinte.
 | RF e SVM ajustados | fechados; artefatos e métricas em `models/` e `results/metricas/` |
 | **CNN final** | **fechada** — refit nos 30k (37 épocas fixas, 240.866 parâmetros), validada externamente em B4.7 |
 | `MODELOS_PRINCIPAIS` | contém os **três** modelos; `scores_de` cobre RF, SVM e CNN |
-| Conjunto de **teste** | **LACRADO** — intocado; usado uma única vez, em B5.1 |
+| Conjunto de **teste** | **USADO — uma única vez, em 23/09 (B5.1)**. `avaliar_teste_lacrado.py` recusa nova execução; os scores estão em `scores_teste_lacrado.csv` e nada mais pontua o teste |
+| **Modelos** | **congelados desde o B5.2** — nenhuma mudança, salvo erro grave |
+| Comparação final | `results/metricas/COMPARACAO_FINAL.md` (gerado — não editar à mão), `comparacao_final.csv`, `comparacao_estatistica.json`, 5 figuras `comparacao_*.png` |
 | `config/config.yaml` → bloco `espectrograma:` | **fechado em B4.0**, com os defaults do librosa registrados explicitamente |
 | `results/metricas/DECISOES_PENDENTES_CNN.md` | **respondido** — as sete decisões transcritas em B4.0; não se reabre |
 | Figuras de matriz de confusão | regeradas em 23/09 (correção de título cortado); regeram-se com `scripts/replotar_matrizes_confusao.py`, sem retreinar |
 | ramo git | `master` (não `main`) |
-| último commit | `a37eed3` — *fix(figuras): título cortado na matriz de confusão + tempos re-medidos no A/B/README* |
-| **próximo marco** | **B5.1 + B5.2** (`B5_teste_lacrado_e_comparacao.md`) |
+| último commit | `c07390b` — *B5.2: comparacao experimental fechada — RF x SVM x CNN* (+ o commit de revisão das leituras e dos documentos de estado) |
+| **próximo marco** | **B6.1 — redação** (`B6_redacao_e_fechamento.md`) |
+
+**Resultado final no teste lacrado (22.227), execução única, limiar escolhido na
+validação:**
+
+| modelo | limiar | f1_macro | EER | ROC-AUC | recall bonafide |
+|---|---:|---:|---:|---:|---:|
+| RF ajustado — principal | 0,6516 | 0,7210 | 0,1946 | 0,8878 | 0,5326 |
+| RF ajustado — referência | 0,6196 | 0,7602 | 0,1629 | 0,9167 | 0,5794 |
+| SVM RBF ajustado — principal | −0,0329 | 0,7981 | 0,1411 | 0,9315 | 0,6635 |
+| **CNN final — principal** | 0,3252 | **0,8883** | **0,0737** | **0,9783** | **0,7877** |
+
+Bootstrap pareado: os três pares (SVM−RF, CNN−RF, CNN−SVM) com IC95 sem zero em
+f1_macro e em EER, na validação e no teste. Leituras completas, geradas a partir dos
+números, em `COMPARACAO_FINAL.md`.
 
 **Resultado na validação externa (22.226), com limiar escolhido na validação:**
 

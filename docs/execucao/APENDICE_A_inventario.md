@@ -235,6 +235,10 @@ Notas que importam para a comparação:
   Δf1_macro = **+0,0762** IC95 [0,0663; 0,0856]; ΔEER = **−0,0466** IC95
   [−0,0560; −0,0377]. Nenhum IC contém zero; SVM melhor em 100% das reamostragens.
   **A vantagem do SVM é real.**
+  *Atenção ao citar:* −0,0466 é a **média das reamostragens**; a diferença
+  **observada** é −0,0468 (0,1462 − 0,1930), e é ela que `COMPARACAO_FINAL.md` põe na
+  coluna ΔEER. No texto, use o **observado com o IC95** — o padrão — e não misture os
+  dois números. (Em f1 os dois coincidem: +0,0762.)
 - O braço de referência **não** é concorrente direto de SVM/CNN — ele só quantifica o
   custo da subamostragem. Isso tem de estar dito explicitamente no texto.
 - A curva de aprendizado do RF **não satura**: extrapolando `f1 ~ a·ln(n)+b`
@@ -440,6 +444,16 @@ rede aprender a representação.
 ---
 
 ## 9. O que está lacrado
+
+> **Atualização de 23/09/2026 — o teste JÁ FOI USADO.** O B5.1 rodou uma vez, em
+> 23/09, com os limiares da validação (`results/metricas/teste_lacrado.json`,
+> commit `498f3c8`). `scripts/avaliar_teste_lacrado.py` recusa uma segunda execução
+> (só com `--forcar --razao`, que fica gravada no artefato). Os scores do teste estão
+> em `scores_teste_lacrado.csv`; qualquer análise nova sobre o teste **lê esse CSV**,
+> nunca pontua de novo. Análise complementar nova (ex.: sementes extras da CNN) se
+> avalia **só na validação**. Resultados finais: `COMPARACAO_FINAL.md`.
+>
+> O texto abaixo é a regra que vigorou até o B5.1, mantida como registro.
 
 O conjunto de **teste (22.227)** é usado **uma única vez**, em **B5.1**, com os
 limiares já escolhidos na validação. Até lá:

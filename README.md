@@ -170,6 +170,24 @@ python -m src.models.ajustar_rf              # Bloco 3: Random Search (EER, 5-fo
 python -m src.models.treinar_svm             # Bloco 3: SVM RBF (só braço principal) — cronometra 1 fit antes da busca; decision_function -> svm_tuned_principal.*
 python -m src.features.extrair_features     # ATENÇÃO: features CONGELADAS (lote único de 30/08); a guarda de esquema aborta retomadas inválidas — ver aviso abaixo
 
+# ramo CNN (Bloco 4) — espectrogramas CONGELADOS desde o B4.2: NÃO regenerar sem decisão registrada
+python -m scripts.auditar_decisoes_cnn                      # B4.0: auditoria das decisões P1–P7 (falha com código 1 se violar invariante)
+python -m src.features.gerar_espectrogramas --conjuntos treino     # B4.2: lote definitivo (idem validacao, teste) — 74.453 tensores (128, 251)
+python -m scripts.verificar_espectrogramas --lote           # B4.2: checagens do lote
+python -m scripts.gerar_split_interno_cnn                   # B4.3: split interno 27k / 3k (early stopping), estratificado
+python -m scripts.calcular_normalizacao_cnn                 # B4.3: média/desvio por faixa Mel nos 27k -> normalizacao_cnn.json
+python -m src.models.treinar_cnn                            # B4.4: CNN baseline
+python -m src.models.definir_cnn                            # B4.5: arquitetura e melhor época (early stopping nos 3k)
+python -m scripts.calcular_normalizacao_cnn --estagio 30k_refit    # B4.6: estatísticas do refit -> normalizacao_cnn_30k.json
+python -m src.models.refit_cnn                              # B4.6: refit nos 30k, nº fixo de épocas -> models/cnn_final_30k.pt
+python -m src.models.validar_cnn                            # B4.7: limiar na validação externa, métricas e tempos (TF32 desligado)
+
+# teste lacrado e comparação (Bloco 5) — o TESTE JÁ FOI USADO (23/09); não rodar de novo
+python -m scripts.avaliar_teste_lacrado --ensaio-na-validacao   # ensaio: roda tudo na VALIDAÇÃO, grava fora de results/ (delta tem de dar 0)
+# python -m scripts.avaliar_teste_lacrado                       # B5.1: EXECUÇÃO ÚNICA — recusa rodar de novo (só com --forcar --razao)
+python -m scripts.comparacao_final                          # B5.2: tabelas, bootstrap pareado, leituras e 5 figuras (lê os scores; não pontua o teste)
+python -m scripts.replotar_matrizes_confusao                # regera as matrizes de confusão sem retreinar
+
 # composição e subamostra
 python -m scripts.composicao_eval            # composição por classe/codec/ataque no eval (verifica 148.176)
 python -m scripts.gerar_subamostra           # subamostra 30k estratificada do treino (só a lista de IDs)
@@ -178,8 +196,8 @@ python -m scripts.gerar_subamostra           # subamostra 30k estratificada do t
 python -m scripts.diagnostico_composicao_dataset   # composição fase/trim/codec do dataset bruto (181k)
 python -m scripts.diagnostico_vazamento_duracao    # prop_fala como atalho de duração (árvore só com prop_fala)
 python -m scripts.diagnostico_limiar               # ROC, PR e varredura de limiar do RF na validação
-python -m scripts.diagnostico_por_ataque           # Bloco 3: RF **e** SVM AJUSTADOS por ataque A07–A19, com o limiar do protocolo (carrega os .joblib, não re-treina)
-python -m scripts.diagnostico_por_codec            # Bloco 3: RF **e** SVM AJUSTADOS por codec (banda estreita × larga), com o limiar do protocolo
+python -m scripts.diagnostico_por_ataque           # RF, SVM e CNN AJUSTADOS por ataque A07–A19, com o limiar do protocolo (carrega os modelos, não re-treina; só validação)
+python -m scripts.diagnostico_por_codec            # RF, SVM e CNN AJUSTADOS por codec (banda estreita × larga), com o limiar do protocolo (só validação)
 python -m scripts.curva_aprendizado_rf             # curva de aprendizado -> evidência do braço duplo
 python -m scripts.curva_aprendizado_rf_tuned       # Bloco 3: curva com config AJUSTADA + features congeladas (artefatos _tuned_eval)
 python -m scripts.ablacao_mfcc1_std                # Bloco 3: ablação da mfcc1_std com bootstrap pareado (rodar após ajustar_rf)
@@ -194,10 +212,34 @@ python -m scripts.estabilidade_subamostra          # Bloco 3: 3 subamostras alte
 python -m scripts.extrapolacao_curva_rf            # Bloco 3: ajuste f1 ~ a·ln(n) + b e n necessário para o RF alcançar o SVM (extrapolação, ver campo `limitacao`)
 python -m scripts.importancia_permutacao_rf        # Bloco 3: permutation_importance na validação × importância por impureza (rodar após ajustar_rf)
 python -m scripts.tempo_pipeline_completo          # Bloco 3: tempo ponta a ponta (carregar → VAD → features → predizer); src/models/tempo.py mede só a última etapa
-python -m scripts.guarda_reproducao                # Bloco 3: re-execução reproduz os JSONs de _pre_revisao/? -> reproducao_bloco3.json
+python -m scripts.guarda_reproducao                # re-execução reproduz os JSONs de _pre_revisao/? -> reproducao_bloco3.json e reproducao_cnn.json
+python -m scripts.guarda_reproducao --regenerar-cnn  # idem, re-executando antes o B4.7 ao lado do publicado (~7 min; não sobrescreve os tempos citados)
 
 python scripts/verificar_ambiente.py         # sanidade do ambiente (versões, GPU, pastas)
 ```
+
+## Resultado final — teste lacrado (B5, 23/09/2026)
+
+O conjunto de **teste (22.227) foi usado uma única vez**, em 23/09, com os limiares
+escolhidos na validação e todos os modelos **carregados** dos artefatos
+(`results/metricas/teste_lacrado.json`). A comparação completa — bootstrap pareado,
+delta validação → teste, ataque, codec, custo e as leituras redigidas a partir dos
+números — está em **`results/metricas/COMPARACAO_FINAL.md`** (gerado; não editar à
+mão).
+
+| Modelo (teste) | n treino | limiar | f1_macro | EER | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| RF ajustado, braço principal | 30.000 | 0,6516 | 0,7210 | 0,1946 | 0,8878 |
+| RF ajustado, braço de referência* | 103.723 | 0,6196 | 0,7602 | 0,1629 | 0,9167 |
+| SVM RBF ajustado, braço principal | 30.000 | −0,0329 | 0,7981 | 0,1411 | 0,9315 |
+| **CNN final, braço principal** | 30.000 | 0,3252 | **0,8883** | **0,0737** | **0,9783** |
+
+\* Não é concorrente direto de SVM e CNN: quantifica o custo da subamostragem.
+
+Bootstrap pareado (1.000 reamostragens, mesmo vetor de índices para todos): os três
+pares — SVM−RF, CNN−RF, CNN−SVM — têm IC95 sem zero em f1_macro e em EER, na
+validação e no teste. Em custo, a resposta depende do hardware: ver
+[Custo de inferência ponta a ponta](#custo-de-inferência-ponta-a-ponta).
 
 ## Resultados atuais (conjunto de validação)
 
@@ -460,6 +502,7 @@ Tcc_Deepfake/
 ```bash
 python -m venv .venv
 source .venv/Scripts/activate      # Linux/mac: source .venv/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cu128   # ANTES do requirements: o PyPI padrão entrega torch CPU-only no Windows
 pip install -r requirements.txt
 python scripts/verificar_ambiente.py
 ```

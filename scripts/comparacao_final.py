@@ -55,6 +55,23 @@ POR QUE A LEITURA É GERADA PELO CÓDIGO:
     montada a partir dos números — sobrevive à reexecução e muda sozinha se um
     número mudar.
 
+REVISÃO DE 23/09/2026 (pós-B5.2) — TRÊS LEITURAS CORRIGIDAS, NENHUM NÚMERO:
+    as três afirmavam mais do que o dado sustenta. Nenhum modelo, score, IC ou
+    tabela mudou; mudou o texto derivado, e cada correção é, de novo, derivada
+    dos números (nada escrito à mão):
+      1. validação -> teste: a queda de f1 com EER parado passa a ter nome —
+         OTIMISMO DA SELEÇÃO DE LIMIAR. O f1 da validação é o MÁXIMO sobre os
+         candidatos daquele conjunto; transportado, recua por construção.
+      2. por ataque: «amplitude supera / não supera a distância» virou
+         comparação com margem. Diferença menor que o piso de ruído do ΔEER
+         pareado (1,96·dp do bootstrap) é «da mesma ordem», não «não supera»
+         (0,1171 × 0,1192 é empate, não veredito).
+      3. custo: a CNN-GPU só é chamada «a mais barata» se a folga para o
+         segundo cenário exceder a variação dos tempos entre sessões
+         (variacao_dos_tempos, a mesma função da guarda). Não excedendo, os
+         dois empatam na prática — a ordem vale para ESTA execução, não para
+         outra máquina ou sessão.
+
 SAÍDAS:
     results/metricas/comparacao_final.csv        (validação e teste, 4 linhas cada)
     results/metricas/comparacao_tempos.csv       (RF-CPU, SVM-CPU, CNN-GPU, CNN-CPU)
@@ -82,6 +99,10 @@ from matplotlib.patches import Patch
 from sklearn.metrics import confusion_matrix, f1_score, roc_curve
 
 from scripts.estabilidade_modelos import N_BOOTSTRAP, SEMENTE_BOOTSTRAP
+# Fonte única da variação dos tempos entre sessões: a MESMA função que a guarda
+# de reprodução usa para gravar reproducao_cnn.json (B4.7 publicado x
+# regeneração). Reimplementar aqui abriria a porta para as duas divergirem.
+from scripts.guarda_reproducao import variacao_dos_tempos
 from src.data.split import carregar_dados_split
 from src.models.avaliacao import aplicar_limiar, calcular_eer
 from src.utils.serializacao import json_seguro
@@ -141,6 +162,15 @@ def _lista(itens) -> str:
     return itens[0] if len(itens) == 1 else ", ".join(itens[:-1]) + " e " + itens[-1]
 
 
+ARTIGO = {"RF": "o", "RF (referência)": "o", "SVM": "o", "CNN": "a"}
+
+
+def _lista_art(itens) -> str:
+    """Como _lista, com artigo: ['svm', 'cnn'] -> 'o SVM e a CNN'."""
+    rot = [ROTULO_DO_ARQUIVO.get(i, i) for i in itens]
+    return _lista([f"{ARTIGO.get(r, '')} {r}".strip() for r in rot])
+
+
 def _ic(v: np.ndarray) -> dict:
     """Mesmo resumo de estabilidade_modelos.py (média, desvio ddof=1, IC95)."""
     return {"media": round(float(v.mean()), 4),
@@ -160,6 +190,8 @@ def carregar_fontes() -> dict:
         "estabilidade": _ler("estabilidade_rf_svm.json"),
         "ataque": _ler("diagnostico_por_ataque_resumo.json"),
         "codec": _ler("diagnostico_por_codec_resumo.json"),
+        # B4.7 publicado (_pre_revisao/) x regeneração (…_reexecucao.json)
+        "variacao_tempos": variacao_dos_tempos(),
     }
     if fontes["teste"].get("ensaio") or fontes["teste"]["conjunto"] != "teste":
         raise RuntimeError("teste_lacrado.json não é a avaliação real do teste")
@@ -462,9 +494,12 @@ def leitura_delta(fontes: dict, boots: dict) -> dict:
             if not (v["delta_f1_dentro_do_ruido"] and v["delta_eer_dentro_do_ruido"])]
     perto = [a for a, v in por_modelo.items() if v["fracao_do_ruido_f1"] >= 0.8]
     # Queda de f1 sem queda de EER: o conjunto não ficou mais difícil; o que
-    # perdeu foi o ponto de corte transportado.
+    # recuou foi o f1 do limiar transportado — e recua por construção, porque
+    # o f1 da validação é o MÁXIMO sobre os candidatos daquele conjunto
+    # (selecionar_limiar). É o otimismo da seleção, não sobreajuste.
     so_limiar = [a for a, v in por_modelo.items()
                  if abs(v["delta_f1_macro"]) >= 0.005 and abs(v["delta_eer"]) < 0.001]
+    todos_negativos = all(v["delta_f1_macro"] < 0 for v in por_modelo.values())
     return {
         "rotulo": ("HEURÍSTICA — ruído da diferença entre duas amostras "
                    "independentes, 1,96·√(dp_val² + dp_teste²), aproximação normal"),
@@ -472,6 +507,13 @@ def leitura_delta(fontes: dict, boots: dict) -> dict:
         "ordem_f1_macro_validacao": [MODELOS[c][1] for c in ordem["validacao"]],
         "ordem_f1_macro_teste": [MODELOS[c][1] for c in ordem["teste"]],
         "ordem_preservada": ordem["validacao"] == ordem["teste"],
+        "todos_os_delta_f1_negativos": todos_negativos,
+        "otimismo_da_selecao_de_limiar": (
+            "o f1_macro da validação é o MÁXIMO sobre np.unique(scores) daquele "
+            "conjunto (selecionar_limiar); aplicado a outra amostra, o mesmo "
+            "limiar tende a render um pouco menos. Um Δf1 levemente negativo é o "
+            "comportamento esperado de um limiar escolhido por otimização — "
+            "sobreajuste seria um Δ que excede o ruído, não um Δ negativo"),
         "leitura": (
             ("Os quatro deltas validação→teste (f1_macro e EER) cabem no ruído "
              "de amostragem dos dois conjuntos: a seleção de limiar sobre 22 mil "
@@ -485,28 +527,59 @@ def leitura_delta(fontes: dict, boots: dict) -> dict:
                          f"±{_fmt(por_modelo[a]['ruido_da_diferenca_f1_macro'])}"
                          for a in perto]) + "). "
                if perto else "")
-            + (f"Para {_lista(so_limiar)}, o EER praticamente não muda "
+            + ("Os quatro Δf1 são negativos — o sinal esperado quando o limiar "
+               "é escolhido maximizando o f1 no próprio conjunto de validação: "
+               "o f1 da validação é otimista por construção (otimismo da "
+               "seleção de limiar), e recua um pouco quando o limiar é "
+               "transportado. " if todos_negativos else "")
+            + (f"Para {_lista_art(so_limiar)}, o EER praticamente não muda "
                f"({_lista([_fmt(por_modelo[a]['delta_eer']) for a in so_limiar])}) "
                "enquanto o f1_macro cai: como o EER não depende de limiar, o "
-               "teste não ficou mais difícil para esse modelo — o que se perdeu "
-               "foi um pouco do ponto de corte transportado. " if so_limiar else "")
+               "teste não ficou mais difícil para esse modelo — a queda do f1 "
+               "é inteiramente o otimismo da seleção de limiar, não uma perda "
+               "de capacidade de separar as classes. " if so_limiar else "")
             + "A ordem dos três modelos principais "
             + ("é a mesma na validação e no teste." if ordem["validacao"] == ordem["teste"]
                else "MUDA entre validação e teste.")),
     }
 
 
-def leitura_ataque(fontes: dict) -> dict:
+SUPERA, MESMA_ORDEM, NAO_SUPERA = "supera", "da mesma ordem", "não supera"
+
+
+def _comparar_com_margem(amp: float, dist: float, margem: float) -> str:
+    """Amplitude entre ataques × distância entre modelos, com margem de ruído.
+
+    Comparar dois números pontuais por `>` transforma 0,0021 de diferença em
+    veredito. Aqui a diferença só vira «supera» / «não supera» se exceder a
+    margem; dentro dela, as duas grandezas são «da mesma ordem».
+    """
+    if amp - dist > margem:
+        return SUPERA
+    if dist - amp > margem:
+        return NAO_SUPERA
+    return MESMA_ORDEM
+
+
+def leitura_ataque(fontes: dict, boots: dict) -> dict:
     res = fontes["ataque"]["por_modelo"]
     delta = {f"{a}_menos_{b}": fontes["val"][a]["eer"] - fontes["val"][b]["eer"]
              for a, b in PARES}
     maior_delta = max(abs(v) for v in delta.values())
+    # PISO de ruído de cada distância: 1,96·dp do ΔEER PAREADO na validação (o
+    # mesmo bootstrap do bloco `bootstrap_pareado`). É um piso, não o ruído
+    # inteiro: a amplitude por ataque é estimada em subconjuntos bem menores
+    # que 22.226 e tem ruído MAIOR que esse — usar o piso é conservador a favor
+    # de declarar diferença, nunca a favor de declarar empate.
+    margem = {k: round(1.96 * boots["validacao"]["pares"][k]["delta_eer"]["desvio"], 4)
+              for k in delta}
     por_modelo, frases = {}, []
     for c in PRINCIPAIS:
         r = res[c]
         amp = r["amplitude_eer"]
         pares_c = {k: abs(v) for k, v in delta.items() if c in k.split("_menos_")}
         supera = {k: amp > v for k, v in pares_c.items()}
+        comparacao = {k: _comparar_com_margem(amp, v, margem[k]) for k, v in pares_c.items()}
         top3 = sorted(r["eer_por_ataque"], key=lambda k: -r["eer_por_ataque"][k])[:3]
         por_modelo[MODELOS[c][0]] = {
             "amplitude_eer_entre_ataques": amp,
@@ -515,26 +588,55 @@ def leitura_ataque(fontes: dict) -> dict:
             "ataque_mais_dificil": r["ataque_mais_dificil"],
             "tres_mais_dificeis": top3,
             "abs_delta_eer_para_os_outros_modelos": pares_c,
+            # comparação pontual, sem margem — mantida por rastreabilidade; a
+            # leitura usa `comparacao_com_margem`
             "amplitude_supera_a_distancia_para": supera,
+            "comparacao_com_margem": comparacao,
         }
-        if all(supera.values()):
+
+        def _outro(k):
+            return MODELOS[[m for m in k.split("_menos_") if m != c][0]][1]
+        if all(v == SUPERA for v in comparacao.values()):
             frases.append(f"{MODELOS[c][1]}: amplitude {_fmt(amp)} supera a "
                           "distância agregada para os dois outros modelos")
         else:
-            def _outro(k):
-                return MODELOS[[m for m in k.split("_menos_") if m != c][0]][1]
-            nao = [k for k, v in supera.items() if not v]
-            sim = [k for k, v in supera.items() if v]
-            frases.append(f"{MODELOS[c][1]}: amplitude {_fmt(amp)} NÃO supera a "
-                          "distância agregada para "
-                          + _lista([f"o {_outro(k)} ({_fmt(pares_c[k])})" for k in nao])
-                          + (", embora supere a distância para "
-                             + _lista([f"o {_outro(k)} ({_fmt(pares_c[k])})" for k in sim])
-                             if sim else ""))
+            partes = []
+            for estado in (MESMA_ORDEM, NAO_SUPERA, SUPERA):
+                ks = [k for k, v in comparacao.items() if v == estado]
+                if not ks:
+                    continue
+                alvo = _lista([
+                    f"o {_outro(k)} ({_fmt(pares_c[k])}"
+                    + (f"; diferença {_fmt(abs(amp - pares_c[k]))}, dentro do piso "
+                       f"de ruído de ±{_fmt(margem[k])})" if estado == MESMA_ORDEM
+                       else ")")
+                    for k in ks])
+                partes.append({MESMA_ORDEM: f"é da mesma ordem da distância para {alvo}",
+                               NAO_SUPERA: f"fica abaixo da distância para {alvo}",
+                               SUPERA: f"supera a distância para {alvo}"}[estado])
+            frases.append(f"{MODELOS[c][1]}: amplitude {_fmt(amp)} " + " e ".join(partes))
     comuns = set.intersection(*(set(v["tres_mais_dificeis"]) for v in por_modelo.values()))
     vale_para_todos = all(all(v["amplitude_supera_a_distancia_para"].values())
                           for v in por_modelo.values())
+    integral = [c for c in PRINCIPAIS
+                if all(v == SUPERA for v in por_modelo[MODELOS[c][0]]["comparacao_com_margem"].values())]
+    abaixo = [c for c in PRINCIPAIS
+              if NAO_SUPERA in por_modelo[MODELOS[c][0]]["comparacao_com_margem"].values()]
+    empate = [c for c in PRINCIPAIS if c not in integral and c not in abaixo]
     amps = [por_modelo[MODELOS[c][0]]["amplitude_eer_entre_ataques"] for c in PRINCIPAIS]
+    if len(integral) == len(PRINCIPAIS):
+        conclusao = "A leitura do Bloco 3 vale para os três modelos: "
+    else:
+        conclusao = ((f"A leitura do Bloco 3 vale integralmente para "
+                      f"{_lista_art([MODELOS[c][1] for c in integral])}; " if integral else
+                      "A leitura do Bloco 3 não vale integralmente para nenhum modelo; ")
+                     + (f"para {_lista_art([MODELOS[c][1] for c in empate])}, a variação "
+                        "entre ataques deixa de dominar e fica do mesmo tamanho da "
+                        "distância entre modelos" if empate else "")
+                     + ("; " if empate and abaixo else "")
+                     + (f"para {_lista_art([MODELOS[c][1] for c in abaixo])}, ela fica "
+                        "abaixo da distância entre modelos" if abaixo else "")
+                     + ": ")
     return {
         "conjunto": "validacao (o diagnóstico por ataque não abre o teste)",
         "delta_eer_agregado_entre_modelos": delta,
@@ -545,11 +647,15 @@ def leitura_ataque(fontes: dict) -> dict:
             "a dificuldade varia muito mais entre sistemas de síntese (até 0,29 "
             "de EER) do que entre modelos (ΔEER 0,0466)"),
         "vale_para_os_tres": vale_para_todos,
+        "piso_de_ruido_da_distancia": margem,
+        "rotulo_piso_de_ruido": (
+            "HEURÍSTICA — 1,96·dp do ΔEER pareado na validação; piso, não o "
+            "ruído inteiro (a amplitude por ataque vem de subconjuntos menores)"),
+        "leitura_do_bloco3_vale_integralmente_para": [MODELOS[c][1] for c in integral],
+        "leitura_do_bloco3_mesma_ordem_para": [MODELOS[c][1] for c in empate],
         "leitura": (
             "; ".join(frases) + ". "
-            + ("A leitura do Bloco 3 vale para os três modelos: " if vale_para_todos
-               else "A leitura do Bloco 3 vale integralmente para RF e SVM e só "
-                    "em parte para a CNN: ")
+            + conclusao
             + f"a amplitude entre ataques cai de {_fmt(amps[0])} (RF) para "
             f"{_fmt(amps[1])} (SVM) e {_fmt(amps[2])} (CNN), enquanto a maior "
             f"distância entre modelos é {_fmt(maior_delta)}. "
@@ -641,6 +747,46 @@ def frases_obrigatorias(fontes: dict, boots: dict, tempos: pd.DataFrame) -> dict
     pipe = {c: T.loc[c, "pipeline_completo_ms"] for c in T.index}
     mais_barata_pipe = min(pipe, key=pipe.get)
     mais_cara_pipe = max(pipe, key=pipe.get)
+    # «A mais barata» só se a folga para o segundo cenário exceder o quanto os
+    # tempos variam entre sessões (mesma função da guarda). Dentro disso, a
+    # ordem vale para ESTA execução — as faixas mín–máx são intra-sessão — e
+    # não é robusta a outra máquina ou sessão: empate prático.
+    segunda_pipe = sorted(pipe, key=pipe.get)[1]
+    folga_rel = pipe[segunda_pipe] / pipe[mais_barata_pipe] - 1
+    var = fontes["variacao_tempos"]
+    var_rel = sorted(abs(v["variacao_relativa"]) for v in var["por_campo"].values())
+    empate_pratico = folga_rel <= var["maior_variacao_relativa_abs"]
+    etapas = fontes["pipeline"]["por_modelo"]
+
+    def _faixa(cenario: str) -> tuple:
+        e = etapas[cenario if cenario.startswith("cnn") else cenario.split("_")[0]]["etapas"]
+        return (sum(v["ms_por_audio_min"] for v in e.values()),
+                sum(v["ms_por_audio_max"] for v in e.values()))
+    fx_1, fx_2 = _faixa(mais_barata_pipe), _faixa(segunda_pipe)
+    sobrepoe = fx_1[1] >= fx_2[0]
+    ROT_CEN = {"rf_cpu": "o RF", "svm_cpu": "o SVM", "cnn_gpu": "a CNN em GPU",
+               "cnn_cpu": "a CNN em CPU"}
+    if empate_pratico:
+        trecho_barata = (
+            f"{ROT_CEN[mais_barata_pipe]} ({_fmt(pipe[mais_barata_pipe], 2)} ms) e "
+            f"{ROT_CEN[segunda_pipe]} ({_fmt(pipe[segunda_pipe], 2)} ms) empatam na "
+            "prática como os cenários mais baratos: nesta execução a diferença é de "
+            f"{_fmt(100 * folga_rel, 1)}%"
+            + (" e as faixas mín–máx (soma por etapa) não se sobrepõem"
+               if not sobrepoe else " e as faixas mín–máx se sobrepõem")
+            + (", mas a diferença fica dentro da faixa de variação "
+               if folga_rel >= var_rel[0] else
+               ", mas a diferença fica abaixo da faixa de variação ")
+            + f"({_fmt(100 * var_rel[0], 1)}–{_fmt(100 * var_rel[-1], 1)}%) que os "
+            "tempos de predição da CNN mostraram entre duas sessões da mesma "
+            "máquina — a ordem entre os dois vale para esta execução, não para "
+            "outra sessão ou máquina. ")
+    else:
+        trecho_barata = (
+            f"{ROT_CEN[mais_barata_pipe]} ({_fmt(pipe[mais_barata_pipe], 2)} ms) é "
+            f"o cenário mais barato, com folga de {_fmt(100 * folga_rel, 1)}% sobre "
+            f"{ROT_CEN[segunda_pipe]} — acima da variação entre sessões "
+            f"(até {_fmt(100 * var_rel[-1], 1)}% nos tempos de predição da CNN). ")
     razao_dados = v["rf_ref"]["n_treino"] / v["rf"]["n_treino"]
     f1_ref = t[ref]["f1_macro"]
     abaixo = ("ainda fica abaixo"
@@ -684,10 +830,10 @@ def frases_obrigatorias(fontes: dict, boots: dict, tempos: pd.DataFrame) -> dict
             f"{_fmt(T.loc['svm_cpu', 'ms_por_audio_lote'])} ms por áudio). A CNN "
             "acrescenta a dimensão que de fato importa para a pergunta de "
             "pesquisa — exige GPU ou não? — e é o par CNN-GPU / CNN-CPU que "
-            f"responde: ponta a ponta, a CNN em GPU ({_fmt(pipe['cnn_gpu'], 2)} ms) "
-            f"é {'a mais barata' if mais_barata_pipe == 'cnn_gpu' else 'competitiva'} "
-            f"dos quatro cenários e a CNN em CPU ({_fmt(pipe['cnn_cpu'], 2)} ms) "
-            f"{'a mais cara' if mais_cara_pipe == 'cnn_cpu' else 'não é a mais cara'} "
+            "responde. Ponta a ponta, "
+            + trecho_barata
+            + f"A CNN em CPU ({_fmt(pipe['cnn_cpu'], 2)} ms) "
+            f"{'é a mais cara' if mais_cara_pipe == 'cnn_cpu' else 'não é a mais cara'} "
             f"({_fmt(r_cnn_pipe, 1)}× a própria versão em GPU); em lote a "
             f"diferença CPU/GPU chega a {_fmt(r_cnn_lote, 1)}×. "
             + ("Em igualdade de hardware (CPU) os dois clássicos são mais baratos "
@@ -1072,7 +1218,7 @@ def main() -> None:
         conj: {k: v for k, v in b.items() if k != "_individual"}
         for conj, b in boots.items()}
     estat["conferencia_bloco3"] = bloco3
-    estat["por_ataque"] = leitura_ataque(fontes)
+    estat["por_ataque"] = leitura_ataque(fontes, boots)
     estat["por_codec"] = leitura_codec(fontes)
     estat["frases_obrigatorias"] = frases_obrigatorias(fontes, boots, tempos)
     estat["fontes"] = ([f"results/metricas/{a}.json" for a, _, _ in MODELOS.values()]
@@ -1081,7 +1227,10 @@ def main() -> None:
                           "results/metricas/estabilidade_rf_svm.json",
                           "results/metricas/diagnostico_por_ataque_resumo.json",
                           "results/metricas/diagnostico_por_codec_resumo.json",
-                          *estat["origem_dos_scores"].values()])
+                          *estat["origem_dos_scores"].values(),
+                          "results/metricas/_pre_revisao/cnn_final_principal.json "
+                          "+ cnn_final_principal_reexecucao.json (variação dos "
+                          "tempos entre sessões)"])
     estat["ambiente"] = {"python": platform.python_version(),
                          "sistema": f"{platform.system()} {platform.release()}"}
     with open(DIR_MET / "comparacao_estatistica.json", "w", encoding="utf-8") as f:
