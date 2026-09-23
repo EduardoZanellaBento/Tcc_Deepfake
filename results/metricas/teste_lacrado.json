@@ -1,0 +1,365 @@
+{
+  "conjunto": "teste",
+  "n": 22227,
+  "ensaio": false,
+  "data_execucao": "2026-09-23T16:32:36",
+  "protocolo": {
+    "regra": "score >= limiar",
+    "origem_dos_limiares": "JSON de validacao de cada modelo, campo selecao_limiar.limiar",
+    "nenhum_modelo_treinado_aqui": true,
+    "execucao": "unica",
+    "guarda_de_conjunto": "carregar_modelo_ajustado recusa JSON cujo selecao_limiar.conjunto != 'validacao'; os quatro braços passaram por ela"
+  },
+  "modelos": {
+    "rf_tuned_principal": {
+      "limiar": 0.6515677318576931,
+      "origem_limiar": "results/metricas/rf_tuned_principal.json -> selecao_limiar.limiar",
+      "conjunto_do_limiar": "validacao",
+      "criterio_limiar": "f1_macro",
+      "modelo": "rf_tuned_principal",
+      "regra": "score >= limiar",
+      "acuracia": 0.8940027894002789,
+      "precisao_spoof": 0.9473283990672209,
+      "recall_spoof": 0.9341631673665267,
+      "f1_spoof": 0.9406997231311351,
+      "precisao_bonafide": 0.47341063574570175,
+      "recall_bonafide": 0.5326135852451642,
+      "f1_bonafide": 0.5012701100762066,
+      "f1_macro": 0.7209849166036708,
+      "eer": 0.19462150080105436,
+      "limiar_eer": 0.7738824325462584,
+      "braco": "principal",
+      "n_treino": 30000,
+      "n_avaliado": 22227,
+      "matriz_confusao": [
+        [
+          1184,
+          1039
+        ],
+        [
+          1317,
+          18687
+        ]
+      ],
+      "roc_auc": 0.8878,
+      "escala_score": "probabilidade [0,1] (predict_proba)"
+    },
+    "rf_tuned_referencia": {
+      "limiar": 0.6195519477166891,
+      "origem_limiar": "results/metricas/rf_tuned_referencia.json -> selecao_limiar.limiar",
+      "conjunto_do_limiar": "validacao",
+      "criterio_limiar": "f1_macro",
+      "modelo": "rf_tuned_referencia",
+      "regra": "score >= limiar",
+      "acuracia": 0.9122688621946281,
+      "precisao_spoof": 0.9530716723549488,
+      "recall_spoof": 0.9492601479704059,
+      "f1_spoof": 0.9511620917651773,
+      "precisao_bonafide": 0.5592705167173252,
+      "recall_bonafide": 0.5793972109761584,
+      "f1_bonafide": 0.5691559876270438,
+      "f1_macro": 0.7601590396961105,
+      "eer": 0.16290520573348216,
+      "limiar_eer": 0.7616932106091538,
+      "braco": "referencia",
+      "n_treino": 103723,
+      "n_avaliado": 22227,
+      "matriz_confusao": [
+        [
+          1288,
+          935
+        ],
+        [
+          1015,
+          18989
+        ]
+      ],
+      "roc_auc": 0.9167,
+      "escala_score": "probabilidade [0,1] (predict_proba)",
+      "ressalva": "NÃO é concorrente direto de SVM e CNN: foi treinado no treino completo (103.723) e existe para quantificar o custo da subamostragem de 30k, imposta pela complexidade O(n²)–O(n³) do SVM-RBF. A comparação entre modelos é a do braço principal, em que os três viram as mesmas 30.000 amostras."
+    },
+    "svm_tuned_principal": {
+      "limiar": -0.032941668297628235,
+      "origem_limiar": "results/metricas/svm_tuned_principal.json -> selecao_limiar.limiar",
+      "conjunto_do_limiar": "validacao",
+      "criterio_limiar": "f1_macro",
+      "modelo": "svm_tuned_principal",
+      "regra": "score >= limiar",
+      "acuracia": 0.9247311827956989,
+      "precisao_spoof": 0.9622736672214657,
+      "recall_spoof": 0.9537592481503699,
+      "f1_spoof": 0.9579975396048304,
+      "precisao_bonafide": 0.6145833333333334,
+      "recall_bonafide": 0.6635177687809267,
+      "f1_bonafide": 0.6381137789314298,
+      "f1_macro": 0.79805565926813,
+      "eer": 0.14111118397103306,
+      "limiar_eer": 0.7005923949123067,
+      "braco": "principal",
+      "n_treino": 30000,
+      "n_avaliado": 22227,
+      "matriz_confusao": [
+        [
+          1475,
+          748
+        ],
+        [
+          925,
+          19079
+        ]
+      ],
+      "roc_auc": 0.9315,
+      "escala_score": "decision_function (real, centrado em zero)"
+    },
+    "cnn_final_principal": {
+      "limiar": 0.32524311542510986,
+      "origem_limiar": "results/metricas/cnn_final_principal.json -> selecao_limiar.limiar",
+      "conjunto_do_limiar": "validacao",
+      "criterio_limiar": "f1_macro",
+      "modelo": "cnn_final_principal",
+      "regra": "score >= limiar",
+      "acuracia": 0.9602735411886444,
+      "precisao_spoof": 0.9764764515325193,
+      "recall_spoof": 0.9794541091781643,
+      "f1_spoof": 0.977963013801193,
+      "precisao_bonafide": 0.8098982423681776,
+      "recall_bonafide": 0.7876743139901035,
+      "f1_bonafide": 0.7986316989737743,
+      "f1_macro": 0.8882973563874836,
+      "eer": 0.07370472599137394,
+      "limiar_eer": 0.9450893402099609,
+      "braco": "principal",
+      "n_treino": 30000,
+      "n_avaliado": 22227,
+      "matriz_confusao": [
+        [
+          1751,
+          472
+        ],
+        [
+          411,
+          19593
+        ]
+      ],
+      "roc_auc": 0.9783,
+      "escala_score": "probabilidade [0,1] (softmax(logits)[:, 1] = P(spoof))"
+    }
+  },
+  "delta_validacao_teste": {
+    "nota": "diferenca f1_macro(teste) - f1_macro(validacao) por modelo; |delta| pequeno indica que a validacao nao foi sobreajustada pela selecao de limiar",
+    "rf_tuned_principal": -0.0015132408434588296,
+    "rf_tuned_referencia": -0.012109022474655284,
+    "svm_tuned_principal": -0.0006722002641914582,
+    "cnn_final_principal": -0.00922557759394027
+  },
+  "delta_eer_validacao_teste": {
+    "nota": "diferenca eer(teste) - eer(validacao). O EER não depende do limiar: este delta mede só a diferença de dificuldade entre os dois conjuntos. O de f1_macro soma a isso o efeito de transportar o limiar — ler os dois lado a lado separa as duas causas",
+    "rf_tuned_principal": 0.0016061434764796934,
+    "rf_tuned_referencia": 0.004963099285284878,
+    "svm_tuned_principal": -0.005056522181705769,
+    "cnn_final_principal": -6.659085236800089e-05
+  },
+  "conferencia_pre_teste": {
+    "o_que_prova": "o par (modelo, limiar) aplicado ao teste é o par publicado: cada modelo carregado reproduz, na validação, as métricas, a matriz, o ROC-AUC e o número de scores distintos do seu JSON",
+    "tolerancia_float": 1e-09,
+    "resultado": "os quatro reproduziram — só então o teste foi aberto",
+    "por_modelo": {
+      "rf_tuned_principal": {
+        "campos_conferidos": [
+          "acuracia",
+          "precisao_spoof",
+          "recall_spoof",
+          "f1_spoof",
+          "precisao_bonafide",
+          "recall_bonafide",
+          "f1_bonafide",
+          "f1_macro",
+          "eer",
+          "limiar_eer",
+          "matriz_confusao",
+          "roc_auc_validacao",
+          "selecao_limiar.n_candidatos",
+          "n_validacao"
+        ],
+        "divergencias": {},
+        "reproduziu": true
+      },
+      "rf_tuned_referencia": {
+        "campos_conferidos": [
+          "acuracia",
+          "precisao_spoof",
+          "recall_spoof",
+          "f1_spoof",
+          "precisao_bonafide",
+          "recall_bonafide",
+          "f1_bonafide",
+          "f1_macro",
+          "eer",
+          "limiar_eer",
+          "matriz_confusao",
+          "roc_auc_validacao",
+          "selecao_limiar.n_candidatos",
+          "n_validacao"
+        ],
+        "divergencias": {},
+        "reproduziu": true
+      },
+      "svm_tuned_principal": {
+        "campos_conferidos": [
+          "acuracia",
+          "precisao_spoof",
+          "recall_spoof",
+          "f1_spoof",
+          "precisao_bonafide",
+          "recall_bonafide",
+          "f1_bonafide",
+          "f1_macro",
+          "eer",
+          "limiar_eer",
+          "matriz_confusao",
+          "roc_auc_validacao",
+          "selecao_limiar.n_candidatos",
+          "n_validacao"
+        ],
+        "divergencias": {},
+        "reproduziu": true
+      },
+      "cnn_final_principal": {
+        "campos_conferidos": [
+          "acuracia",
+          "precisao_spoof",
+          "recall_spoof",
+          "f1_spoof",
+          "precisao_bonafide",
+          "recall_bonafide",
+          "f1_bonafide",
+          "f1_macro",
+          "eer",
+          "limiar_eer",
+          "matriz_confusao",
+          "roc_auc_validacao",
+          "selecao_limiar.n_candidatos",
+          "n_validacao"
+        ],
+        "divergencias": {},
+        "reproduziu": true
+      }
+    }
+  },
+  "cnn": {
+    "dados": {
+      "indice": "data/espectrogramas/indice_teste.csv",
+      "md5_indice": "f04b47d7070f3038571828550f4c67b2",
+      "memmap": "data/espectrogramas/teste.npy",
+      "forma_memmap": [
+        22227,
+        128,
+        251
+      ],
+      "normalizacao": "data/espectrogramas/normalizacao_cnn_30k.json (estagio 30k_refit)",
+      "md5_normalizacao": "348d1df7f1251ab7670dbee2b180ea14",
+      "n_rotulos_divergentes_apos_reordenar": 0,
+      "n_frames_validos_divergentes_apos_reordenar": 0,
+      "conferencia_posicional": {
+        "posicoes": [
+          0,
+          1,
+          5556,
+          11113,
+          16670,
+          22225,
+          22226
+        ],
+        "maior_desvio_absoluto": 5.897504706808832e-13,
+        "controle_deslocamento": 5.3882598876953125e-05,
+        "margem": 91365079.9,
+        "margem_exigida": 100
+      },
+      "lote_inferencia": 256,
+      "ordem_de_pontuacao": "a do índice (mesma composição de lotes do B4.7); o vetor é reordenado depois, por arquivo, para a ordem da tabela"
+    },
+    "determinismo": {
+      "fixar_seeds_torch": true,
+      "estrito": true,
+      "semente": 42,
+      "num_workers": 0
+    },
+    "precisao_numerica": {
+      "tf32_desligado": true,
+      "estado_anterior": {
+        "cudnn_allow_tf32": true,
+        "matmul_allow_tf32": false
+      },
+      "motivo": "TF32 (mantissa de 10 bits) faz o score depender do tamanho do lote e difere do float32 em até 2,3e-03 — mesma ordem do espaçamento entre scores vizinhos, logo mexe em n_candidatos e pode deslocar o limiar publicado",
+      "medido_em": "B4.7, 20/09/2026, RTX 5060 Ti / torch 2.11 / cuDNN 9.19, sobre os 256 primeiros exemplos da validação"
+    }
+  },
+  "auditoria_do_codigo": {
+    "metodo": "AST dos módulos que pontuam e avaliam (mesmo método do B4.7)",
+    "chamadas_procuradas": [
+      "selecionar_limiar",
+      "fit",
+      "fit_transform",
+      "partial_fit",
+      "backward",
+      "step",
+      "zero_grad"
+    ],
+    "arquivos": {
+      "scripts/avaliar_teste_lacrado.py": {
+        "md5": "9dd860db10b3502ab2e1f9393d004d08",
+        "chamadas_selecionar_limiar": [],
+        "chamadas_de_treino": []
+      },
+      "src/models/modelos_ajustados.py": {
+        "md5": "ebd55b0387b74b787589f14f2d26a5ec",
+        "chamadas_selecionar_limiar": [],
+        "chamadas_de_treino": []
+      },
+      "src/models/avaliacao.py": {
+        "md5": "0c0e4cabee55d891ba4c2ec84c89494c",
+        "chamadas_selecionar_limiar": [],
+        "chamadas_de_treino": []
+      }
+    },
+    "resultado": "nenhuma chamada a selecionar_limiar e nenhuma chamada de treino nos módulos do caminho"
+  },
+  "hashes": {
+    "features": "51b2f439bf6f1e10237acbc620bb92d9",
+    "split": "9143f0c7b83ec2db4aa144ed5deb3402",
+    "subamostra": "654cb796b738512388b28e15ffb14a9d",
+    "indice_espectrogramas": "f04b47d7070f3038571828550f4c67b2",
+    "normalizacao_30k": "348d1df7f1251ab7670dbee2b180ea14"
+  },
+  "saidas": {
+    "scores": [
+      "scores_validacao.csv",
+      "scores_teste_lacrado.csv"
+    ],
+    "nota_scores": "scores dos quatro modelos, na ordem de features.csv x split.csv; é deles que o B5.2 tira o bootstrap pareado — o teste não é pontuado de novo",
+    "matrizes_confusao": [
+      "results\\figuras\\matriz_confusao_teste_lacrado_rf_tuned_principal.png",
+      "results\\figuras\\matriz_confusao_teste_lacrado_rf_tuned_referencia.png",
+      "results\\figuras\\matriz_confusao_teste_lacrado_svm_tuned_principal.png",
+      "results\\figuras\\matriz_confusao_teste_lacrado_cnn_final_principal.png"
+    ]
+  },
+  "reexecucoes": [],
+  "ambiente": {
+    "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "maquina": "AMD64",
+    "sistema": "Windows 10",
+    "python": "3.10.11",
+    "versoes": {
+      "numpy": "2.2.6",
+      "sklearn": "1.7.2",
+      "pandas": "2.3.3"
+    },
+    "n_jobs_inferencia": 1,
+    "torch": "2.11.0+cu128",
+    "cuda_versao": "12.8",
+    "cudnn": 91900,
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "dispositivo_cnn": "cuda"
+  }
+}
