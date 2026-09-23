@@ -48,7 +48,12 @@ data/espectrogramas/*
 # Modelos treinados (regeneraveis pelo pipeline)
 models/*
 !models/.gitkeep
-
+# Modelos finais pequenos que produziram o teste lacrado (B5.1): versionados
+# para que o resultado seja verificável sem retreinar. Os RF (60–190 MB) ficam
+# fora — o GitHub recusa arquivo acima de 100 MB — e têm backup externo,
+# conferível pelos hashes em docs/execucao/HASHES_MODELOS.txt.
+!models/cnn_final_30k.pt
+!models/svm_tuned_principal.joblib
 # Sistema
 .DS_Store
 Thumbs.db

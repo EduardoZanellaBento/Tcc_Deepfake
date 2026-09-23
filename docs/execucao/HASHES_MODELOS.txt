@@ -1,0 +1,10 @@
+﻿153171a71ff570ab6e060aba27c5cb67  cnn_baseline.pt
+5874840857aa7c2d77334c1074839c5d  cnn_definida.pt
+9e91f9ca0ae5da912b4c576d995863fb  cnn_final_30k.pt
+a28833abcde79ddfc469782f96ce4829  rf_baseline.joblib
+b8a51f39e391e9e64bd08c8ad43bc0f6  rf_baseline_eval.joblib
+eacabb01c18fb59931cb5baf2bae7740  rf_baseline_eval_principal.joblib
+b8a51f39e391e9e64bd08c8ad43bc0f6  rf_baseline_eval_referencia.joblib
+94332ead6c4f958c4c06091cfde07c6b  rf_tuned_principal.joblib
+ebc1d5cedebef704917fa672e3ed770c  rf_tuned_referencia.joblib
+b2bd1f782559e71e61895a535842d9d0  svm_tuned_principal.joblib
