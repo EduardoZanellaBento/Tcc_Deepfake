@@ -46,9 +46,9 @@ excedente vai para esta fila, nesta ordem:
 
 1. **redação** (B6.1) — é o item de maior risco do cronograma e o único que não tem
    como ser comprimido no fim;
-2. **variância entre sementes na CNN** (3 sementes) — está fora do caminho crítico
-   por decisão registrada, mas é a lacuna que o trabalho declara como limitação se
-   não couber. Se couber, a limitação desaparece;
+2. ~~**variância entre sementes na CNN** (3 sementes)~~ — **cancelada em 24/09**: o
+   orientador encerrou os experimentos («não autorizo novos experimentos, salvo erro
+   grave»). A limitação 9 do B6 é definitiva. Não propor de novo;
 3. **diagnóstico por ataque e por codec com a CNN incluída** — fecha a análise por
    estrato para os três modelos;
 4. **simulação de banca** (`APENDICE_B_banca.md`) — cada pergunta sem resposta em 30

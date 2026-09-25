@@ -596,8 +596,8 @@ qualquer resultado. A correta é 1,96·√(dp_val² + dp_teste²). E o delta é
 **O bootstrap cobre a aleatoriedade do treino?**
 Não: ele reamostra a **avaliação**. A variância de treino é a das sementes — RF
 ±0,0004 em 5 sementes; SVM sem variância (`probability=False` é determinístico); CNN
-com semente única (limitação declarada, ou fila do tempo excedente, item 2 — avaliada
-**só na validação**). Com a distância CNN − SVM em ~0,09 de f1, uma inversão por
+com semente única (limitação declarada e definitiva: o orientador encerrou os
+experimentos em 24/09). Com a distância CNN − SVM em ~0,09 de f1, uma inversão por
 semente exigiria uma variância de treino duas ordens acima da do RF.
 
 **⚑ Qual é o modelo mais barato?**
@@ -607,3 +607,62 @@ execução, mas fica dentro da variação de 4,1–13,7% que os tempos mostraram
 sessões da mesma máquina. Em CPU, os dois clássicos são mais baratos que a CNN
 (16,80 ms); em lote, o RF é o mais barato de longe. A vantagem de custo dos clássicos é
 **não exigirem GPU**.
+
+---
+
+## 13. Coerência com o TC I (acrescentado em 24/09)
+
+O TC I descreveu um plano; a banca pode abrir o TC I aprovado ao lado do TC II e
+perguntar onde o executado divergiu. A matriz completa está em
+`B6_redacao_e_fechamento.md` §0.3; as perguntas abaixo são as que mais provavelmente
+aparecem.
+
+**⚑ «O seu próprio referencial (Müller et al., 2022) diz que CQT e espectrograma
+logarítmico superam Mel. Por que a CNN usa Log-Mel?»**
+Porque a pergunta de pesquisa é uma comparação entre ramos, e o front-end tinha de ser o
+mais parecido possível. O Log-Mel da CNN usa a mesma filterbank Mel (`htk=False`,
+`norm='slaney'`) e a mesma escala em dB (`ref=1.0`) que o `librosa.feature.mfcc` aplica
+no ramo clássico (P4 e P5). Assim a diferença entre os ramos fica na **forma de
+representação e aprendizado** — resumir as características e classificar × preservar a
+estrutura tempo-frequência e aprender a representação —, e não no front-end. Trocar
+para CQT daria à CNN uma vantagem de representação que o RF e o SVM não tiveram. CQT é
+trabalho futuro.
+
+**⚑ «O seu Random Forest tem acurácia menor que um classificador que responde sempre
+spoof?»**
+Sim: no teste, 0,8940 contra 0,9000 (`teste_lacrado.json`; 20.004 spoof em 22.227). E é
+exatamente por isso que o critério é o f1_macro. Com 9:1, a acurácia premia acertar a
+classe majoritária; o limiar do RF foi escolhido na validação maximizando o f1_macro,
+o que troca alguns acertos de spoof por recall de bonafide (0,5326). O classificador
+trivial tem recall de bonafide zero e f1_macro ≈ 0,47. A acurácia está reportada, mas
+não decide nada.
+
+**«O TC I prometia buscar o tipo de kernel do SVM. Por que só RBF?»**
+O kernel foi fixado em RBF e a busca cobriu C, gamma e `class_weight`. Com gamma pequeno
+o RBF se comporta assintoticamente como o kernel linear (KEERTHI; LIN, 2003), e o espaço
+de busca desceu até gamma = 1e-4; o RBF é também a escolha inicial recomendada
+(HSU; CHANG; LIN, 2003). Buscar kernel polinomial teria multiplicado um custo que já
+impôs a subamostra de 30 mil. É uma divergência do plano, e está declarada no Cap. 3.7.
+
+**«O TC I prometia Random Search na CNN, com taxa de aprendizado, filtros e dropout.»**
+Os três eixos foram explorados, mas em **grade curta**: 6 configurações em duas fases —
+duas arquiteturas (4 blocos 32-64-128-128 e 3 blocos 16-32-64) × dropout 0 e 0,3 com
+lr = 1e-3, e depois as duas arquiteturas com lr = 3e-4 no dropout vencedor —, 93 minutos
+no total (`busca_cnn.csv`, B4.5). Random Search foi descartado pela regra de escopo
+(«busca ficou cara → reduz o espaço de busca»): um treino desta CNN custou de 12 a 18
+minutos, contra segundos de um RF. A vencedora foi escolhida por f1_macro no conjunto
+interno de 3 mil, com margem de empate fixada antes de rodar. Declarado no Cap. 3.7.
+
+**«Onde está o 5-fold que o TC I prometia para garantir a robustez?»**
+Dentro do treino: é a validação cruzada do Random Search de RF e SVM. A CNN usou um split
+interno fixo de 27k/3k para early stopping e depois refit nos 30k — o protocolo aprovado
+na P6. A robustez da **comparação** não vem do 5-fold: vem do
+bootstrap pareado (1.000 reamostragens sobre a validação e o teste) e das análises de
+estabilidade entre sementes e subamostras.
+
+**«Por que a CNN tem uma semente só, se três custariam uma hora?»**
+Porque o orientador encerrou a fase experimental em 24/09 para proteger o prazo da
+monografia — decisão de escopo, não de custo computacional. A análise estava prevista
+como complementar desde 17/09 (decisão 6). Fica como limitação: RF varia ±0,0004 entre
+5 sementes, SVM é determinístico, e a variância de inicialização da CNN não foi
+quantificada.

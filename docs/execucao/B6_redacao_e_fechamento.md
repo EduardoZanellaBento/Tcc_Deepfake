@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| **B6.1 redação** | 30/09 a 03/10 |
-| **B6.2 ENTREGA** | **04/10 — versão completa, avaliável do início ao fim** |
+| **B6.1 redação** | **24/09** a 03/10 (antecipada pelo orientador em 24/09) |
+| meta interna de envio | **02/10 (sexta)** — 03 e 04/10 ficam de reserva |
+| **B6.2 ENTREGA** | **04/10 (domingo) — versão completa, avaliável do início ao fim** |
 | **B6.3 correções** | 08 a 09/10 (a revisão do orientador é 05 a 07/10) |
 | **B6.4 conferência** | 10/10 |
 | **B6.5 congelamento** | **11/10** |
@@ -14,6 +15,80 @@
 >
 > **Entre 05/10 e 07/10 não se abre experimento novo.** Esse intervalo é para
 > preparar a execução das correções.
+
+---
+
+## 0. Estado da redação — ler primeiro (atualizado em 24/09)
+
+**24/09 — o orientador encerrou o experimental.** *«Não autorizo novos experimentos,
+salvo identificação de erro grave que comprometa a validade dos resultados.»* O foco é
+integralmente a redação; no Git ele quer ver **consolidação documental e coerência
+entre o executado e o escrito**. Consequência direta: as 3 sementes da CNN (antigo
+item 2 da fila do tempo excedente) **não serão executadas** — a limitação 9 é
+definitiva.
+
+### 0.1 O arquivo e a divisão do trabalho
+
+- **Monografia:** `docs/monografia/TC2_EDUARDO_ZANELLA.docx`, montada a partir do
+  `TC1_EDUARDO_ZANELLA.docx` (que fica intocado). Já tem: folha de aprovação (modelo a
+  confirmar com a UNIP), listas de figuras/quadros/tabelas e sumário como **campos
+  automáticos** (atualizar no Word), lista de siglas, numeração ABNT (capa fora da
+  contagem, contagem desde a folha de rosto, número no topo à direita a partir da
+  Introdução), esqueleto dos Caps. 3–6 com **roteiro por seção em marca-texto amarelo**
+  e **21 comentários** de coerência TC I → executado.
+- **Estrutura aprovada pelo aluno:** 3 Metodologia Experimental · 4 Desenvolvimento ·
+  5 Resultados e Discussão · 6 Conclusão. O §1.4 já foi reescrito para ela.
+- **Divisão mista:** Claude rascunha os Caps. 3 e 4 (transposição das notas do
+  repositório) e gera tabelas e figuras do Cap. 5 **por script, a partir dos
+  artefatos**; Eduardo reescreve na própria voz e escreve as leituras (5.1–5.8), a
+  discussão (5.9), as limitações (5.10) e a conclusão (6); Claude revisa contra os
+  artefatos e contra as formulações proibidas.
+- **Regra de marca-texto:** amarelo = pendente. Texto sem marca-texto = versão do
+  Eduardo. Na entrega não pode sobrar amarelo — ou, se sobrar, é lacuna sinalizada.
+
+### 0.2 Plano diário até a entrega
+
+Cada linha marcada «sessão» é uma sessão nova do Claude (higiene de contexto — ver
+`00_MAPA_EXECUCAO.md` §1). A sessão lê este §0, o roteiro da seção no `.docx` e só as
+fontes que o roteiro lista.
+
+| dia | Claude | Eduardo |
+|---|---|---|
+| **qui 24/09** | ✅ esqueleto + comentários + documentos de fase | corrigir a referência YAMAGISHI → LIU / YAMAGISHI (≈30 min, comentário em REFERÊNCIAS); ler o esqueleto inteiro |
+| **sex 25/09** | sessão: rascunho do **Cap. 3** (3.1–3.10) | começar a reescrita do Cap. 3 |
+| **sáb 26/09** | sessão: rascunho do **Cap. 4** | terminar o Cap. 3 |
+| **dom 27/09** | sessão: **tabelas e figuras do Cap. 5**, geradas dos artefatos | reescrever o Cap. 4 |
+| **seg 28/09** | revisão das leituras | escrever **5.1–5.8** (leituras) |
+| **ter 29/09** | revisão contra artefatos e formulações proibidas | escrever **5.9 Discussão** e **5.10 Limitações** |
+| **qua 30/09** | revisão | **Cap. 6**; Cap. 1 (§1.3 enxuto, §1.5, objetivos); resolver os comentários do Cap. 2; **Resumo e Abstract por último** |
+| **qui 01/10** | sessão: conferência número a número (texto × JSON), siglas, referências | pré-textuais; atualizar campos (sumário e listas) |
+| **sex 02/10** | — | leitura integral em voz alta + simulação de banca (B6.6); **enviar ao orientador** |
+| sáb–dom 03–04/10 | reserva | reserva; reprodutibilidade do B6.6 se não coube antes |
+
+Se um dia escorregar, **o seguinte absorve e o 02/10 continua valendo**; o 03–04/10
+existe para isso. Se em 03/10 algum capítulo não estiver pronto, vale a regra do §B6.2:
+envia completo, com a lacuna sinalizada.
+
+### 0.3 Coerência TC I → executado
+
+O TC I descreve um plano, no futuro. Onde o executado divergiu, o texto do TC II
+declara e justifica — não esconde. Cada item tem um comentário ancorado no `.docx`.
+
+| # | TC I dizia | executado | onde se resolve |
+|---|---|---|---|
+| 1 | Resumo/§1.3 no futuro; «validação cruzada para robustez» | protocolo executado; robustez = bootstrap pareado | Resumo (reescrever por último); §1.3 vira resumo no passado que remete ao Cap. 3 |
+| 2 | duas perguntas diferentes (§1 e §1.2) | a respondida é a do §1.2 | §1, último parágrafo |
+| 3 | «ASVspoof 2021 LA», 70/15/15 | só a partição `eval` (148.176); progress/hidden excluídos; o 2021 LA não tem treino/dev próprios | 3.2 |
+| 4 | 5-fold para mitigar a variância da partição | 5-fold só dentro do treino (busca de RF/SVM); CNN com 27k/3k + refit | 3.6 |
+| 5 | busca do tipo de kernel no SVM | kernel fixo em RBF (gamma loguniform 1e-4–1e-1) | 3.7 — justificar (Keerthi; Lin, 2003; Hsu; Chang; Lin, 2003) |
+| 6 | Random Search na CNN (lr, filtros, dropout) | grade curta de 6 configurações (arquitetura × dropout × lr) — Random Search descartado pela regra de escopo, 12–18 min por treino | 3.7 |
+| 7 | métricas: acurácia, precisão, recall, F1 | + EER, ROC-AUC, tempo; critério f1_macro (RF: acurácia 0,8940 < trivial 0,9000) | 3.8 e objetivos específicos |
+| 8 | «class weights na função de perda» | RF/SVM `class_weight`; só a CNN tem perda ponderada (9:1) | 3.6–3.7 |
+| 9 | Müller et al.: CQT/log-linear > Mel | CNN com Log-Mel, por paridade com o MFCC | 3.5 e 6.2 |
+| 10 | «identificar as características mais eficazes» | importância por permutação do RF | 5.8 |
+| 11 | §1.5 Resultados esperados; §2.5 «próxima etapa (TC II)» | versão final | remover §1.5; passar §2.5 ao passado |
+| 12 | referência YAMAGISHI et al. (2022), TASLP v. 30 | **errada**: o artigo TASLP é LIU et al. (2023), v. 31, p. 2507-2522; o 1,32% é de YAMAGISHI et al. (2021), ASVspoof Workshop, p. 47-54 | REFERÊNCIAS e as 8 citações no texto |
+| 13 | §2.2 alta frequência; §2.4.1 custo de RF e SVM | confirmados pelos dados (codec; tempos) | ligar na discussão, 5.6 e 5.7 |
 
 ---
 
@@ -80,7 +155,7 @@ escrever resultados: ela organiza o que você pode e o que não pode afirmar.
 | 6 | **`top_db=80` é relativo ao máximo de cada exemplo**: o piso do padding é `max−80` e varia entre exemplos | P5 |
 | 7 | **A filterbank Mel do `librosa.feature.mfcc`, com o `n_fft=512` congelado, herda o mesmo regime degenerado** que motivou a P4 a usar 1024 na CNN — **61 filtros com ≤ 2 bins e 12 picos duplicados** (com 1024: ≤ 1 filtro de 2 bins e nenhum pico duplicado; não escreva «zero filtros estreitos»). Não corrigido: features congeladas desde 30/08, e re-extrair abriria o Bloco 2. Atenuado pela DCT, que retém 20 de 128 coeficientes | B4.0 · `APENDICE_A_inventario.md` §1 |
 | 8 | **Refit com o mesmo nº de épocas**, não de atualizações: os 30k são 11,1% maiores que os 27k | B4.5 |
-| 9 | **Variância entre sementes na CNN**: a CNN final é **semente única** (42) — limitação computacional declarada, salvo se o item 2 da fila do tempo excedente for executado (3 sementes, ~1 h, **avaliadas só na validação**). O bootstrap pareado reamostra a avaliação, não o treino. A fonte de variação que domina o braço principal é *qual subamostra de 30k caiu*, medida em `estabilidade_subamostra.json` | P6 · decisão 6 |
+| 9 | **Variância entre sementes na CNN**: a CNN final é **semente única** (42) — limitação **definitiva** desde 24/09 (o orientador encerrou os experimentos; texto pré-redigido em `APENDICE_C_riscos.md` §6). O bootstrap pareado reamostra a avaliação, não o treino. A fonte de variação que domina o braço principal é *qual subamostra de 30k caiu*, medida em `estabilidade_subamostra.json` | P6 · decisão 6 |
 | 10 | ~~Determinismo estrito no PyTorch~~ — **não se aplica**: `estrito=True` no refit e na inferência (`refit_cnn.json → determinismo`, `teste_lacrado.json → cnn.determinismo`). Escreva como *controle*, não como limitação | B4.4 · B4.6 |
 | 11 | **Experimento cross-attack / leave-one-attack-out** previsto como análise complementar, não executado | `README` |
 | 12 | **Hardware único**: todas as medições numa máquina (Windows 10, RTX 5060 Ti). Tempos são indicativos de ordem de grandeza, não benchmark. **Medido:** os tempos variaram 4,1–13,7% entre duas sessões da mesma máquina (`reproducao_cnn.json`), por isso CNN-GPU (4,58 ms) e SVM (4,92 ms) são empate prático, não ordem | config `tempo:` · B5.2 |
@@ -188,7 +263,11 @@ Checklist de 04/10:
 - [ ] limitações completas (as 14 acima + as que apareceram)
 - [ ] referências e citações no lugar
 - [ ] ABNT: a base é o `TC1_EDUARDO_numeracao_ABNT.pdf` já aprovado — **reuse a
-      formatação**, não recomece
+      formatação**, não recomece (feito: `TC2_EDUARDO_ZANELLA.docx` nasceu do `.docx`
+      do TC I)
+- [ ] nenhum marca-texto amarelo sobrando, e os 21 comentários de coerência resolvidos
+- [ ] referência YAMAGISHI corrigida (LIU et al., 2023 + YAMAGISHI et al., 2021)
+- [ ] campos atualizados no Word (sumário, listas de figuras/quadros/tabelas)
 - [ ] repositório commitado e coerente com o texto
 - [ ] enviado ao orientador **em 04/10**
 

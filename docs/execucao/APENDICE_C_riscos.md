@@ -121,10 +121,12 @@ definido» — e uma arquitetura escolhida por julgamento documentado satisfaz o
 
 ### Sementes na CNN (a mais provável)
 
-> Por restrição de tempo computacional, o resultado principal da CNN é reportado para
-> a semente 42, sem análise de variância entre sementes. A decisão é a prevista no
-> protocolo (decisão 6, de 17/09), que colocou essa análise **fora do caminho
-> crítico**. Para contexto: o RF entre cinco sementes varia ±0,0004 de f1_macro, e o
+> O resultado principal da CNN é reportado para a semente 42, sem análise de variância
+> entre sementes. Essa análise estava prevista como complementar e **fora do caminho
+> crítico** (decisão 6, de 17/09), e não foi executada porque a fase experimental foi
+> encerrada pelo orientador em 24/09, para priorizar a redação dentro do cronograma de
+> recuperação. *(Nota de 24/09: não escrever «por restrição de tempo computacional» —
+> o custo medido era de ~15 min de GPU por semente; o motivo real é de escopo e prazo.)* Para contexto: o RF entre cinco sementes varia ±0,0004 de f1_macro, e o
 > SVM com `probability=False` é determinístico; a fonte de variação que domina o braço
 > principal é **qual subamostra de 30k foi sorteada**, medida em
 > `estabilidade_subamostra.json`. A variância de inicialização da CNN é, portanto, uma

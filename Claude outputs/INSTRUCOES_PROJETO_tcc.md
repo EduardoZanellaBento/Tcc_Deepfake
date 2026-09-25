@@ -1,7 +1,8 @@
 # Instruções de Projeto — TCC Detecção de Deepfake de Áudio (TC II / Fase Prática)
 
-> **Versão de 23/09/2026, revisão pós-Bloco 5.** Substitui integralmente as versões
-> de 17/09 e de 23/09 (pós-Bloco 4). O histórico do que mudou está no fim do arquivo.
+> **Versão de 24/09/2026 — mudança de fase determinada pelo orientador.** Substitui
+> integralmente as versões de 17/09, 23/09 (pós-Bloco 4) e 23/09 (pós-Bloco 5). O
+> histórico do que mudou está no fim do arquivo.
 > Este arquivo é a cópia versionada em Git das instruções que vivem nas configurações
 > do projeto no claude.ai — as duas precisam ser idênticas. O cronograma original do
 > TC II já se perdeu uma vez por existir em um lugar só; é por isso que esta cópia
@@ -18,6 +19,16 @@
   não se reabrem.
 - **Blocos 1, 2, 3, 4 e 5 estão concluídos.** O teste lacrado foi usado — uma única
   vez — em 23/09. A frente atual é o **Bloco 6 — redação (B6.1)**. Ver *Estado atual*.
+- **Experimental encerrado pelo orientador em 24/09.** Palavras dele: *«não autorizo
+  novos experimentos, salvo identificação de erro grave que comprometa a validade dos
+  resultados»*. O foco passa a ser **integralmente a redação e o fechamento do TC II**;
+  o que ele quer ver no Git daqui para frente é **consolidação documental e coerência
+  entre o que foi executado e o que será escrito**. A redação começou em **24/09**, não
+  em 30/09.
+- **A monografia vive em `docs/monografia/TC2_EDUARDO_ZANELLA.docx`**, montada em 24/09
+  a partir do `.docx` do TC I (mesma formatação), com numeração ABNT, esqueleto dos
+  capítulos 3–6 com roteiro por seção e comentários de coerência TC I → executado.
+  Plano diário e divisão do trabalho: `docs/execucao/B6_redacao_e_fechamento.md` §0.
 - **As datas do cronograma são TETO, não agenda.** Hoje o trabalho está **adiantado**;
   ver *Regra de escopo → ritmo*.
 - **O projeto está indexado nesta sessão** via a pasta `C:\dev\Tcc_Deepfake`. Consulte
@@ -138,13 +149,18 @@ resultado desejado, não anomalia. Estando adiantado:
 
 1. **redação (B6.1)** — maior risco do cronograma e o único item que não comprime no
    fim;
-2. **variância entre sementes na CNN** (3 sementes) — custo medido: ~15 min de GPU
-   por semente, ~1 h no total. Se couber, a limitação computacional declarada
-   desaparece. **Avaliada só na validação**: o teste já foi usado;
+2. ~~**variância entre sementes na CNN** (3 sementes)~~ — **cancelada em 24/09**: o
+   orientador encerrou os experimentos. A CNN fica com semente única e a limitação 9
+   do B6 é **definitiva** (texto pré-redigido em `APENDICE_C_riscos.md` §6). Não
+   propor de novo;
 3. **diagnóstico por ataque e por codec com a CNN incluída** — executado em B4.7 e
-   consolidado em B5.2; revisar e integrar ao texto;
+   consolidado em B5.2; só integrar ao texto (seção 5.6);
 4. **simulação de banca** (`APENDICE_B_banca.md`) — cada pergunta sem resposta em 30
    segundos é um parágrafo que falta.
+
+A verificação de reprodutibilidade do B6.6 **não** é experimento novo: é reexecução
+idêntica (mesmo código, mesmas sementes, nenhum score novo sobre o teste) para
+conferir que os artefatos se reproduzem. Pode rodar; qualquer variação, não.
 
 **Nunca** entra: leave-one-attack-out, cross-dataset, outra duração de áudio, outro
 `n_mels`, nova busca de hiperparâmetros de RF/SVM. São trabalho futuro mesmo com uma
@@ -182,10 +198,9 @@ parâmetros utilizados e dos resultados obtidos.
 6. **Variância entre sementes: análise complementar, nunca bloqueador.** RF com 5
    sementes; SVM com 3; CNN com 3. Resultado principal em seed 42. **Custo medido em
    B4.6: 887 s (~15 min) de GPU por refit**, logo as duas sementes extras da CNN são
-   ~1 h de máquina — cabe. Ainda assim **continua fora do caminho crítico**: entra
-   depois de a redação estar andando, e sua ausência é limitação declarada, nunca
-   motivo de atraso. **As sementes extras se avaliam só na validação** — o teste foi
-   usado uma vez e não se reabre.
+   ~1 h de máquina. **Atualização de 24/09: não serão executadas** — o orientador
+   encerrou os experimentos. RF (5 sementes) e SVM (3) já têm a análise; a CNN fica
+   com semente única, **limitação declarada e definitiva**.
 7. **Definição do espectrograma e protocolo da CNN** — fechada em 17/09, sete
    perguntas respondidas. Detalhe integral na seção abaixo. **Não reabrir.**
 8. **Regime numérico e protocolo de medição de tempo da CNN** — *registrado em B4.7,
@@ -362,15 +377,16 @@ calendário abaixo é o único que vale** — e suas datas são **teto**.
 
 | data limite | etapa | entrega obrigatória |
 |---|---|---|
-| **30/09 a 03/10** | Redação | Metodologia experimental, desenvolvimento, resultados, discussão das métricas, limitações e conclusão. **Pode começar já** — o Bloco 5 fechou em 23/09. |
+| **24/09 a 03/10** | Redação | Metodologia experimental, desenvolvimento, resultados, discussão das métricas, limitações e conclusão. **Começou em 24/09**, por determinação do orientador. Plano diário em `B6_redacao_e_fechamento.md` §0. |
+| **02/10 (sexta)** | Meta interna de envio | Enviar a versão completa na sexta, para o orientador tê-la antes do fim de semana; 03 e 04/10 ficam de reserva. |
 | **04/10** | **VERSÃO COMPLETA PARA O ORIENTADOR** | **Trabalho inteiro. Não capítulo isolado, não versão parcial. Versão completa, avaliável do início ao fim.** |
 | **05/10 a 07/10** | Revisão do orientador | Leitura e apontamentos dele. **Neste intervalo não se abrem experimentos novos.** |
 | **08/10 a 09/10** | Correções finais | Incorporar integralmente as correções; revisar tabelas, figuras, texto, referências, citações e coerência metodológica. |
 | **10/10** | Conferência final | Formatação, ABNT, numeração de figuras/tabelas, referências, sumário, texto e artefatos do Git. |
 | **11/10** | **CONGELAMENTO FINAL** | **Trabalho concluído. Nenhuma etapa principal pode permanecer pendente depois desta data.** |
 
-> **A data real de entrega é 04/10, não 11/10.** O que existe entre 04/10 e 11/10 é o
-> tempo do orientador, não o meu. Se a primeira versão integral chegar perto de
+> **A data real de entrega é 04/10 (um domingo), não 11/10.** O que existe entre 04/10
+> e 11/10 é o tempo do orientador, não o meu. Se a primeira versão integral chegar perto de
 > 11/10, não há tempo hábil nem para ele revisar nem para eu corrigir.
 >
 > **Não há mais margem para outro atraso semelhante ao de setembro.** Em compensação,
@@ -393,8 +409,13 @@ Bloco 5 — consolidação e teste lacrado (teto 29/09) — **fechado em 23/09**
       (commit `c07390b` + revisão das leituras). **Nenhuma mudança nos modelos daqui
       em diante, salvo erro grave.**
 
-Bloco 6 — redação e fechamento (30/09 a 11/10)
-- [ ] **B6.1 — 30/09 a 03/10** redação completa (pode começar antes)
+Bloco 6 — redação e fechamento (24/09 a 11/10)
+- [ ] **B6.1 — 24/09 a 03/10** redação completa. Estrutura aprovada pelo aluno em 24/09:
+      **3 Metodologia Experimental · 4 Desenvolvimento · 5 Resultados e Discussão · 6
+      Conclusão**. Divisão **mista**: Claude rascunha os Caps. 3 e 4 e gera tabelas e
+      figuras do Cap. 5 a partir dos artefatos; Eduardo reescreve na sua voz e escreve
+      leituras, discussão, limitações e conclusão; Claude revisa contra os artefatos.
+      - [x] 24/09 esqueleto do `TC2_EDUARDO_ZANELLA.docx` + 21 comentários de coerência
 - [ ] **B6.2 — 04/10** **entregar a versão completa ao orientador**
 - [ ] **B6.3 — 08 a 09/10** incorporar integralmente as correções
 - [ ] **B6.4 — 10/10** conferência final: ABNT, numeração, referências, sumário, Git
@@ -435,6 +456,15 @@ principal e passou a ser o principal risco. Portanto:
     sugira esperar a data do marco chegar e não trate adiantamento como anomalia a
     confirmar. A regra de escopo serve para atraso; folga se gasta na fila declarada
     (redação primeiro), não em eixo experimental novo.
+12. **Na redação, nenhum número sai da memória.** Tabela e figura do texto são geradas
+    por script a partir de `results/metricas/` ou copiadas de `COMPARACAO_FINAL.md`;
+    número em prosa aponta para o artefato. Ao rascunhar (Caps. 3 e 4), escreva no
+    passado, na voz do trabalho, e deixe a interpretação (discussão, limitações,
+    conclusão) para o Eduardo — a banca vai perguntar a ele, não a mim.
+13. **Coerência TC I → TC II é parte da entrega.** O TC I descreve um plano no futuro;
+    onde o executado diverge (dataset, 5-fold, kernel do SVM, busca da CNN, métricas),
+    o texto declara e justifica a divergência. A lista está nos comentários do
+    `TC2_EDUARDO_ZANELLA.docx` e em `B6_redacao_e_fechamento.md` §0.3.
 
 Antes de qualquer resposta sobre código ou resultados, **leia os arquivos reais da
 pasta indexada**. Ao mexer em código, comente as decisões de design. **Nunca** rode a
@@ -483,13 +513,37 @@ o refit nos 30k remove o privilégio que RF e SVM não tiveram**.
   heurística — o que decide é o bootstrap pareado, que não mudou.
 - **O bootstrap cobre a aleatoriedade do treino?** — não: reamostra a avaliação. A
   variância de treino é a das sementes (RF: ±0,0004; SVM: determinístico; CNN: semente
-  única, limitação declarada ou fila item 2).
+  única, limitação declarada e definitiva desde 24/09).
 - **Como o EER é calculado** — no vértice da ROC mais próximo de FPR = FNR, sem
   interpolação; a diferença para o EER interpolado é ≤ 0,0003 nos quatro modelos.
+
+**Acrescentadas em 24/09 — coerência com o TC I** (respostas em `APENDICE_B_banca.md` §13):
+
+- **«Seu referencial (Müller et al., 2022) diz que CQT supera Mel. Por que Log-Mel?»**
+  — paridade de front-end com o MFCC; CQT é trabalho futuro.
+- **«O RF tem acurácia abaixo de um classificador que sempre diz spoof?»** — sim
+  (0,8940 × 0,9000 no teste), e é exatamente por isso que o critério é o f1_macro.
+- **«O TC I prometia buscar o kernel do SVM e fazer Random Search na CNN.»** — kernel
+  fixo em RBF e grade curta de 6 configurações na CNN; declarar e justificar.
+- **«Onde está o 5-fold que o TC I prometia para a robustez?»** — dentro do treino, na
+  busca de RF e SVM; a robustez da comparação vem do bootstrap pareado.
 
 ---
 
 ## Histórico de revisões
+
+**24/09/2026 (mudança de fase)** — o orientador declarou o experimental concluído e
+proibiu novos experimentos salvo erro grave. Mudou:
+
+1. *Contexto*: experimental encerrado; redação começa em 24/09; a monografia passa a
+   viver em `docs/monografia/TC2_EDUARDO_ZANELLA.docx`.
+2. *Fila do tempo excedente* e *decisão 6*: as 3 sementes da CNN foram **canceladas**;
+   limitação 9 definitiva. B6.6 (reprodutibilidade) esclarecido como não-experimento.
+3. *Cronograma* e *lista picada*: B6.1 de 24/09 a 03/10; meta interna de envio 02/10;
+   estrutura de 6 capítulos e divisão mista da redação.
+4. *Papel do Claude*: itens 12 (nenhum número de memória; interpretação é do aluno) e
+   13 (coerência TC I → TC II é parte da entrega).
+5. *Frentes de banca*: quatro perguntas de coerência com o TC I.
 
 **23/09/2026 (pós-Bloco 5)** — mudou:
 

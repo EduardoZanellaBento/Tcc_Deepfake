@@ -120,7 +120,7 @@ briefing seguinte.
 
 ---
 
-## 4. Estado do repositório em 23/09/2026
+## 4. Estado do repositório em 24/09/2026
 
 > **Esta seção é datada de propósito e precisa ser atualizada ao fechar cada
 > marco.** Ela existe para que uma sessão nova não precise inspecionar o
@@ -146,7 +146,9 @@ briefing seguinte.
 | Figuras de matriz de confusão | regeradas em 23/09 (correção de título cortado); regeram-se com `scripts/replotar_matrizes_confusao.py`, sem retreinar |
 | ramo git | `master` (não `main`) |
 | último commit | `c07390b` — *B5.2: comparacao experimental fechada — RF x SVM x CNN* (+ o commit de revisão das leituras e dos documentos de estado) |
-| **próximo marco** | **B6.1 — redação** (`B6_redacao_e_fechamento.md`) |
+| **Experimental** | **encerrado pelo orientador em 24/09** — «não autorizo novos experimentos, salvo erro grave». As 3 sementes da CNN estão canceladas (limitação 9 definitiva) |
+| **Monografia** | `docs/monografia/TC2_EDUARDO_ZANELLA.docx` — esqueleto dos Caps. 3–6, numeração ABNT, 21 comentários de coerência TC I → executado (24/09). `TC1_EDUARDO_ZANELLA.docx` fica intocado |
+| **marco em curso** | **B6.1 — redação, desde 24/09** (`B6_redacao_e_fechamento.md` §0: plano diário, divisão do trabalho, matriz de coerência). Próxima sessão: rascunho do Cap. 3 |
 
 **Resultado final no teste lacrado (22.227), execução única, limiar escolhido na
 validação:**
