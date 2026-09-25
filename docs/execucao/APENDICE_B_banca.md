@@ -657,9 +657,12 @@ ambiente**, com as condições de ataque e codec presentes no treino dos três. 
 universo é o eval do 2021 com partição interna, como o TC I já previa. O preço está
 declarado: métricas otimistas e não comparáveis ao 1,32% (limitação 1), e nada se
 afirma sobre ataques não vistos — inclusive se a ordem CNN > SVM > RF se mantém lá.
-Protocolo oficial = trabalho futuro. **Não invente motivo histórico:** o da época não
-foi registrado (o repositório não menciona o 2019 desde o primeiro commit, 26/06); o
-que se defende é o desenho, não a cronologia.
+Protocolo oficial = trabalho futuro. **Sobre a origem, diga só o que está registrado:**
+o 2021 LA foi escolhido no TC I (§1.3), quando o orientador pediu que a versão fosse
+definida, pela representatividade de cenários reais (codecs e canais) e pelo uso na
+literatura recente — e o TC I foi aprovado com essa escolha e com a partição 70/15/15.
+Se perguntarem «vocês consideraram treinar no 2019?»: não há registro de que tenha
+sido considerado — diga isso e defenda o desenho.
 
 **«O TC I prometia Random Search na CNN, com taxa de aprendizado, filtros e dropout.»**
 Os três eixos foram explorados, mas em **grade curta**: 6 configurações em duas fases —

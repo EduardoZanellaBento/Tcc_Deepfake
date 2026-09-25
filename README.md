@@ -28,9 +28,13 @@ ASVspoof 2021 — subconjunto **Logical Access (LA)**.
 > desenvolvimento do **ASVspoof 2019 LA** (ataques A01–A06, sem codecs de transmissão)
 > e testados no 2021 LA, cujos ataques (A07–A19) são em maioria ausentes do treino e
 > cujos áudios passam por codecs e canais telefônicos: esse protocolo mede
-> **generalização** a ataques e canais não vistos. Este trabalho **não** o seguiu, e o
-> motivo não foi registrado na época — o TC I já definia o 2021 LA com partição
-> interna 70/15/15, e só o `ASVspoof2021_LA_eval` foi baixado (`data/raw/`). A
+> **generalização** a ataques e canais não vistos. Este trabalho **não** o seguiu. A
+> origem, reconstituída em 25/09 a partir das conversas de abril–maio: a escolha do
+> 2021 LA foi feita no TC I (§1.3), em resposta ao pedido do orientador de definir a
+> versão («2019-LA? 2021?»), justificada pela representatividade de cenários reais
+> (codecs e canais de transmissão) e pelo uso na literatura recente; a partição
+> interna 70/15/15 também vem do TC I, e só o `ASVspoof2021_LA_eval` foi baixado
+> (`data/raw/`). Não há registro de que o protocolo oficial tenha sido considerado. A
 > justificativa do desenho é a pergunta de pesquisa: comparar famílias de modelos **no
 > mesmo ambiente**, com as mesmas condições de ataque e de codec presentes no treino
 > dos três. O preço está declarado na «Limitação declarada do split», abaixo: métricas
