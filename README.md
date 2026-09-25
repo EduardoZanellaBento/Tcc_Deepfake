@@ -23,6 +23,20 @@ ASVspoof 2021 — subconjunto **Logical Access (LA)**.
 > de chaves (labels), e aplicar split interno estratificado (70/15/15) + Stratified 5-Fold
 > Cross-Validation. Limitação assumida: não há teste de generalização cross-dataset.
 
+> **Protocolo oficial × protocolo deste trabalho (registrado em 25/09/2026).** No
+> desafio, os sistemas avaliados no 2021 LA são treinados com as partições de treino e
+> desenvolvimento do **ASVspoof 2019 LA** (ataques A01–A06, sem codecs de transmissão)
+> e testados no 2021 LA, cujos ataques (A07–A19) são em maioria ausentes do treino e
+> cujos áudios passam por codecs e canais telefônicos: esse protocolo mede
+> **generalização** a ataques e canais não vistos. Este trabalho **não** o seguiu, e o
+> motivo não foi registrado na época — o TC I já definia o 2021 LA com partição
+> interna 70/15/15, e só o `ASVspoof2021_LA_eval` foi baixado (`data/raw/`). A
+> justificativa do desenho é a pergunta de pesquisa: comparar famílias de modelos **no
+> mesmo ambiente**, com as mesmas condições de ataque e de codec presentes no treino
+> dos três. O preço está declarado na «Limitação declarada do split», abaixo: métricas
+> otimistas, não comparáveis às do desafio, e nenhuma afirmação sobre ataques não
+> vistos. O protocolo oficial fica como trabalho futuro.
+
 ## Decisões metodológicas fechadas (aprovadas pelo orientador)
 
 1. **Subamostra estratificada única de ~30k para o treino compartilhado.**
@@ -83,7 +97,7 @@ do universo 181.566, está preservado em `data/processed/split_181k.csv` (hash
 O split é aleatório **por utterance**: cada ataque (A07–A19), codec e locutor aparece
 em treino E teste. O modelo pode memorizar a assinatura de um vocoder/locutor
 específico, então as métricas são **potencialmente otimistas** e **não comparáveis**
-ao EER de 1,32% de Yamagishi et al. (2022), cujo protocolo é deliberadamente
+ao EER de 1,32% de Yamagishi et al. (2021), cujo protocolo é deliberadamente
 cross-attack. Mitigação adotada: métricas por ataque (`diagnostico_por_ataque.py`) e
 por codec (`diagnostico_por_codec.py`).
 

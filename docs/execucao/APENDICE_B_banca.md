@@ -638,11 +638,28 @@ trivial tem recall de bonafide zero e f1_macro ≈ 0,47. A acurácia está repor
 não decide nada.
 
 **«O TC I prometia buscar o tipo de kernel do SVM. Por que só RBF?»**
-O kernel foi fixado em RBF e a busca cobriu C, gamma e `class_weight`. Com gamma pequeno
-o RBF se comporta assintoticamente como o kernel linear (KEERTHI; LIN, 2003), e o espaço
-de busca desceu até gamma = 1e-4; o RBF é também a escolha inicial recomendada
-(HSU; CHANG; LIN, 2003). Buscar kernel polinomial teria multiplicado um custo que já
-impôs a subamostra de 30 mil. É uma divergência do plano, e está declarada no Cap. 3.7.
+Resposta honesta: foi decisão de implementação, e a busca de kernel não foi feita. A
+justificativa, registrada em `NOTA_RF_VS_SVM.md` §4: o RBF é a escolha inicial
+recomendada (HSU; CHANG; LIN, 2003) e contém o linear como caso limite quando γ → 0
+(KEERTHI; LIN, 2003). A busca desceu γ até 1e-4, e os 7 candidatos nesse regime quase
+linear (γ ≤ 1e-3) tiveram EER de validação cruzada de 0,187 a 0,290, contra 0,153 do
+melhor. Não é comparação de kernels — polinomial e sigmoide não foram avaliados — e não
+dá para alegar custo: a busca inteira levou 392 s. Limitação 15. **Se perguntarem
+«decidiu antes ou justificou depois?»: depois — e diga isso.**
+
+**⚑ «Por que vocês não seguiram o protocolo oficial — treinar no ASVspoof 2019 LA e
+avaliar no 2021?»**
+O 2021 LA não tem treino próprio: no desafio, treina-se no 2019 LA (ataques A01–A06,
+sem codecs) e avalia-se no 2021 (A07–A19, em maioria ausentes do treino, com codecs e
+canal telefônico). Isso mede **generalização a ataques e canais não vistos** — é a
+pergunta do desafio. A deste trabalho é outra: comparar famílias de modelos **no mesmo
+ambiente**, com as condições de ataque e codec presentes no treino dos três. Por isso o
+universo é o eval do 2021 com partição interna, como o TC I já previa. O preço está
+declarado: métricas otimistas e não comparáveis ao 1,32% (limitação 1), e nada se
+afirma sobre ataques não vistos — inclusive se a ordem CNN > SVM > RF se mantém lá.
+Protocolo oficial = trabalho futuro. **Não invente motivo histórico:** o da época não
+foi registrado (o repositório não menciona o 2019 desde o primeiro commit, 26/06); o
+que se defende é o desenho, não a cronologia.
 
 **«O TC I prometia Random Search na CNN, com taxa de aprendizado, filtros e dropout.»**
 Os três eixos foram explorados, mas em **grade curta**: 6 configurações em duas fases —

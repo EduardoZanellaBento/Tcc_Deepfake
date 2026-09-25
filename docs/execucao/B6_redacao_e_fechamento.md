@@ -78,9 +78,9 @@ declara e justifica — não esconde. Cada item tem um comentário ancorado no `
 |---|---|---|---|
 | 1 | Resumo/§1.3 no futuro; «validação cruzada para robustez» | protocolo executado; robustez = bootstrap pareado | Resumo (reescrever por último); §1.3 vira resumo no passado que remete ao Cap. 3 |
 | 2 | duas perguntas diferentes (§1 e §1.2) | a respondida é a do §1.2 | §1, último parágrafo |
-| 3 | «ASVspoof 2021 LA», 70/15/15 | só a partição `eval` (148.176); progress/hidden excluídos; o 2021 LA não tem treino/dev próprios | 3.2 |
+| 3 | «ASVspoof 2021 LA», 70/15/15 | só a partição `eval` (148.176); progress/hidden excluídos; o 2021 LA não tem treino/dev próprios; **o protocolo oficial (treino no 2019 LA) não foi seguido** — motivo da época não registrado, justificativa pelo desenho em README §Dataset (25/09) | 3.2 e limitação 1 |
 | 4 | 5-fold para mitigar a variância da partição | 5-fold só dentro do treino (busca de RF/SVM); CNN com 27k/3k + refit | 3.6 |
-| 5 | busca do tipo de kernel no SVM | kernel fixo em RBF (gamma loguniform 1e-4–1e-1) | 3.7 — justificar (Keerthi; Lin, 2003; Hsu; Chang; Lin, 2003) |
+| 5 | busca do tipo de kernel no SVM | kernel fixo em RBF (gamma loguniform 1e-4–1e-1), sem busca de kernel | 3.7 — justificativa e evidência em `NOTA_RF_VS_SVM.md` §4 (redigida em 25/09, a posteriori); limitação 15 |
 | 6 | Random Search na CNN (lr, filtros, dropout) | grade curta de 6 configurações (arquitetura × dropout × lr) — Random Search descartado pela regra de escopo, 12–18 min por treino | 3.7 |
 | 7 | métricas: acurácia, precisão, recall, F1 | + EER, ROC-AUC, tempo; critério f1_macro (RF: acurácia 0,8940 < trivial 0,9000) | 3.8 e objetivos específicos |
 | 8 | «class weights na função de perda» | RF/SVM `class_weight`; só a CNN tem perda ponderada (9:1) | 3.6–3.7 |
@@ -147,7 +147,7 @@ escrever resultados: ela organiza o que você pode e o que não pode afirmar.
 
 | # | limitação | origem |
 |---|---|---|
-| 1 | **Split aleatório por utterance**: cada ataque, codec e locutor aparece em treino e teste. Métricas potencialmente otimistas e **não comparáveis** ao EER de 1,32% de Yamagishi et al. (2022), cujo protocolo é cross-attack. Mitigação: métricas por ataque e por codec | `README` |
+| 1 | **Split aleatório por utterance**: cada ataque, codec e locutor aparece em treino e teste. Métricas potencialmente otimistas e **não comparáveis** ao EER de 1,32% de Yamagishi et al. (2021), cujo protocolo treina no ASVspoof 2019 LA e avalia no 2021 LA, com ataques em maioria não vistos. Este trabalho não seguiu o protocolo oficial (motivo da época não registrado; justificativa pelo desenho em `README` §Dataset). Nada se afirma sobre ataques não vistos — nem se a ordem CNN > SVM > RF se mantém lá. Mitigação: métricas por ataque e por codec | `README` |
 | 2 | **Sem generalização cross-dataset**: o ASVspoof 2021 LA não fornece treino/dev próprios; usou-se o `eval` com split interno | `README` |
 | 3 | **`progress` e `hidden` excluídos** por controle metodológico (o `hidden` tem silêncio pré-cortado na origem) | config `dataset:` |
 | 4 | **Subamostra de 30k custa desempenho real**: a curva de aprendizado do RF não satura; extrapolando, o RF precisaria de ~276.116 áudios para alcançar o SVM — 1,86× o universo eval. **É extrapolação log-linear fora da faixa medida (5.000–103.723), não medição: escreva como ordem de grandeza e limite otimista** — a curva tende a achatar, então o n real seria maior. A subamostra foi imposta pela complexidade O(n²)–O(n³) do SVM-RBF | `extrapolacao_curva_rf.json → limitacao` |
@@ -161,6 +161,7 @@ escrever resultados: ela organiza o que você pode e o que não pode afirmar.
 | 12 | **Hardware único**: todas as medições numa máquina (Windows 10, RTX 5060 Ti). Tempos são indicativos de ordem de grandeza, não benchmark. **Medido:** os tempos variaram 4,1–13,7% entre duas sessões da mesma máquina (`reproducao_cnn.json`), por isso CNN-GPU (4,58 ms) e SVM (4,92 ms) são empate prático, não ordem | config `tempo:` · B5.2 |
 | 13 | **Hipótese da banda larga na CNN não decidida**: o ganho da CNN com banda larga é o maior em termos relativos e não o maior em termos absolutos, e não há IC para a diferença entre ganhos | `COMPARACAO_FINAL.md` §6 |
 | 14 | **Por ataque, amplitude sem IC**: a comparação «amplitude entre ataques × distância entre modelos» usa um piso de ruído (1,96·dp do ΔEER pareado), não um IC da amplitude, que vem de subconjuntos menores | `COMPARACAO_FINAL.md` §6 |
+| 15 | **Kernel do SVM fixo em RBF**, sem busca de kernel (o TC I §1.3 prometia). Polinomial e sigmoide não avaliados. Indício já medido no 5-fold: os candidatos no regime quase linear (γ ≤ 1e-3) tiveram EER de 0,187 a 0,290, contra 0,153 do melhor — indício, **não** comparação de kernels. Não alegar custo: a busca inteira levou 392 s | `NOTA_RF_VS_SVM.md` §4 · `svm_random_search_cv.csv` |
 
 Acrescente as que aparecerem, e nunca omita uma para o texto ficar mais bonito. A
 credibilidade deste trabalho está construída em cima de limitações declaradas — é o
@@ -260,7 +261,7 @@ Checklist de 04/10:
 - [ ] todos os capítulos escritos, inclusive conclusão e trabalhos futuros
 - [ ] todas as tabelas com números lidos dos artefatos
 - [ ] todas as figuras inseridas, numeradas e referenciadas no texto
-- [ ] limitações completas (as 14 acima + as que apareceram)
+- [ ] limitações completas (as 15 acima + as que apareceram)
 - [ ] referências e citações no lugar
 - [ ] ABNT: a base é o `TC1_EDUARDO_numeracao_ABNT.pdf` já aprovado — **reuse a
       formatação**, não recomece (feito: `TC2_EDUARDO_ZANELLA.docx` nasceu do `.docx`

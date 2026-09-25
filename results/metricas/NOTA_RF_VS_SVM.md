@@ -207,3 +207,50 @@ Duas leituras, as duas citáveis:
    vantagem do SVM não é acidente de qual subamostra caiu. Pela regra do item 6
    do protocolo do orientador, o caso que exigiria ressalva no texto seria o
    inverso — e não é o que se observa.
+
+---
+
+## 4. O kernel fixo em RBF — registro de 25/09/2026
+
+> **Origem, sem retoque.** O kernel foi fixado em RBF na implementação do B3.5
+> (`treinar_svm.py` já nasce como «SVM (RBF)»; commit `c0c4055`, 02/09) e **não houve
+> busca de kernel**, embora o TC I (§1.3) prometesse incluir «o tipo de kernel» no
+> espaço de busca. O motivo não foi registrado na época. O que segue é a
+> **justificativa técnica, redigida em 25/09**, e a evidência que **já estava** nos
+> artefatos — nenhum experimento novo (a fase experimental foi encerrada pelo
+> orientador em 24/09).
+
+**Justificativa técnica.**
+
+1. **O RBF é a escolha inicial recomendada** para classificação com SVM
+   (HSU; CHANG; LIN, 2003): com dois hiperparâmetros (C e γ) produz fronteiras não
+   lineares, sem os parâmetros extras do kernel polinomial (grau, coef0), que também
+   tem dificuldades numéricas em graus altos.
+2. **O RBF contém o kernel linear como caso limite:** com γ → 0 e C reescalado, o
+   SVM-RBF converge para o SVM linear (KEERTHI; LIN, 2003). Como a busca amostrou γ em
+   escala logarítmica até 1e-4, o regime quase linear esteve **dentro** do espaço
+   explorado.
+3. **Evidência já medida** (`svm_random_search_cv.csv`, 5-fold no treino do braço
+   principal): os **7 candidatos com γ ≤ 1e-3** — o regime em que o RBF se aproxima do
+   linear — tiveram EER médio de validação cruzada entre **0,187 e 0,290**; o melhor
+   candidato (γ = `'scale'`, que com features padronizadas vale 1/44) ficou em
+   **0,1528** (`svm_random_search.json → melhor`). A busca preferiu, com folga, o
+   regime não linear — coerente com a hipótese da seção 2 (fronteira suave e curva
+   num espaço denso de 44 dimensões).
+
+**O que isso não prova — limitação 15 do B6.** Não é comparação de kernels: a
+equivalência exata com o linear exige C escalado com 1/γ, o que a busca não
+controlou, e os kernels polinomial e sigmoide não foram avaliados. **Custo não é
+argumento:** a busca inteira do SVM levou 392 s (`svm_random_search.json →
+tempo_busca_s`), então incluir o tipo de kernel teria custado minutos. Aplicando a
+regra de escopo: não impede a validade da comparação (RF, SVM e CNN seguem medidos
+pela mesma régua, e o SVM já é o segundo colocado) — registra-se como **limitação** e
+**trabalho futuro**.
+
+**Como escrever no Cap. 3.7:** «O kernel foi fixado em RBF, escolha inicial
+recomendada por Hsu, Chang e Lin (2003) e que contém o kernel linear como caso limite
+(KEERTHI; LIN, 2003). A busca de γ, em escala logarítmica até 10⁻⁴, incluiu esse
+regime quase linear, cujos candidatos obtiveram EER de validação cruzada entre 0,187
+e 0,290, contra 0,153 do melhor candidato. Outros kernels não foram avaliados, o que
+se registra como limitação.» **Nunca** escrever que «o RBF superou o kernel linear»:
+isso não foi testado.
