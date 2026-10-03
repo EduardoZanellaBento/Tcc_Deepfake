@@ -1,0 +1,21 @@
+# MD5 registrados nos artefatos (results/metricas/*.json, data/**/*.json) e no Quadro 4
+# do TC II foram calculados sobre a forma CRLF em que estes arquivos foram gerados no
+# Windows. O Git guarda LF; sem as linhas abaixo, um clone no Linux ou no Mac e o ZIP do
+# GitHub entregam LF e os hashes não batem. Caminho explícito por arquivo, sem curinga,
+# para não pegar binário nem arquivo cujo MD5 registrado é o da forma LF.
+data/espectrogramas/normalizacao_cnn.json text eol=crlf
+data/espectrogramas/normalizacao_cnn_30k.json text eol=crlf
+data/processed/split.csv text eol=crlf
+data/processed/split_181k.csv text eol=crlf
+data/processed/split_interno_cnn.csv text eol=crlf
+data/processed/subamostra_30k.csv text eol=crlf
+data/processed/subamostras_estabilidade/subamostra_30k_seed43.csv text eol=crlf
+data/processed/subamostras_estabilidade/subamostra_30k_seed44.csv text eol=crlf
+data/processed/subamostras_estabilidade/subamostra_30k_seed45.csv text eol=crlf
+results/metricas/_pre_revisao/cnn_final_principal.json text eol=crlf
+results/metricas/cnn_final_principal.json text eol=crlf
+src/models/avaliacao.py text eol=crlf
+src/models/definir_cnn.py text eol=crlf
+src/models/modelos_ajustados.py text eol=crlf
+src/models/tempo.py text eol=crlf
+src/models/validar_cnn.py text eol=crlf

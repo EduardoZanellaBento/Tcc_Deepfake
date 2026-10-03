@@ -126,6 +126,14 @@ def analisar_bordas(espaco: dict, params: dict) -> dict:
     Returns:
         dict por hiperparâmetro com o valor ótimo, onde ele caiu e se a faixa
         censura a busca naquela direção — mais um resumo textual para o TC II.
+
+    Correção de 30/09/2026 (só rótulo, nenhum número muda): no ramo das
+    distribuições do SciPy, `dominio.a` e `dominio.b` já são os limites do
+    SUPORTE (5 e 20 para randint(5, 21)); o código subtraía 1 de novo e
+    escrevia "randint(5, 20) -> [5, 19]". Agora usa `dominio.support()` sem
+    subtrair e escreve os parâmetros originais (`dominio.args`):
+    "randint(5, 21) -> [5, 20]". Efeito colateral corrigido: um ótimo em 20
+    passa a ser marcado como limite superior.
     """
     analise = {}
     for nome, valor in params.items():
@@ -164,15 +172,17 @@ def analisar_bordas(espaco: dict, params: dict) -> dict:
             }
         elif hasattr(dominio, "a") and hasattr(dominio, "b"):
             # randint(a, b): suporte [a, b-1]. É o caso do min_samples_leaf,
-            # cuja faixa é exigência do orientador.
-            baixo, alto = int(dominio.a), int(dominio.b) - 1
+            # cuja faixa é exigência do orientador. Na distribuição congelada,
+            # `a` e `b` já são o suporte: usar support() sem subtrair.
+            baixo, alto = (int(x) for x in dominio.support())
             if valor not in (baixo, alto):
                 continue
             analise[nome] = {
                 "valor_otimo": valor,
                 "posicao": ("limite INFERIOR da faixa" if valor == baixo
                             else "limite SUPERIOR da faixa"),
-                "dominio": f"randint({dominio.a}, {dominio.b}) -> [{baixo}, {alto}]",
+                "dominio": (f"randint({', '.join(str(int(x)) for x in dominio.args)}) "
+                            f"-> [{baixo}, {alto}]"),
                 "censurado": True,
                 "nota": (f"o ótimo ({valor}) ficou no limite "
                          f"{'inferior' if valor == baixo else 'superior'} da "

@@ -51,7 +51,7 @@
       "min_samples_leaf": {
         "valor_otimo": 5,
         "posicao": "limite INFERIOR da faixa",
-        "dominio": "randint(5, 20) -> [5, 19]",
+        "dominio": "randint(5, 21) -> [5, 20]",
         "censurado": true,
         "nota": "o ótimo (5) ficou no limite inferior da faixa; valores além dele não foram explorados por DECISÃO DE PROTOCOLO (faixa exigida pelo orientador, config.yaml -> tuning)"
       },

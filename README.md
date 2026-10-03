@@ -514,6 +514,25 @@ estão em `docs/execucao/HASHES_MODELOS.txt`: confira o hash de qualquer arquivo
 baixado antes de usá-lo. Os números do teste não dependem desse download: os scores
 estão versionados em `results/metricas/scores_teste_lacrado.csv`.
 
+### MD5 e quebra de linha
+
+Os MD5 registrados nos artefatos (`results/metricas/*.json`, `data/**/*.json`) e no
+Quadro 4 do TC II foram calculados sobre os arquivos na forma em que foram gerados, no
+Windows, com quebra de linha CRLF. O Git guarda esses arquivos com LF, e um clone no
+Linux ou no Mac (ou o ZIP do GitHub) entregaria LF, com outro MD5. Por isso o
+`.gitattributes` da raiz lista cada um deles, por caminho, com `text eol=crlf`: em
+qualquer sistema, o checkout escreve esses arquivos com CRLF e os hashes batem.
+Conferência (o `split.csv` deve dar `9143f0c7b83ec2db4aa144ed5deb3402`, o mesmo de
+`hashes.split` em `results/metricas/teste_lacrado.json`):
+
+```bash
+md5sum data/processed/split.csv                          # Linux e Mac
+Get-FileHash -Algorithm MD5 data/processed/split.csv     # PowerShell
+```
+
+Num clone feito antes de o `.gitattributes` existir, basta clonar de novo ou usar
+`git -c core.autocrlf=true clone ...`.
+
 ## Mapa pasta × cronograma do TC II
 
 | Foco                         | Onde mexe                          |
